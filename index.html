@@ -230,6 +230,9 @@ kbd{font-size:max(7px,1.05cqw);padding:.45cqw .8cqw}
 .orow{display:grid;grid-template-columns:9.5cqw 1fr;align-items:center;gap:1cqw;margin:.45cqw 0}
 .orow small{font-size:max(6px,.85cqw)}
 button.mini{padding:.5cqw .8cqw;margin:.15cqw;font-size:max(6px,.9cqw)}
+.plist{display:flex;gap:1.6cqw;justify-content:center;margin:1.2cqw 0;flex-wrap:wrap}
+.pl{display:flex;flex-direction:column;align-items:center;gap:.5cqw;background:#0a0c1c99;border:2px solid #3a4a8a;padding:1cqw 1.6cqw;min-width:11cqw}
+.pl.me{border-color:var(--gold)}.pl canvas{width:7cqw;height:8cqw;image-rendering:pixelated}
 </style></head><body>
 <div id="w">
   <canvas id="c"></canvas>
@@ -296,10 +299,11 @@ try {
   Object.assign(V, JSON.parse(localStorage.getItem('ps_v') || '{}'));
 } catch(e){}
 V.av = Object.assign({ skin: '#f2c18d', hair: '#5a3a22', shirt: '#3b82f6', acc: 0, name: 'Jugador', hs: 0, ec: '#111111', os: 0, pn: '#3a3a5c' }, V.av);
+let DB = null;   // inventario real guardado mientras dura una partida de mazmorras
 const save = () => {
   try {
     localStorage.setItem('ps_s', JSON.stringify(S));
-    localStorage.setItem('ps_v', JSON.stringify(V));
+    localStorage.setItem('ps_v', JSON.stringify(DB ? Object.assign({}, V, DB) : V));
   } catch(e){}
 };
 setInterval(save, 5000);
@@ -350,14 +354,26 @@ const EN = [
   { n: 'Esqueleto', hp: 6, sp: 25, c: [3, 5], u: 2, wt: 2, r: 6, cy: 10, ranged: 1 },
   { n: 'Ojo Abisal', hp: 5, sp: 36, c: [3, 6], u: 3, wt: 2, r: 6, cy: 8, nc: 1, burst: 1 },
   { n: 'Kamikaze', hp: 4, sp: 65, c: [2, 4], u: 2, wt: 2, r: 5, cy: 6, bomb: 1 },
-  { n: 'Caballero Negro', hp: 16, sp: 22, c: [6, 10], u: 4, wt: 1, r: 8, cy: 12, shield: 1 },
+  { n: 'Caballero Negro', hp: 16, sp: 22, c: [6, 10], u: 4, wt: 1, r: 8, cy: 12, shield: 1, charger: 1 },
   // NUEVOS JEFES DE MAZMORRA BRUTALES
   { n: 'Rey Ojo del Abismo', hp: 320, sp: 26, c: [50, 70], boss: 1, r: 16, cy: 14, dBoss: 1 },
   { n: 'Reina Ácida', hp: 420, sp: 24, c: [60, 80], boss: 1, r: 15, cy: 13, dBoss: 2 },
   { n: 'Coloso de Magma', hp: 540, sp: 20, c: [70, 95], boss: 1, r: 18, cy: 17, dBoss: 3 },
   { n: 'Caballero del Vacío', hp: 680, sp: 27, c: [85, 115], boss: 1, r: 14, cy: 15, dBoss: 4 },
-  { n: 'Soberano del Inframundo', hp: 920, sp: 28, c: [120, 160], boss: 1, r: 19, cy: 18, dBoss: 5 }
+  { n: 'Soberano del Inframundo', hp: 920, sp: 28, c: [120, 160], boss: 1, r: 19, cy: 18, dBoss: 5 },
+  { n: 'Embestidor', hp: 9, sp: 30, c: [3, 6], u: 2, wt: 2, r: 7, cy: 10, charger: 1 },
+  { n: 'Invocador', hp: 14, sp: 24, c: [5, 9], u: 3, wt: 1, r: 6, cy: 12, summoner: 1 },
+  { n: 'Arquero', hp: 7, sp: 28, c: [3, 6], u: 3, wt: 2, r: 5, cy: 11, sniper: 1 },
+  { n: 'Araña', hp: 8, sp: 52, c: [3, 6], u: 4, wt: 2, r: 6, cy: 6, spider: 1 }
 ];
+const dPool = fl => {
+  const p_ = [0, 1, 12, 14, 9];
+  if(fl >= 2) p_.push(2, 10, 13, 21);
+  if(fl >= 3) p_.push(3, 11, 22, 21);
+  if(fl >= 4) p_.push(15, 23, 4);
+  if(fl >= 5) p_.push(24, 15, 22);
+  return p_;
+};
 
 const BOSS = [5, 6, 7, 8];
 const D_BOSSES = [16, 17, 18, 19, 20];
@@ -535,6 +551,12 @@ function genDungeon(floor, sd){
   // Tienda / Altar
   if(deadEnds.length > 2){ deadEnds[2].type = 'shop'; deadEnds[2].cleared = true; }
 
+  // Salas especiales extra: fuente curativa y desafío
+  const combatRooms = Object.values(rooms).filter(r => r.type === 'combat' && (r.x !== 0 || r.y !== 0));
+  const takeRoom = () => combatRooms.length ? combatRooms.splice(Math.floor(pr() * combatRooms.length), 1)[0] : null;
+  if(pr() < .75){ const f_ = takeRoom(); if(f_){ f_.type = 'fountain'; f_.cleared = true; } }
+  if(floor >= 2 && pr() < .7){ const c_ = takeRoom(); if(c_) c_.type = 'challenge'; }
+
   // Generar obstáculos y patrones de interior para cada sala
   for(const k in rooms) setupRoomInterior(rooms[k], th, floor, pr);
 
@@ -546,13 +568,33 @@ function genDungeon(floor, sd){
   enterRoom('0,0', true);
 }
 
+function decorate(r, th, pr, fl){
+  r.dec = [];
+  const cx = r.w >> 1, bad = x => r.doors.n && x >= cx - 2 && x <= cx + 1;
+  const nT = 2 + Math.floor(pr() * 3);
+  for(let i = 0; i < nT; i++){ const x = 2 + Math.floor(pr() * (r.w - 4)); if(!bad(x) && !r.dec.some(d => d.x === x)) r.dec.push({ t: 'torch', x, y: 0 }); }
+  const cols = ['#7f1d1d', '#1e3a8a', '#581c87', '#14532d'];
+  for(let i = 0, n = Math.floor(pr() * 3); i < n; i++){
+    const x = 2 + Math.floor(pr() * (r.w - 4));
+    if(!bad(x) && !r.dec.some(d => d.x === x && d.y === 0)) r.dec.push({ t: 'banner', x, y: 0, c: cols[Math.floor(pr() * cols.length)] });
+  }
+  const kinds = [['bone', 'skull', 'crack', 'blood', 'bone'], ['moss', 'moss', 'crack', 'skull', 'blood'], ['lava', 'lava', 'crack', 'skull', 'bone'], ['rune', 'rune', 'crack', 'skull', 'bone'], ['rune', 'crack', 'crack', 'skull', 'blood']][(fl - 1) % 5];
+  const n = 7 + Math.floor(pr() * 9);
+  for(let i = 0; i < n; i++) r.dec.push({ t: kinds[Math.floor(pr() * kinds.length)], x: 2 + Math.floor(pr() * (r.w - 4)), y: 2 + Math.floor(pr() * (r.h - 4)) });
+}
+
 function setupRoomInterior(r, th, fl, pr){
-  r.obs = []; r.ep = [];
-  if(r.type === 'start') return;
+  r.obs = []; r.ep = []; r.eps = []; r.props = []; r.spk = []; r.wave = 0; r.waves = 1;
+  decorate(r, th, pr, fl);
+  const cx = r.w >> 1, cy = r.h >> 1;
+  if(r.type === 'start'){ r.rug = true; return; }
   if(r.type === 'treasure'){
-    // Item en pedestal garantizado
-    r.item = pr() < 0.5 ? { t: 'relic', i: Math.floor(pr() * RELICS.length) }
-                        : { t: 'wp', i: 1 + Math.floor(pr() * (WP.length - 1)) };
+    r.item = pr() < 0.5 ? { t: 'relic', i: Math.floor(pr() * RELICS.length) } : { t: 'wp', i: 1 + Math.floor(pr() * (WP.length - 1)) };
+    r.rug = true;
+    if(pr() < .4){
+      for(const [dx, dy] of [[-2,-1],[-2,0],[-2,1],[2,-1],[2,0],[2,1],[-1,-2],[0,-2],[1,-2],[-1,2],[0,2],[1,2]]) r.spk.push({ x: cx + dx, y: cy + dy });
+      r.trap = true;
+    }
     return;
   }
   if(r.type === 'shop'){
@@ -561,34 +603,77 @@ function setupRoomInterior(r, th, fl, pr){
       { t: 'armor', pr: 25, n: 'Armadura' },
       { t: 'relic', pr: 45, i: Math.floor(pr() * RELICS.length), n: 'Reliquia' }
     ];
+    r.rug = true;
     return;
   }
+  if(r.type === 'fountain') return;
 
-  // Obstáculos procedurales en salas de combate
-  const pat = Math.floor(pr() * 5);
-  if(pat === 0){
-    // 4 Pilares simétricos
-    r.obs.push({ x: 4, y: 3 }, { x: 15, y: 3 }, { x: 4, y: 7 }, { x: 15, y: 7 });
-  } else if(pat === 1){
-    // Rocas centrales
-    r.obs.push({ x: 9, y: 4 }, { x: 10, y: 4 }, { x: 9, y: 6 }, { x: 10, y: 6 });
-  } else if(pat === 2){
-    // Barricadas en esquinas
-    r.obs.push({ x: 3, y: 2 }, { x: 4, y: 2 }, { x: 15, y: 2 }, { x: 16, y: 2 });
-  }
-
-  // Enemigos de la sala
-  if(r.type === 'combat'){
-    const count = 3 + Math.min(8, Math.floor(fl * 1.3 + pr() * 3));
-    const pool = [0, 1, 2, 3, 9, 10, 11, 12, 13, 14]; // Slimes, esqueletos, kamikazes, etc.
-    for(let i = 0; i < count; i++){
-      const k = pool[Math.floor(pr() * pool.length)];
-      r.ep.push({ k, rx: 4 + pr() * (r.w - 8), ry: 2.5 + pr() * (r.h - 5) });
+  // ---- zona reservada junto a las puertas + utilidades de colocación
+  const near = (x, y) => {
+    const c = (dx, dy) => Math.abs(x - dx) <= 2 && Math.abs(y - dy) <= 2;
+    return (r.doors.n && (c(cx, 1) || c(cx - 1, 1))) || (r.doors.s && (c(cx, r.h - 2) || c(cx - 1, r.h - 2))) || (r.doors.w && c(1, cy)) || (r.doors.e && c(r.w - 2, cy));
+  };
+  const occ = {};
+  const addO = (x, y) => {
+    x |= 0; y |= 0;
+    if(x < 2 || y < 2 || x > r.w - 3 || y > r.h - 3 || near(x, y) || occ[x + ',' + y]) return false;
+    occ[x + ',' + y] = 1; r.obs.push({ x, y }); return true;
+  };
+  const cell = () => {
+    for(let i = 0; i < 50; i++){
+      const x = 3 + Math.floor(pr() * (r.w - 6)), y = 3 + Math.floor(pr() * (r.h - 6));
+      if(!occ[x + ',' + y] && !near(x, y)) return { x, y };
     }
-  } else if(r.type === 'boss'){
-    const bossK = D_BOSSES[(fl - 1) % D_BOSSES.length];
-    r.ep.push({ k: bossK, rx: r.w / 2, ry: r.h / 2, isBoss: true });
+    return null;
+  };
+  // ---- 15 diseños de sala distintos
+  const L = [
+    () => { [[4, 3], [r.w - 5, 3], [4, r.h - 4], [r.w - 5, r.h - 4]].forEach(a => addO(a[0], a[1])); },
+    () => { [[cx - 1, cy - 1], [cx, cy - 1], [cx - 1, cy + 1], [cx, cy + 1]].forEach(a => addO(a[0], a[1])); },
+    () => { for(let i = 0; i < 2; i++){ addO(3 + i, 2); addO(r.w - 5 + i, 2); addO(3 + i, r.h - 3); addO(r.w - 5 + i, r.h - 3); } },
+    () => { for(let x = cx - 4; x <= cx + 3; x++) for(const y of [cy - 2, cy + 2]) if(x !== cx - 1 && x !== cx) addO(x, y); for(const x of [cx - 4, cx + 3]) for(let y = cy - 1; y <= cy + 1; y++) if(y !== cy) addO(x, y); },
+    () => { for(const i of [3, 4, 5]){ addO(cx - i, cy); addO(cx + i - 1, cy); } for(const i of [2, 3]){ addO(cx - 1, cy - i); addO(cx, cy - i); addO(cx - 1, cy + i); addO(cx, cy + i); } },
+    () => { for(let x = 4; x <= r.w - 5; x++) if(x < cx - 2 || x > cx + 1){ addO(x, cy - 2); addO(x, cy + 2); } },
+    () => { for(let y = 2; y <= r.h - 3; y++) if(y < cy - 1 || y > cy + 1){ addO(cx - 5, y); addO(cx + 4, y); } },
+    () => { for(let x = 3; x <= r.w - 4; x += 4) for(let y = 2; y <= r.h - 3; y += 3) addO(x, y); },
+    () => { for(const [sx, sy] of [[3, 2], [r.w - 4, 2], [3, r.h - 3], [r.w - 4, r.h - 3]]){ addO(sx, sy); addO(sx + (sx < cx ? 1 : -1), sy); addO(sx, sy + (sy < cy ? 1 : -1)); } },
+    () => { for(let x = cx - 4; x <= cx + 3; x++) addO(x, cy + 2); for(const x of [cx - 4, cx + 3]) for(let y = cy; y <= cy + 1; y++) addO(x, y); },
+    () => { [[cx - 3, cy - 2], [cx + 2, cy - 2], [cx - 3, cy + 2], [cx + 2, cy + 2], [cx - 1, cy], [cx, cy]].forEach(a => addO(a[0], a[1])); },
+    () => { for(let x = 5; x <= r.w - 6; x++) if(x < cx - 1 || x > cx){ addO(x, 2); addO(x, r.h - 3); } },
+    () => { for(let i = 0, n = 8 + Math.floor(pr() * 5); i < n; i++){ const c = cell(); if(c) addO(c.x, c.y); } },
+    () => {},
+    () => { for(const x of [cx - 6, cx + 5]) for(const y of [3, 5, 7]) addO(x, y); }
+  ];
+  const pat = r.type === 'boss' ? [0, 3, 2, 9, 0][fl % 5] : Math.floor(pr() * L.length);
+  L[pat]();
+  // ---- pinchos, barriles explosivos y cajas
+  const addSp = n => { for(let i = 0; i < n; i++){ const c = cell(); if(c){ occ[c.x + ',' + c.y] = 2; r.spk.push(c); } } };
+  if(r.type !== 'boss' && (pat === 13 || pr() < .4)) addSp(pat === 13 ? 8 + Math.floor(pr() * 4) : 3 + Math.floor(pr() * 5));
+  const nBar = pr() < .55 ? 1 + Math.floor(pr() * 3) : 0, nCr = pr() < .65 ? 2 + Math.floor(pr() * 4) : 0;
+  for(let i = 0; i < nBar; i++){ const c = cell(); if(c){ occ[c.x + ',' + c.y] = 3; r.props.push({ x: c.x, y: c.y, t: 'barrel', hp: 2 }); } }
+  for(let i = 0; i < nCr; i++){ const c = cell(); if(c){ occ[c.x + ',' + c.y] = 3; r.props.push({ x: c.x, y: c.y, t: 'crate', hp: 2 }); } }
+  // ---- oleadas de enemigos
+  const spawnCell = () => {
+    for(let i = 0; i < 60; i++){
+      const x = 3 + Math.floor(pr() * (r.w - 6)), y = 3 + Math.floor(pr() * (r.h - 6));
+      if(!occ[x + ',' + y] && !near(x, y)) return { x, y };
+    }
+    return { x: cx, y: cy };
+  };
+  if(r.type === 'boss'){
+    r.eps = [[{ k: D_BOSSES[(fl - 1) % D_BOSSES.length], rx: r.w / 2, ry: r.h / 2, isBoss: true }]];
+    r.waves = 1;
+  } else {
+    const pool = dPool(fl + (r.type === 'challenge' ? 1 : 0));
+    const baseN = 4 + Math.min(9, Math.floor(fl * 1.5 + pr() * 3));
+    r.waves = r.type === 'challenge' ? 3 : 1 + (fl >= 2 && pr() < .45 ? 1 : 0) + (fl >= 4 && pr() < .35 ? 1 : 0);
+    for(let w = 0; w < r.waves; w++){
+      const grp = [], n = baseN + (r.type === 'challenge' ? 2 : 0) - w;
+      for(let i = 0; i < n; i++){ const c = spawnCell(); grp.push({ k: pool[Math.floor(pr() * pool.length)], rx: c.x + .5, ry: c.y + .5 }); }
+      r.eps.push(grp);
+    }
   }
+  r.ep = r.eps[0] || [];
 }
 
 function dungTile(px, py){
@@ -600,50 +685,65 @@ function dungTile(px, py){
   // Paredes perimetrales con hueco para puertas
   const isDoorH = (tx === Math.floor(r.w / 2) || tx === Math.floor(r.w / 2) - 1);
   const isDoorV = (ty === Math.floor(r.h / 2));
-  
+
   if(ty === 0 && r.doors.n && isDoorH) return r.cleared ? 0 : 1;
   if(ty === r.h - 1 && r.doors.s && isDoorH) return r.cleared ? 0 : 1;
   if(tx === 0 && r.doors.w && isDoorV) return r.cleared ? 0 : 1;
   if(tx === r.w - 1 && r.doors.e && isDoorV) return r.cleared ? 0 : 1;
 
   if(tx === 0 || ty === 0 || tx >= r.w - 1 || ty >= r.h - 1) return 1;
-  // Obstáculos interiores
+  // Obstáculos y objetos destructibles
   if(r.obs && r.obs.some(o => o.x === tx && o.y === ty)) return 1;
+  if(r.props && r.props.some(q => !q.dead && q.x === tx && q.y === ty)) return 1;
   return 0;
+}
+
+function freeSpot(r){
+  for(let i = 0; i < 40; i++){
+    const x = (3 + Math.random() * (r.w - 6)) * T, y = (3 + Math.random() * (r.h - 6)) * T;
+    if(dungTile(x, y) === 0 && dungTile(x + 6, y) === 0 && dungTile(x - 6, y) === 0 && dungTile(x, y + 6) === 0 && dungTile(x, y - 6) === 0) return { x, y };
+  }
+  return { x: r.w * T / 2, y: r.h * T / 2 };
+}
+function spawnWave(r){
+  const grp = r.eps[r.wave] || [];
+  r.wave++;
+  grp.forEach(e => { const en = mk(e.k, e.rx * T, e.ry * T); if(e.isBoss) boss = en; });
+  if(r.type !== 'boss' && net.on){
+    const extra = Math.min(3, Object.keys(net.rem).length), pool = dPool(dung.floor + (r.type === 'challenge' ? 1 : 0));
+    for(let i = 0; i < extra * 2; i++){ const sp_ = freeSpot(r); mk(pool[rnd(0, pool.length - 1)], sp_.x, sp_.y); }
+  }
+  if(r.waves > 1 && r.wave > 1){
+    banner('OLEADA ' + r.wave + '/' + r.waves);
+    if(net.on) snd({ t: 'd_wave', k: dung.curRoomKey, n: r.wave, m: r.waves });
+  }
 }
 
 function enterRoom(k, first){
   const r = dung.rooms[k];
   if(!r) return;
+  V.coins += coins.length;   // las monedas sueltas se recogen al salir de la sala
   dung.curRoomKey = k;
   dung.curRoom = r;
   r.visited = true;
-  enemies = []; bullets = []; eb = []; shw = []; dung.pedestals = [];
+  enemies = []; bullets = []; eb = []; shw = []; coins = []; hearts = []; dung.pedestals = []; dung.trapdoor = null;
   boss = null;
+  const lead = !net.on || net.host;
 
-  // Spawns en la sala
   if(!r.cleared){
-    if(r.ep){
-      r.ep.forEach(e => {
-        const en = mk(e.k, e.rx * T, e.ry * T);
-        if(e.isBoss) boss = en;
-      });
-    }
-    banner(r.type === 'boss' ? '¡SALA DEL JEFE!' : 'SALA DE COMBATE');
+    if(lead){ r.wave = 0; spawnWave(r); }
+    banner(r.type === 'boss' ? '¡SALA DEL JEFE!' : r.type === 'challenge' ? '¡DESAFÍO: ' + r.waves + ' OLEADAS!' : 'SALA DE COMBATE');
     sDoorLock();
-  }
+  } else if(r.type === 'fountain') banner('FUENTE CURATIVA');
 
-  // Pedestales en sala del tesoro o jefe derrotado
   if(r.type === 'treasure' && r.item && !r.itemTaken){
-    dung.pedestals.push({ x: (r.w / 2) * T, y: (r.h / 2) * T, item: r.item });
+    dung.pedestals.push({ id: 'it', x: (r.w / 2) * T, y: (r.h / 2) * T, item: r.item });
   }
   if(r.type === 'shop' && r.shopItems){
     r.shopItems.forEach((it, i) => {
-      if(!it.bought) dung.pedestals.push({ x: (r.w / 2 + (i - 1) * 3) * T, y: (r.h / 2) * T, shop: it });
+      if(!it.bought) dung.pedestals.push({ id: 's' + i, x: (r.w / 2 + (i - 1) * 3) * T, y: (r.h / 2) * T, shop: it });
     });
   }
-
-  // Trampilla si es sala de jefe despejada
   if(r.type === 'boss' && r.cleared){
     dung.trapdoor = { x: (r.w / 2) * T, y: (r.h / 2) * T };
   }
@@ -651,7 +751,7 @@ function enterRoom(k, first){
 
 function checkDungDoors(){
   const r = dung.curRoom;
-  if(!r || !r.cleared) return;
+  if(!r || !r.cleared || p.dead) return;
   const isMidX = Math.abs(p.x - (r.w / 2) * T) < 18;
   const isMidY = Math.abs(p.y - (r.h / 2) * T) < 18;
 
@@ -675,7 +775,7 @@ function checkDungDoors(){
   }
 
   if(nextK && dung.rooms[nextK]){
-    if(net.on) snd({ t: 'd_room', k: nextK, px, py });
+    if(net.on) snd({ t: 'd_room', k: nextK, px, py, dir });   // todos los jugadores pasan a la misma sala
     dung.transT = 0.22;
     p.x = px; p.y = py;
     enterRoom(nextK);
@@ -686,73 +786,191 @@ function checkDungDoors(){
 function checkDungClear(){
   const r = dung.curRoom;
   if(!r || r.cleared) return;
-  if(enemies.length === 0){
-    r.cleared = true;
-    sDoorUnlock();
-    banner('¡HABITACIÓN DESPEJADA!');
-    coinFx(r.w * T / 2, r.h * T / 2, rnd(4, 9));
-    
-    // Si fue jefe, generar trampilla y objeto legendario
-    if(r.type === 'boss'){
-      dung.trapdoor = { x: (r.w / 2) * T, y: (r.h / 2) * T };
-      dung.pedestals.push({
-        x: (r.w / 2) * T, y: (r.h / 2 - 2) * T,
-        item: { t: 'relic', i: rnd(0, RELICS.length - 1) }
-      });
-      sFan();
-      V.bestDung = Math.max(V.bestDung || 1, dung.floor + 1);
-      save();
+  if(enemies.length > 0) return;                         // la puerta no abre hasta matar a todos
+  if(r.wave < r.waves){ spawnWave(r); return; }          // siguiente oleada
+  r.cleared = true;
+  const rel = (r.type === 'boss' || r.type === 'challenge') ? rnd(0, RELICS.length - 1) : -1;
+  const hd = Math.random() < .35 ? 1 : 0, cn = rnd(4, 9);
+  if(net.on) snd({ t: 'd_clear', k: dung.curRoomKey, rel, hd, cn });
+  roomCleared(r, rel, hd, cn);
+}
+function roomCleared(r, rel, hd, cn){
+  r.cleared = true;
+  sDoorUnlock();
+  banner('¡HABITACIÓN DESPEJADA!');
+  coinFx(r.w * T / 2, r.h * T / 2, cn);
+  if(hd) hearts.push({ x: r.w * T / 2 + 18, y: r.h * T / 2 });
+  if(r.type === 'boss'){
+    dung.trapdoor = { x: (r.w / 2) * T, y: (r.h / 2) * T };
+    V.bestDung = Math.max(V.bestDung || 1, dung.floor + 1);
+    save();
+  }
+  if(r.type === 'boss' || r.type === 'challenge'){
+    dung.pedestals.push({ id: 'rw', x: (r.w / 2) * T, y: (r.h / 2 - 2) * T, item: { t: 'relic', i: rel >= 0 ? rel : rnd(0, RELICS.length - 1) } });
+    sFan();
+  }
+}
+
+// ---- pinchos, cajas y barriles
+const spkState = s_ => { const ph = (t + ((s_.x * 7 + s_.y * 13) % 10) * .26) % 2.6; return ph < 1.4 ? 0 : ph < 1.75 ? 1 : 2; };
+function propAt(x, y){
+  const r = dung.curRoom; if(!r || !r.props) return null;
+  const tx = Math.floor(x / T), ty = Math.floor(y / T);
+  return r.props.find(q => !q.dead && q.x === tx && q.y === ty) || null;
+}
+function hitPropNet(q, d){
+  if(net.on && !net.host) snd({ t: 'd_ph', k: dung.curRoomKey, i: dung.curRoom.props.indexOf(q), d, o: myId() });
+  else damageProp(q, d, myId());
+}
+function damageProp(q, d, own){
+  q.hp -= d; q.fl = .12;
+  if(q.hp <= 0) breakProp(q, own);
+}
+function breakProp(q, own){
+  if(q.dead) return;
+  q.dead = true;
+  const i = dung.curRoom.props.indexOf(q);
+  if(net.on) snd({ t: 'd_pd', k: dung.curRoomKey, i, o: own });
+  propFx(q, true, own);
+}
+function propFx(q, lead, own){
+  const cx_ = q.x * T + 8, cy_ = q.y * T + 8;
+  q.dead = true;
+  if(q.t === 'barrel'){
+    shw.push({ x: cx_, y: cy_, r: 2, m: 44, l: .6 });
+    burst(cx_, cy_, '#ff9d3d', 16); sKill();
+    if(lead){
+      for(const e of enemies) if(!e.dead && Math.hypot(e.x - cx_, e.y - cy_) < 48) dmg(e, 10, own);
+      for(const o of dung.curRoom.props) if(!o.dead && o.t === 'barrel' && Math.hypot(o.x * T + 8 - cx_, o.y * T + 8 - cy_) < 40) breakProp(o, own);
     }
+  } else {
+    burst(cx_, cy_, '#a16207', 8);
+    coinFx(cx_, cy_, 1 + (q.x + q.y) % 3);
+    if((q.x * 7 + q.y * 3) % 5 === 0) hearts.push({ x: cx_, y: cy_ });
+  }
+}
+function drawProp(q){
+  const X = q.x * T - camx, Y = q.y * T - camy, f = (q.fl || 0) > 0;
+  g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(X + 1, Y + 13, 14, 3);
+  if(q.t === 'barrel'){
+    g.fillStyle = f ? '#fff' : '#7c2d12'; g.fillRect(X + 3, Y + 1, 10, 14);
+    g.fillStyle = f ? '#fff' : '#9a3412'; g.fillRect(X + 4, Y + 2, 3, 12);
+    g.fillStyle = '#dc2626'; g.fillRect(X + 3, Y + 4, 10, 2); g.fillRect(X + 3, Y + 10, 10, 2);
+    g.fillStyle = '#fde047'; g.fillRect(X + 7, Y + 6, 2, 3);
+  } else {
+    g.fillStyle = f ? '#fff' : '#a16207'; g.fillRect(X + 2, Y + 3, 12, 12);
+    g.fillStyle = '#ca8a04'; g.fillRect(X + 3, Y + 4, 10, 2); g.fillRect(X + 3, Y + 11, 10, 2);
+    g.fillStyle = '#713f12'; g.fillRect(X + 2, Y + 8, 12, 1); g.fillRect(X + 7, Y + 3, 1, 12);
+  }
+}
+function drawGrave(x, y){
+  const gx = Math.round(x - camx), gy = Math.round(y - camy);
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(gx - 6, gy - 1, 12, 3);
+  g.fillStyle = '#6b7280'; g.fillRect(gx - 5, gy - 12, 10, 12); g.fillRect(gx - 4, gy - 14, 8, 2);
+  g.fillStyle = '#9ca3af'; g.fillRect(gx - 4, gy - 12, 8, 1);
+  g.fillStyle = '#374151'; g.fillRect(gx - 1, gy - 11, 2, 7); g.fillRect(gx - 3, gy - 9, 6, 2);
+  g.fillStyle = 'rgba(160,230,255,' + (.35 + .2 * Math.sin(t * 4)) + ')'; g.fillRect(gx - 2, gy - 22 + Math.round(Math.sin(t * 3) * 2), 4, 6);
+}
+function drawReviveHud(){
+  if(p.rvTgt && net.rem[p.rvTgt]){
+    const r = net.rem[p.rvTgt], X = r.x - camx, Y = r.y - camy, pr_ = Math.min(1, (p.rv || 0) / 3);
+    g.fillStyle = '#000'; g.fillRect(Math.round(X - 13), Math.round(Y - 30), 26, 5);
+    g.fillStyle = '#7df9a0'; g.fillRect(Math.round(X - 12), Math.round(Y - 29), Math.round(24 * pr_), 3);
+    TX(pr_ > 0 ? 'REVIVIENDO...' : 'MANTENÉ [E] PARA REVIVIR', X, Y - 33, 3.4, '#7df9a0', 'center');
+  }
+  if(p.dead > 1000){
+    TX('ESTÁS CAÍDO', W / 2, H / 2 - 6, 6, '#ff6b6b', 'center');
+    TX((p.rev > 0 && t - (p.revT || -9) < .6) ? 'TE ESTÁN REVIVIENDO ' + Math.round(p.rev * 100) + '%' : 'ESPERÁ A QUE UN AMIGO TE REVIVA', W / 2, H / 2 + 4, 3.8, '#fff', 'center');
   }
 }
 
 function checkPedestals(){
   for(let i = dung.pedestals.length - 1; i >= 0; i--){
     const ped = dung.pedestals[i];
-    if(Math.hypot(p.x - ped.x, p.y - ped.y) < 14){
-      if(ped.shop){
-        if(V.coins >= ped.shop.pr){
-          V.coins -= ped.shop.pr;
-          ped.shop.bought = true;
-          sCoin();
-          if(ped.shop.t === 'heart'){ p.hp = Math.min(p.maxHp || 5, p.hp + 2); banner('+2 CORAZONES'); }
-          else if(ped.shop.t === 'armor'){ p.ar = (p.ar || 0) + 1; banner('+1 ARMADURA'); }
-          else if(ped.shop.t === 'relic'){ obtainRelic(ped.shop.i); }
-          dung.pedestals.splice(i, 1);
-        } else {
-          banner('¡MONEDAS INSUFICIENTES!');
-        }
-      } else if(ped.item){
-        if(ped.item.t === 'relic'){
-          obtainRelic(ped.item.i);
-        } else if(ped.item.t === 'wp'){
-          V.eq = ped.item.i;
-          banner('¡' + WP[V.eq].n.toUpperCase() + ' EQUIPADA!');
-          sFan();
-        }
-        dung.curRoom.itemTaken = true;
+    if(p.dead || Math.hypot(p.x - ped.x, p.y - ped.y) >= 14) continue;
+    if(ped.shop){
+      if(V.coins >= ped.shop.pr){
+        V.coins -= ped.shop.pr;
+        ped.shop.bought = true;
+        sCoin();
+        if(ped.shop.t === 'heart'){ p.hp = Math.min(p.maxHp || 5, p.hp + 2); banner('+2 CORAZONES'); }
+        else if(ped.shop.t === 'armor'){ p.ar = (p.ar || 0) + 1; banner('+1 ARMADURA'); }
+        else if(ped.shop.t === 'relic'){ obtainRelic(ped.shop.i); }
+        if(net.on) snd({ t: 'd_take', k: dung.curRoomKey, id: ped.id });
         dung.pedestals.splice(i, 1);
+      } else if(t - (net.poorT || -9) > 1.5){
+        net.poorT = t; banner('¡MONEDAS INSUFICIENTES!');
       }
+    } else if(ped.item){
+      if(ped.item.t === 'relic'){
+        obtainRelic(ped.item.i);
+      } else if(ped.item.t === 'wp'){
+        if(!V.owned.includes(ped.item.i)) V.owned.push(ped.item.i);
+        V.eq = ped.item.i;
+        banner('¡' + WP[V.eq].n.toUpperCase() + ' EQUIPADA!');
+        sFan();
+      }
+      dung.curRoom.itemTaken = true;
+      if(net.on) snd({ t: 'd_take', k: dung.curRoomKey, id: ped.id });
+      dung.pedestals.splice(i, 1);
     }
   }
 
-  // Trampilla al siguiente piso
-  if(dung.trapdoor && Math.hypot(p.x - dung.trapdoor.x, p.y - dung.trapdoor.y) < 14){
-    if(dung.floor >= 5){
-      // ¡Victoria del juego!
-      state = 'clear'; clearMenu();
-    } else {
-      V.coins += dung.floor * 25; save();
-      banner('DESCENDIENDO AL PISO ' + (dung.floor + 1));
-      sDoorOpen();
-      setTimeout(() => {
-        const nsd = rnd(1, 99999);
-        if(net.on && net.host) snd({ t: 'd_floor', fl: dung.floor + 1, sd: nsd });
-        genDungeon(dung.floor + 1, nsd);
-        p.x = RW * T / 2; p.y = RH * T / 2;
-      }, 400);
+  // Trampilla al siguiente piso (la maneja el anfitrión)
+  if(dung.trapdoor && !p.dead && Math.hypot(p.x - dung.trapdoor.x, p.y - dung.trapdoor.y) < 14){
+    if(net.on && !net.host){
+      if(t - (net.ndT || -9) > 1){ net.ndT = t; snd({ t: 'd_next' }); }
+    } else if(!dung.descending){
+      dung.descending = true; descend();
     }
   }
+}
+function descend(){
+  if(dung.floor >= 5){ if(net.on) snd({ t: 'd_win' }); winDung(); return; }
+  V.coins += dung.floor * 25; save();
+  banner('DESCENDIENDO AL PISO ' + (dung.floor + 1)); sDoorOpen();
+  const nsd = rnd(1, 99999), nf = dung.floor + 1;
+  if(net.on) snd({ t: 'd_floor', fl: nf, sd: nsd });
+  setTimeout(() => newFloor(nf, nsd), 400);
+}
+function newFloor(fl, sdv){
+  genDungeon(fl, sdv);
+  p.x = RW * T / 2; p.y = RH * T / 2;
+  if(p.dead > 1000){ p.dead = 0; p.hp = 2; p.inv = 3; }
+  banner('PISO ' + fl + ': ' + dung.floorTheme.n.toUpperCase());
+}
+const winDung = () => { state = 'clear'; clearMenu(); };
+const dungOver = () => { state = 'over'; V.bestKills = Math.max(V.bestKills || 0, kills); save(); over(); };
+function beginDung(fl, sdv, rk, cl){
+  net.wait = false;
+  start('dung', fl || 1, 0, sdv);
+  if(rk && dung.rooms[rk]){
+    (cl || []).forEach(k => { if(dung.rooms[k]){ dung.rooms[k].cleared = true; dung.rooms[k].visited = true; } });
+    enterRoom(rk);
+    const r = dung.rooms[rk]; p.x = r.w * T / 2; p.y = r.h * T / 2;
+  }
+}
+// ---- sala de espera (online mazmorras)
+function enterWait(){
+  mode = 'surv'; state = 'menu'; paused = false; net.wait = true; net.wl = {};
+  net.wl[net.id] = { n: V.av.name, av: V.av, h: net.host ? 1 : 0 };
+  snd({ t: 'w_hi', n: V.av.name, av: V.av, h: net.host ? 1 : 0 });
+  waitRoom();
+}
+function waitRoom(){
+  if(!net.wait) return;
+  const ids = Object.keys(net.wl).map(Number).sort((a, b) => ((net.wl[b].h || 0) - (net.wl[a].h || 0)) || a - b);
+  panel(`<h2>SALA DE ESPERA</h2>
+  <div class=r><small>MAZMORRAS COOPERATIVO · SALA ${esc(String(net.roomName || '').slice(2))}</small></div>
+  <div class=plist>${ids.map(i => `<div class="pl${i === net.id ? ' me' : ''}"><canvas class=wpv data-id=${i} width=28 height=32></canvas><b>${esc(net.wl[i].n || '?')}</b><small>${net.wl[i].h ? '👑 ANFITRIÓN' : (i === net.id ? 'VOS' : 'JUGADOR')}</small></div>`).join('')}</div>
+  <div class=r><small>${ids.length}/4 JUGADORES</small></div>
+  ${net.host ? '<button class=s data-a=dstart>▶ COMENZAR PARTIDA</button>' : '<div class=r>Esperando a que el anfitrión comience la partida...</div>'}
+  <button data-a=wquit>◀ SALIR DE LA SALA</button>`);
+  document.querySelectorAll('.wpv').forEach(cv => {
+    const o = net.wl[+cv.dataset.id]; if(!o) return;
+    const x = cv.getContext('2d'); x.clearRect(0, 0, 28, 32);
+    drawChar(x, 14, 26, { ang: Math.PI / 2, walk: 0, moving: false }, Object.assign({ hs: 0, ec: '#111111', os: 0, pn: '#3a3a5c' }, o.av));
+  });
 }
 
 function obtainRelic(idx){
@@ -974,7 +1192,15 @@ const myId = () => net.on ? net.id : 0;
 const isHost = () => !net.on || net.host;
 const diff = () => mode === 'camp' ? lvl * 1.6 : mode === 'dung' ? (dung.floor * 1.8) : 1 + Math.floor(kills / 10);
 
-function start(md, lv, mp){
+const FRESH = () => ({ coins: 0, owned: [0], eq: 0, arm: -1, armo: [], pet: -1, peto: [] });
+function dungIso(on){
+  if(on){
+    if(!DB) DB = { coins: V.coins, owned: V.owned.slice(), eq: V.eq, arm: V.arm, armo: V.armo.slice(), pet: V.pet, peto: V.peto.slice() };
+    Object.assign(V, FRESH());
+  } else if(DB){ Object.assign(V, DB); DB = null; }
+}
+function start(md, lv, mp, sdd){
+  dungIso(md === 'dung');
   mode = md; lvl = lv || 1; mapIdx = mp || 0;
   p = {
     ar: ARM[V.arm] ? ARM[V.arm].a : 0,
@@ -988,9 +1214,8 @@ function start(md, lv, mp){
 
   if(md === 'dung'){
     dung.passives = [];
-    const sd = rnd(1, 99999);
-    genDungeon(lvl, sd);
-    if(net.on && net.host) snd({ t: 'd_floor', fl: lvl, sd });
+    ms = null;
+    genDungeon(lvl, sdd || rnd(1, 99999));
     p.x = RW * T / 2; p.y = RH * T / 2;
     banner('PISO ' + lvl + ': ' + dung.floorTheme.n.toUpperCase());
   } else if(md === 'camp'){
@@ -1008,15 +1233,18 @@ function start(md, lv, mp){
 }
 
 const tier = () => mode === 'camp' ? lvl : mode === 'dung' ? dung.floor : 1 + Math.floor(kills / 10);
-const hpMul = () => mode === 'camp' ? 1 + .2 * (lvl - 1) : mode === 'dung' ? 1 + .25 * (dung.floor - 1) : 1 + .07 * (tier() - 1);
+const hpMul = () => mode === 'camp' ? 1 + .2 * (lvl - 1) : mode === 'dung' ? 1.4 + .4 * (dung.floor - 1) : 1 + .07 * (tier() - 1);
 const isBossLvl = () => mode === 'camp' && lvl % 5 === 0;
 const bossFor = () => BOSS[(lvl / 5 - 1) % 4];
 const goalDone = () => isBossLvl() ? bd : kills >= goal();
 
-function mk(k, x, y){
+function mk(k, x, y, opt){
   const d = EN[k];
-  const hp = Math.ceil(d.hp * (d.boss ? (mode === 'camp' ? 1 + .15 * (lvl - 1) : 1 + .2 * (tier() - 1)) : hpMul()));
-  const e = { id: nid++, k, x, y, hp, mx: hp, ph: Math.random() * 6, fl: 0, hb: 0, at: 3, st: 0, tm: 0, z: 0 };
+  let hm = d.boss ? (mode === 'camp' ? 1 + .15 * (lvl - 1) : mode === 'dung' ? 1.25 + .2 * (dung.floor - 1) : 1 + .2 * (tier() - 1)) : hpMul();
+  const el = mode === 'dung' && !d.boss && !(opt && opt.noElite) && Math.random() < Math.min(.5, .08 + dung.floor * .07);
+  if(el) hm *= 2;
+  const hp = Math.ceil(d.hp * hm);
+  const e = { id: nid++, k, x, y, hp, mx: hp, ph: Math.random() * 6, fl: 0, hb: 0, at: 3, st: 0, tm: 0, z: 0, el: el ? 1 : 0, born: mode === 'dung' ? .9 : 0 };
   enemies.push(e);
   return e;
 }
@@ -1058,7 +1286,10 @@ function hurt(){
   burst(p.x, p.y - 6, '#e43b44', 8);
   sHurt();
   if(p.hp <= 0){
-    if(net.on) p.dead = (mode === 'camp' || mode === 'dung') ? 1e9 : 4;
+    if(net.on){
+      p.dead = (mode === 'camp' || mode === 'dung') ? 1e9 : 4;
+      if(p.dead > 1000) banner('¡CAÍSTE! TUS AMIGOS PUEDEN REVIVIRTE');
+    }
     else {
       state = 'over';
       best = Math.max(best, kills);
@@ -1097,11 +1328,11 @@ function dmg(e, d, own){
     if(own === myId()) missionEvent('kill', e.k);
     if(net.on && mode === 'surv') net.sc[own] = (net.sc[own] || 0) + 1;
     sKill(); burst(e.x, e.y - q.cy, '#ffffff', 10);
-    const n = rnd(q.c[0], q.c[1]);
+    const n = rnd(q.c[0], q.c[1]) * (e.el ? 2 : 1);
     if(q.boss){ boss = null; sFan(); if(mode === 'camp') bd = true; }
     if(own === myId()) coinFx(e.x, e.y, n);
     else snd({ t: 'c', to: own, n, k: e.k, x: e.x, y: e.y });
-    if(Math.random() < .14) hearts.push({ x: e.x, y: e.y });
+    if(Math.random() < (e.el ? .35 : .14)){ hearts.push({ x: e.x, y: e.y }); if(net.on) snd({ t: 'hr', x: e.x, y: e.y }); }
   }
 }
 
@@ -1147,10 +1378,11 @@ function shock(x, y, m){
 }
 
 function aiMove(e, dt, sm, tg){
-  const d = EN[e.k], k = e.k;
+  const d = EN[e.k], k = e.k, CDM = mode === 'dung' ? 1.3 : 1;
+  if(e.born > 0){ e.born -= dt; return; }
   const dx = tg.x - e.x, dy = tg.y - e.y, dist = Math.hypot(dx, dy) || 1;
   const a = Math.atan2(dy, dx);
-  const sp = d.sp * dt * sm * (1 + Math.sin(t * 6 + e.ph) * .4);
+  const sp = d.sp * dt * sm * (e.el ? 1.15 : 1) * (1 + Math.sin(t * 6 + e.ph) * .4);
 
   const go = (an, s) => {
     if(d.nc){ e.x += Math.cos(an) * s; e.y += Math.sin(an) * s; }
@@ -1159,20 +1391,51 @@ function aiMove(e, dt, sm, tg){
   e.tm += dt;
 
   // Nuevos comportamientos (Esqueleto, Ojo, Kamikaze, Jefes)
-  if(d.bomb){
+  if(d.charger){
+    // Embestida: se prepara (parpadea) y se lanza en línea recta
+    if(e.st === 0){
+      go(a, sp * .8); e.at -= dt * CDM;
+      if(e.at <= 0 && dist < 170){ e.st = 1; e.tm = 0; e.tl = 1; e.ca = a; }
+    } else if(e.st === 1){
+      if(e.tm >= .7){ e.st = 2; e.tm = 0; e.tl = 0; }
+    } else {
+      go(e.ca, 185 * dt);
+      if(e.tm >= .55){ e.st = 0; e.at = 2.2 + Math.random(); }
+    }
+  } else if(d.summoner){
+    if(dist < 95) go(a + Math.PI, sp); else if(dist > 150) go(a, sp); else go(a + 1.57, sp * .5);
+    e.at -= dt * CDM;
+    if(e.at <= 0){
+      const mine = enemies.filter(q => q.sm === e.id).length;
+      if(mine < 4 && enemies.length < 22){
+        for(let i = 0; i < 2; i++){ const q = mk(rnd(0, 1) ? 0 : 1, e.x + rnd(-14, 14), e.y + rnd(-10, 10), { noElite: true }); q.sm = e.id; }
+        burst(e.x, e.y - 10, '#a3e635', 10);
+      }
+      e.at = 4.2;
+    }
+  } else if(d.sniper){
+    if(dist < 120) go(a + Math.PI, sp * 1.1); else if(dist > 190) go(a, sp); else go(a + 1.57 * (Math.sin(e.ph) > 0 ? 1 : -1), sp * .5);
+    e.at -= dt * CDM; e.tl = e.at < .6 ? 1 : 0;
+    if(e.at <= 0){ shootE(e.x, e.y - 10, a, 150, 3, '#fde047'); e.at = 2.6; e.tl = 0; }
+  } else if(d.spider){
+    const bp = Math.sin(t * 3 + e.ph) > 0;
+    go(a + Math.sin(t * 7 + e.ph) * .6, bp ? sp * 1.4 : sp * .25);
+    e.at -= dt * CDM;
+    if(e.at <= 0 && dist < 200){ for(let i = -1; i <= 1; i++) shootE(e.x, e.y - 6, a + i * .3, 80, 3, '#e2e8f0'); e.at = 3; }
+  } else if(d.bomb){
     // Kamikaze corre hacia el jugador y explota
     go(a, sp * 1.5);
-    if(dist < 18){ shock(e.x, e.y, 40); e.dead = true; hurt(); }
+    if(dist < 18){ shock(e.x, e.y, 40); e.dead = true; if(tg === p) hurt(); }
   } else if(d.ranged){
     // Esqueleto tirador
     if(dist > 110) go(a, sp);
     else if(dist < 70) go(a + Math.PI, sp);
-    e.at -= dt;
+    e.at -= dt * CDM;
     if(e.at <= 0 && dist < 220){ shootE(e.x, e.y - 8, a, 100, 3, '#fff'); e.at = 2; }
   } else if(d.burst){
     // Ojo que dispara ráfagas triples
     go(a + Math.sin(t * 4) * .8, sp);
-    e.at -= dt;
+    e.at -= dt * CDM;
     if(e.at <= 0 && dist < 240){
       for(let i = -1; i <= 1; i++) shootE(e.x, e.y - 6, a + i * .25, 90, 3, '#c084fc');
       e.at = 2.4;
@@ -1180,7 +1443,7 @@ function aiMove(e, dt, sm, tg){
   } else if(d.dBoss === 1){
     // Rey Ojo del Abismo: Anillos radiales y embestidas
     go(a, sp * .8);
-    e.at -= dt;
+    e.at -= dt * CDM;
     if(e.at <= 0){
       for(let i = 0; i < 10; i++) shootE(e.x, e.y - 8, i / 10 * 6.283 + t, 75, 3, '#c084fc');
       e.at = 2.2;
@@ -1188,7 +1451,7 @@ function aiMove(e, dt, sm, tg){
   } else if(d.dBoss === 2){
     // Reina Ácida: Bombas de veneno y ondas sónicas
     go(a, sp * .7);
-    e.at -= dt;
+    e.at -= dt * CDM;
     if(e.at <= 0){
       for(let i = -2; i <= 2; i++) shootE(e.x, e.y - 8, a + i * .22, 85, 3, '#38d66b');
       shock(e.x, e.y, 50); e.at = 2.8;
@@ -1196,7 +1459,7 @@ function aiMove(e, dt, sm, tg){
   } else if(d.dBoss >= 3){
     // Coloso de Magma / Caballero del Vacío / Soberano
     go(a, sp * (dist > 50 ? 1.1 : .6));
-    e.at -= dt;
+    e.at -= dt * CDM;
     if(e.at <= 0){
       for(let i = 0; i < 12; i++) shootE(e.x, e.y - 10, i / 12 * 6.283 + t * 2, 90, 3, '#ff4d6d');
       shock(e.x, e.y, 65); e.at = 2.3;
@@ -1206,10 +1469,10 @@ function aiMove(e, dt, sm, tg){
     if(dist > 95) go(a, sp);
     else if(dist < 65) go(a + Math.PI, sp);
     else go(a + 1.57, sp * .6);
-    e.at -= dt;
+    e.at -= dt * CDM;
     if(e.at <= 0 && dist < 200){ shootE(e.x, e.y - 8, a, 85, 3, '#ff7a00'); e.at = 2.2; }
   } else if(k === 5){
-    if(e.st === 0){ go(a, sp); e.at -= dt; if(e.at <= 0 && dist < 230){ e.st = 1; e.tm = 0; e.tl = 1; e.jx = tg.x; e.jy = tg.y; } }
+    if(e.st === 0){ go(a, sp); e.at -= dt * CDM; if(e.at <= 0 && dist < 230){ e.st = 1; e.tm = 0; e.tl = 1; e.jx = tg.x; e.jy = tg.y; } }
     else if(e.st === 1){ if(e.tm >= .6){ e.st = 2; e.tm = 0; e.tl = 0; e.sx = e.x; e.sy = e.y; } }
     else {
       const pr_ = Math.min(1, e.tm / .55);
@@ -1319,11 +1582,50 @@ function update(dt){
     if(p.dead <= 0){ p.dead = 0; p.hp = 5; p.inv = 3; safeSpot(); }
   } else if(!paused && (mdown || keys[' ']) && p.cd <= 0) shoot();
 
+  // Revivir compañeros caídos: mantené E cerca de su cuerpo
+  if(net.on && (mode === 'dung' || mode === 'camp') && !p.dead){
+    let tgt = null, bd2 = 26;
+    for(const id in net.rem){
+      const r = net.rem[id];
+      if(r.dd && r.av && (mode !== 'dung' || r.rk === dung.curRoomKey)){
+        const dd = Math.hypot(r.x - p.x, r.y - p.y);
+        if(dd < bd2){ bd2 = dd; tgt = id; }
+      }
+    }
+    if(tgt && keys.e){
+      p.rv = (p.rvId === tgt ? (p.rv || 0) : 0) + dt; p.rvId = tgt;
+      net.rvT = (net.rvT || 0) - dt;
+      if(net.rvT <= 0){ net.rvT = .2; snd({ t: 'rvp', to: +tgt, v: Math.min(1, p.rv / 3) }); }
+      if(p.rv >= 3){
+        snd({ t: 'rv', to: +tgt }); net.rem[tgt].dd = 0;
+        num(net.rem[tgt].x, net.rem[tgt].y - 20, '¡REVIVIDO!', '#7df9a0'); sFan(); p.rv = 0;
+      }
+    } else p.rv = 0;
+    p.rvTgt = tgt;
+  } else { p.rv = 0; p.rvTgt = null; }
+
+  // Todos caídos: fin de la partida (mazmorras) o reinicio del nivel (campaña)
+  if(net.on && net.host && p.dead > 1000 && Object.values(net.rem).every(r => r.dd)){
+    if(mode === 'dung'){ snd({ t: 'd_over' }); dungOver(); return; }
+    if(mode === 'camp'){ snd({ t: 'rs' }); start('camp', lvl); return; }
+  }
+
   // Comprobaciones de Mazmorras
   if(mode === 'dung'){
+    const rr = dung.curRoom;
     checkDungDoors();
-    checkDungClear();
+    if(host) checkDungClear();
     checkPedestals();
+    if(rr){
+      for(const q of rr.props) if(q.fl > 0) q.fl -= dt;
+      if(!p.dead && p.inv <= 0 && rr.spk.length){
+        const tx_ = Math.floor(p.x / T), ty_ = Math.floor(p.y / T);
+        for(const s_ of rr.spk) if(s_.x === tx_ && s_.y === ty_ && spkState(s_) === 2){ hurt(); break; }
+      }
+      if(rr.type === 'fountain' && !rr.used && !p.dead && Math.hypot(p.x - rr.w * T / 2, p.y - rr.h * T / 2) < 20){
+        rr.used = true; p.hp = p.maxHp || 5; burst(p.x, p.y - 8, '#7dd3fc', 18); banner('¡VIDA RESTAURADA!'); sCoin();
+      }
+    }
   }
 
   if(net.on && mode === 'surv'){
@@ -1344,7 +1646,7 @@ function update(dt){
     }
   }
 
-  const sm = Math.min(1.5, 1 + tier() * .03), tg0 = host ? targets() : null;
+  const sm = mode === 'dung' ? Math.min(1.7, 1.12 + dung.floor * .06) : Math.min(1.5, 1 + tier() * .03), tg0 = host ? targets() : null;
   for(const e of enemies){
     const d = EN[e.k]; e.fl -= dt; e.hb -= dt;
     if(!host){
@@ -1358,12 +1660,16 @@ function update(dt){
       }
       aiMove(e, dt, sm, tg);
     }
-    if(!p.dead && p.inv <= 0 && (e.z || 0) < 8 && Math.hypot(p.x - e.x, p.y - e.y) < d.r + 4) hurt();
+    if(!p.dead && p.inv <= 0 && (e.z || 0) < 8 && !(e.born > 0) && Math.hypot(p.x - e.x, p.y - e.y) < d.r + 4) hurt();
   }
 
   // Balas del jugador
   for(const b of bullets){
     b.x += b.vx * dt; b.y += b.vy * dt; b.l -= dt;
+    if(mode === 'dung' && !b.rm){
+      const pq = propAt(b.x, b.y);
+      if(pq){ b.l = 0; hitPropNet(pq, b.d || 1); burst(b.x, b.y, '#c9a227', 3); continue; }
+    }
     if(tile(b.x, b.y) === 1){
       b.l = 0; burst(b.x, b.y, '#9ad17a', 3); continue;
     }
@@ -1444,8 +1750,8 @@ function update(dt){
       if(net.et <= 0){
         net.et = .1; lsb = board();
         snd({
-          t: 'e', k: kills, lv: lvl, mp: mapIdx, rt: Math.round(rt), bd: bd ? 1 : 0, ls: lsb,
-          l: enemies.map(e => [e.id, e.k, Math.round(e.x), Math.round(e.y), e.hp, e.mx])
+          t: 'e', k: kills, lv: lvl, mp: mapIdx, rt: Math.round(rt), bd: bd ? 1 : 0, ls: lsb, rk: mode === 'dung' ? dung.curRoomKey : 0,
+          l: enemies.map(e => [e.id, e.k, Math.round(e.x), Math.round(e.y), e.hp, e.mx, e.el || 0, e.born > 0 ? 1 : 0])
         });
       }
     }
@@ -1468,28 +1774,66 @@ function onNet(d){
   else if(d.t === 'eb') eb.push({ x: d.x, y: d.y, vx: d.vx, vy: d.vy, l: d.l, r: d.r, c: d.c });
   else if(d.t === 'sw') shw.push({ x: d.x, y: d.y, r: 2, m: d.m, l: .6 });
   else if(d.t === 'e' && !net.host){
+    if(mode === 'dung' && d.rk && d.rk !== dung.curRoomKey) return;
     if(mode === 'camp' && d.lv && d.lv !== lvl){ if(d.lv > lvl){ V.coins += lvl * 10; save(); } start('camp', d.lv); return; }
     if(mode === 'surv' && d.mp != null && d.mp !== mapIdx){ start('surv', 1, d.mp); return; }
     kills = d.k; rt = d.rt; bd = !!d.bd; lsb = d.ls || [];
     const old = new Map(enemies.map(e => [e.id, e]));
-    enemies = d.l.map(([id, k, x, y, hp, mx]) => {
+    enemies = d.l.map(([id, k, x, y, hp, mx, el, bo]) => {
       let e = old.get(id);
       if(!e) e = { id, k, x, y, ph: Math.random() * 6, fl: 0, hb: 0 };
       else if(hp < e.hp){ e.fl = .12; e.hb = 1.6; }
-      e.k = k; e.tx = x; e.tz = y; e.hp = hp; e.mx = mx; return e;
+      e.k = k; e.tx = x; e.tz = y; e.hp = hp; e.mx = mx; e.el = el || 0; e.born = bo ? 1 : 0; return e;
     });
     boss = enemies.find(e => EN[e.k].boss) || null;
   }
-  else if(d.t === 'd_floor' && !net.host){
-    dung.passives = [];
-    genDungeon(d.fl, d.sd || 1);
-    p.x = RW * T / 2; p.y = RH * T / 2;
-    banner('PISO ' + d.fl + ': ' + dung.floorTheme.n.toUpperCase());
+  else if(d.t === 'd_floor' && !net.host && mode === 'dung') newFloor(d.fl, d.sd || 1);
+  else if(d.t === 'd_room' && mode === 'dung' && dung.rooms[d.k]){
+    if(dung.curRoomKey !== d.k) enterRoom(d.k);
+    const off = (((net.id || 0) % 3) - 1) * 10, vert = d.dir === 'n' || d.dir === 's';
+    p.x = d.px + (vert ? off : 0); p.y = d.py + (vert ? 0 : off);
+    dung.transT = .22; sDoorOpen();
   }
-  else if(d.t === 'd_room'){
-    p.x = d.px; p.y = d.py;
-    enterRoom(d.k);
+  else if(d.t === 'd_clear' && mode === 'dung'){
+    const rr = dung.rooms[d.k];
+    if(rr && !rr.cleared){ if(dung.curRoomKey === d.k) roomCleared(rr, d.rel, d.hd, d.cn); else rr.cleared = true; }
   }
+  else if(d.t === 'd_wave' && mode === 'dung' && dung.curRoomKey === d.k){ dung.curRoom.wave = d.n; banner('OLEADA ' + d.n + '/' + d.m); }
+  else if(d.t === 'd_take' && mode === 'dung'){
+    if(dung.curRoomKey === d.k){
+      const i = dung.pedestals.findIndex(q => q.id === d.id);
+      if(i >= 0){ if(dung.pedestals[i].shop) dung.pedestals[i].shop.bought = true; dung.pedestals.splice(i, 1); }
+    }
+    const rr = dung.rooms[d.k];
+    if(rr){
+      if(d.id === 'it') rr.itemTaken = true;
+      if(String(d.id).startsWith('s') && rr.shopItems && rr.shopItems[+String(d.id).slice(1)]) rr.shopItems[+String(d.id).slice(1)].bought = true;
+    }
+  }
+  else if(d.t === 'd_ph' && net.host && mode === 'dung' && dung.curRoomKey === d.k){
+    const q = dung.curRoom.props[d.i]; if(q && !q.dead) damageProp(q, d.d, d.from);
+  }
+  else if(d.t === 'd_pd' && mode === 'dung' && dung.curRoomKey === d.k){
+    const q = dung.curRoom.props[d.i]; if(q && !q.dead) propFx(q, false, d.o);
+  }
+  else if(d.t === 'd_next' && net.host && mode === 'dung'){ if(!dung.descending){ dung.descending = true; descend(); } }
+  else if(d.t === 'd_win' && mode === 'dung') winDung();
+  else if(d.t === 'd_over' && mode === 'dung') dungOver();
+  else if(d.t === 'rs' && mode === 'camp') start('camp', lvl);
+  else if(d.t === 'hr') hearts.push({ x: d.x, y: d.y });
+  else if(d.t === 'rv' && p.dead > 1000){
+    p.dead = 0; p.hp = Math.max(2, Math.ceil((p.maxHp || 5) / 2)); p.inv = 3; p.rev = 0;
+    burst(p.x, p.y - 8, '#7df9a0', 20); banner('¡TE REVIVIERON!'); sFan();
+  }
+  else if(d.t === 'rvp'){ p.rev = d.v; p.revT = t; }
+  else if(d.t === 'w_hi'){
+    net.wl = net.wl || {}; net.wl[d.from] = { n: d.n, av: d.av, h: d.h };
+    if(!d.r) snd({ t: 'w_hi', to: d.from, n: V.av.name, av: V.av, h: net.host ? 1 : 0, r: 1 });
+    if(net.wait) waitRoom();
+    else if(net.host && mode === 'dung' && state === 'play')
+      snd({ t: 'd_go', to: d.from, fl: dung.floor, sd: dung.seed, rk: dung.curRoomKey, cl: Object.keys(dung.rooms).filter(k => dung.rooms[k].cleared) });
+  }
+  else if(d.t === 'd_go'){ if(net.wait) beginDung(d.fl, d.sd, d.rk, d.cl); }
   else if(d.t === 'h' && net.host){
     const e = enemies.find(q => q.id === d.id);
     if(e && !e.dead) dmg(e, d.d, d.from);
@@ -1498,9 +1842,11 @@ function onNet(d){
     V.coins += d.n; num(d.x, d.y - 10, '+' + d.n, '#ffd23f');
     sCoin(); missionEvent('kill', d.k); missionEvent('coin', 0, d.n);
   }
-  else if(d.t === 'left') delete net.rem[d.id];
+  else if(d.t === 'left'){ delete net.rem[d.id]; if(net.wl) delete net.wl[d.id]; if(net.wait) waitRoom(); }
   else if(d.t === 'host'){
     net.host = true; nid = enemies.reduce((a, e) => Math.max(a, e.id), 0) + 1;
+    if(net.wl && net.wl[net.id]) net.wl[net.id].h = 1;
+    if(net.wait){ snd({ t: 'w_hi', n: V.av.name, av: V.av, h: 1, r: 1 }); waitRoom(); }
   }
 }
 
@@ -1532,7 +1878,7 @@ function connect(url){
     else if(d.t === 'full') lobby('Esa sala está llena');
     else if(d.t === 'welcome'){
       net.lob = false; net.id = d.id; net.host = d.host; net.on = true; net.rem = {};
-      start(net.mode, 1);
+      if(net.mode === 'dung') enterWait(); else start(net.mode, 1);
     }
     else onNet(d);
   };
@@ -1676,6 +2022,8 @@ function drawEnemy(e){
 
   let top = -16;
   g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(gx - Math.round(d.r * .9), gy - 1, Math.round(d.r * 1.8), 3);
+  if(e.born > 0) g.globalAlpha = .4 + .25 * Math.sin(t * 22);
+  if(e.el){ g.fillStyle = 'rgba(255,40,60,' + (.16 + .08 * Math.sin(t * 6)) + ')'; g.beginPath(); g.arc(gx, gy - d.cy, d.r + 5, 0, 6.283); g.fill(); }
 
   if(k === 0 || k === 5){
     const sz = k === 5 ? 3 : 1, bc = k === 5 ? '#8a3fd1' : '#38b764', w = 10 * sz, h = (7 + s) * sz;
@@ -1710,7 +2058,32 @@ function drawEnemy(e){
     const b = Math.sin(t * 16) > 0 ? '#ff2a2a' : '#f97316';
     Q(-4, -10, 8, 8, cl(b)); Q(-1, -13, 2, 3, '#78350f'); Q(-2, -8, 1, 2, '#111'); Q(1, -8, 1, 2, '#111');
     top = -14;
-  } else if(k >= 17){
+  } else if(k === 15){
+    const l = Math.round(s);
+    Q(-6, -16, 12, 8, cl('#1f2937')); Q(-4, -14, 8, 2, '#ef4444');
+    Q(-7, -8, 14, 7, cl('#374151')); Q(-9, -8, 3, 6, cl('#4b5563')); Q(6, -8, 3, 6, cl('#4b5563'));
+    Q(-4, -1 + (l > 0 ? 0 : -1), 3, 2, '#111827'); Q(1, -1 + (l > 0 ? -1 : 0), 3, 2, '#111827');
+    Q(-1, -19, 2, 3, '#ef4444'); top = -22;
+  } else if(k === 21){
+    const l = Math.round(s);
+    Q(-7, -12, 14, 9, cl('#7c2d12')); Q(-5, -16, 10, 6, cl('#9a3412')); Q(-8, -18, 3, 4, '#f5f5f4'); Q(5, -18, 3, 4, '#f5f5f4');
+    Q(-3, -14, 2, 2, '#fde047'); Q(1, -14, 2, 2, '#fde047'); Q(-2, -11, 4, 2, '#451a03');
+    Q(-5, -3 + (l > 0 ? 0 : -1), 3, 3, '#451a03'); Q(2, -3 + (l > 0 ? -1 : 0), 3, 3, '#451a03'); top = -22;
+  } else if(k === 22){
+    const b = Math.round(s * 1.2);
+    Q(-5, -14 + b, 10, 12, cl('#0f766e')); Q(-4, -19 + b, 8, 6, cl('#134e4a')); Q(-3, -21 + b, 6, 3, '#134e4a');
+    Q(-2, -16 + b, 2, 2, '#a3e635'); Q(1, -16 + b, 2, 2, '#a3e635'); Q(7, -20 + b, 2, 20, '#78350f'); Q(6, -23 + b, 4, 4, '#a3e635'); top = -26;
+  } else if(k === 23){
+    const l = Math.round(s);
+    Q(-4, -15, 8, 7, cl('#166534')); Q(-2, -13, 4, 3, '#0b1f12'); Q(-1, -12, 1, 1, '#fde047');
+    Q(-4, -8, 8, 6, cl('#14532d')); Q(-4, -2 + (l > 0 ? 0 : -1), 3, 2, '#052e16'); Q(1, -2 + (l > 0 ? -1 : 0), 3, 2, '#052e16');
+    Q(6, -14, 1, 10, '#a16207'); Q(5, -15, 1, 2, '#a16207'); Q(5, -5, 1, 2, '#a16207'); top = -19;
+  } else if(k === 24){
+    const l = Math.round(s * 2);
+    Q(-4, -8, 8, 6, cl('#1e1b4b')); Q(-2, -10, 4, 3, cl('#312e81')); Q(-2, -9, 1, 1, '#ef4444'); Q(1, -9, 1, 1, '#ef4444');
+    for(let i = 0; i < 4; i++){ Q(-8 - (i % 2), -7 + i * 2 + (l > 0 ? 0 : 1), 4, 1, '#312e81'); Q(4 + (i % 2), -7 + i * 2 + (l > 0 ? 1 : 0), 4, 1, '#312e81'); }
+    top = -13;
+  } else if(k >= 17 && k <= 20){
     // Gran Jefe de Mazmorra
     const sz = 2.4, b = s * 1.5;
     Q(-8 * sz, -16 * sz + b, 16 * sz, 15 * sz, cl('#451a03'));
@@ -1722,10 +2095,12 @@ function drawEnemy(e){
     top = -16;
   }
 
-  if(e.hb > 0 && !d.boss){
+  if((e.hb > 0 || e.el) && !d.boss){
     const w = 14, pc = Math.max(0, e.hp / e.mx);
-    Q(-w / 2, top, w, 3, '#111'); Q(-w / 2 + 1, top + 1, (w - 2) * pc, 1, '#e43b44');
+    Q(-w / 2, top, w, 3, '#111'); Q(-w / 2 + 1, top + 1, (w - 2) * pc, 1, e.el ? '#ff2a2a' : '#e43b44');
   }
+  if(e.el && !d.boss){ Q(-3, top - 4, 6, 2, '#ff2a2a'); Q(-2, top - 5, 4, 1, '#ff2a2a'); }
+  g.globalAlpha = 1;
 }
 
 // Dibujo de salas de Mazmorra (TBOI)
@@ -1734,28 +2109,59 @@ function drawDungeonRoom(){
   if(!r) return;
   const rw = r.w * T, rh = r.h * T;
 
-  // Fondo del suelo con baldosas ajedrezadas sutiles
+  // Suelo con variación sutil
   for(let ty = 0; ty < r.h; ty++){
     for(let tx = 0; tx < r.w; tx++){
-      const isAlt = (tx + ty) % 2 === 0;
-      g.fillStyle = isAlt ? th.fCol : th.fCol2;
+      const hh = hash(tx + r.x * 31, ty + r.y * 17);
+      g.fillStyle = (tx + ty) % 2 === 0 ? th.fCol : th.fCol2;
       g.fillRect(tx * T - camx, ty * T - camy, T, T);
+      if(hh > .82){ g.fillStyle = 'rgba(255,255,255,.035)'; g.fillRect(tx * T - camx + 3, ty * T - camy + 3, 5, 1); }
+      else if(hh < .1){ g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(tx * T - camx + 6, ty * T - camy + 8, 4, 3); }
     }
   }
+  // Alfombra (inicio, tesoro y tienda)
+  if(r.rug){
+    const rx0 = (r.w / 2 - 4) * T - camx, ry0 = (r.h / 2 - 2) * T - camy;
+    g.fillStyle = '#5b1620'; g.fillRect(rx0, ry0, 8 * T, 4 * T);
+    g.fillStyle = '#d4a017'; g.fillRect(rx0, ry0, 8 * T, 2); g.fillRect(rx0, ry0 + 4 * T - 2, 8 * T, 2); g.fillRect(rx0, ry0, 2, 4 * T); g.fillRect(rx0 + 8 * T - 2, ry0, 2, 4 * T);
+    g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(rx0 + 4, ry0 + 4, 8 * T - 8, 2);
+  }
+  // Marcas del suelo (huesos, grietas, sangre, runas, lava...)
+  for(const d of r.dec){
+    const X = d.x * T - camx, Y = d.y * T - camy;
+    if(d.t === 'bone'){ g.fillStyle = '#cbd5e1'; g.fillRect(X + 3, Y + 8, 8, 2); g.fillRect(X + 2, Y + 7, 2, 4); g.fillRect(X + 10, Y + 7, 2, 4); }
+    else if(d.t === 'crack'){ g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(X + 2, Y + 4, 5, 1); g.fillRect(X + 6, Y + 5, 1, 4); g.fillRect(X + 6, Y + 8, 5, 1); }
+    else if(d.t === 'blood'){ g.fillStyle = 'rgba(160,20,30,.5)'; g.fillRect(X + 3, Y + 5, 9, 5); g.fillRect(X + 5, Y + 3, 4, 9); }
+    else if(d.t === 'moss'){ g.fillStyle = 'rgba(120,255,80,.26)'; g.fillRect(X + 2, Y + 6, 10, 6); g.fillRect(X + 5, Y + 4, 5, 3); }
+    else if(d.t === 'skull'){ g.fillStyle = '#e2e8f0'; g.fillRect(X + 5, Y + 5, 6, 5); g.fillStyle = '#0f172a'; g.fillRect(X + 6, Y + 7, 1, 1); g.fillRect(X + 9, Y + 7, 1, 1); }
+    else if(d.t === 'rune'){ g.fillStyle = 'rgba(160,100,255,' + (.25 + .15 * Math.sin(t * 2 + d.x)) + ')'; g.fillRect(X + 3, Y + 3, 10, 1); g.fillRect(X + 3, Y + 12, 10, 1); g.fillRect(X + 3, Y + 3, 1, 10); g.fillRect(X + 12, Y + 3, 1, 10); g.fillRect(X + 7, Y + 6, 2, 4); }
+    else if(d.t === 'lava'){ g.fillStyle = 'rgba(255,110,20,' + (.3 + .2 * Math.sin(t * 3 + d.y)) + ')'; g.fillRect(X + 2, Y + 6, 6, 1); g.fillRect(X + 7, Y + 7, 1, 5); g.fillRect(X + 7, Y + 11, 6, 1); }
+  }
 
-  // Paredes y Muros
-  g.fillStyle = th.wCol;
-  g.fillRect(-camx, -camy, rw, T);
-  g.fillRect(-camx, rh - T - camy, rw, T);
-  g.fillRect(-camx, -camy, T, rh);
-  g.fillRect(rw - T - camx, -camy, T, rh);
+  // Paredes con ladrillos
+  const wall = (x, y, w, h) => {
+    g.fillStyle = th.wCol; g.fillRect(x - camx, y - camy, w, h);
+    g.fillStyle = 'rgba(0,0,0,.28)';
+    for(let yy = 0; yy < h; yy += 5){
+      g.fillRect(x - camx, y + yy - camy, w, 1);
+      for(let xx = ((yy / 5) % 2) * 6; xx < w; xx += 12) g.fillRect(x + xx - camx, y + yy - camy, 1, 5);
+    }
+    g.fillStyle = 'rgba(255,255,255,.06)'; g.fillRect(x - camx, y - camy, w, 1);
+  };
+  wall(0, 0, rw, T); wall(0, rh - T, rw, T); wall(0, 0, T, rh); wall(rw - T, 0, T, rh);
+  // Antorchas y estandartes en la pared norte
+  for(const d of r.dec){
+    const X = d.x * T - camx, Y = d.y * T - camy;
+    if(d.t === 'torch'){ const fl = Math.round(Math.sin(t * 12 + d.x)); g.fillStyle = '#78350f'; g.fillRect(X + 7, Y + 6, 2, 6); g.fillStyle = '#f97316'; g.fillRect(X + 6, Y + 2 + fl, 4, 5); g.fillStyle = '#fde047'; g.fillRect(X + 7, Y + 3 + fl, 2, 3); }
+    else if(d.t === 'banner'){ g.fillStyle = d.c; g.fillRect(X + 4, Y + 1, 8, 12); g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(X + 4, Y + 11, 3, 2); g.fillRect(X + 9, Y + 11, 3, 2); g.fillStyle = '#d4a017'; g.fillRect(X + 7, Y + 4, 2, 4); }
+  }
 
   // Puertas
   const midX = Math.floor(r.w / 2) * T;
   const midY = Math.floor(r.h / 2) * T;
-
+  const typeCol = type => type === 'boss' ? '#ef4444' : type === 'treasure' ? '#ffd23f' : type === 'shop' ? '#38d66b' : type === 'fountain' ? '#38bdf8' : type === 'challenge' ? '#f97316' : '#7df9ff';
   const drawDoorFrame = (x, y, isHoriz, open, type) => {
-    const col = type === 'boss' ? '#ef4444' : type === 'treasure' ? '#ffd23f' : '#7df9ff';
+    const col = typeCol(type);
     g.fillStyle = '#070914';
     g.fillRect(x - camx, y - camy, isHoriz ? 32 : 16, isHoriz ? 16 : 32);
     if(open){
@@ -1773,20 +2179,39 @@ function drawDungeonRoom(){
       }
     }
   };
+  if(r.doors.n) drawDoorFrame(midX - 16, 0, true, r.cleared, dung.rooms[`${r.x},${r.y - 1}`]?.type);
+  if(r.doors.s) drawDoorFrame(midX - 16, rh - 16, true, r.cleared, dung.rooms[`${r.x},${r.y + 1}`]?.type);
+  if(r.doors.w) drawDoorFrame(0, midY - 16, false, r.cleared, dung.rooms[`${r.x - 1},${r.y}`]?.type);
+  if(r.doors.e) drawDoorFrame(rw - 16, midY - 16, false, r.cleared, dung.rooms[`${r.x + 1},${r.y}`]?.type);
 
-  if(r.doors.n) drawDoorFrame(midX - 16, 0, true, r.cleared, dung.rooms[`${r.x},${r.y-1}`]?.type);
-  if(r.doors.s) drawDoorFrame(midX - 16, rh - 16, true, r.cleared, dung.rooms[`${r.x},${r.y+1}`]?.type);
-  if(r.doors.w) drawDoorFrame(0, midY - 16, false, r.cleared, dung.rooms[`${r.x-1},${r.y}`]?.type);
-  if(r.doors.e) drawDoorFrame(rw - 16, midY - 16, false, r.cleared, dung.rooms[`${r.x+1},${r.y}`]?.type);
-
-  // Obstáculos en la sala
-  if(r.obs){
-    g.fillStyle = th.obsCol;
-    for(const o of r.obs){
-      g.fillRect(o.x * T - camx, o.y * T - camy, T, T);
-      g.fillStyle = 'rgba(255,255,255,0.15)';
-      g.fillRect(o.x * T + 2 - camx, o.y * T + 2 - camy, T - 4, 2);
-      g.fillStyle = th.obsCol;
+  // Pinchos
+  for(const s_ of r.spk){
+    const X = s_.x * T - camx, Y = s_.y * T - camy, st = spkState(s_);
+    g.fillStyle = '#0a0a14'; g.fillRect(X + 2, Y + 2, 12, 12);
+    for(let i = 0; i < 4; i++){
+      const sx = X + 3 + (i % 2) * 6, sy = Y + 3 + (i >> 1) * 6;
+      if(st === 0){ g.fillStyle = '#1e293b'; g.fillRect(sx + 1, sy + 1, 2, 2); }
+      else if(st === 1){ g.fillStyle = '#ef4444'; g.fillRect(sx + 1, sy, 2, 3); }
+      else { g.fillStyle = '#e2e8f0'; g.fillRect(sx, sy + 2, 3, 5); g.fillRect(sx + 1, sy, 1, 2); }
+    }
+  }
+  // Obstáculos
+  for(const o of r.obs){
+    const X = o.x * T - camx, Y = o.y * T - camy;
+    g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(X, Y + T - 2, T, 4);
+    g.fillStyle = th.obsCol; g.fillRect(X, Y - 2, T, T);
+    g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(X + 1, Y - 1, T - 2, 2);
+    g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(X, Y + T - 5, T, 3); g.fillRect(X + 8, Y + 2, 1, 6);
+  }
+  // Fuente curativa
+  if(r.type === 'fountain'){
+    const fx0 = (r.w / 2) * T - camx, fy0 = (r.h / 2) * T - camy;
+    g.fillStyle = '#334155'; g.fillRect(fx0 - 14, fy0 - 8, 28, 20);
+    g.fillStyle = r.used ? '#475569' : '#38bdf8'; g.fillRect(fx0 - 11, fy0 - 5, 22, 14);
+    if(!r.used){
+      const w_ = Math.sin(t * 4) * 2;
+      g.fillStyle = '#bae6fd'; g.fillRect(fx0 - 8 + w_, fy0 - 2, 5, 1); g.fillRect(fx0 + 2 - w_, fy0 + 3, 6, 1);
+      g.fillStyle = '#7dd3fc'; g.fillRect(fx0 - 1, fy0 - 14, 2, 9); g.fillRect(fx0 - 3, fy0 - 12, 6, 1);
     }
   }
 
@@ -1817,6 +2242,20 @@ function drawDungeonRoom(){
     g.fillStyle = '#0f172a'; g.fillRect(tx - 4, ty - 4, 8, 8);
   }
 }
+function drawDungeonFx(){
+  const r = dung.curRoom; if(!r) return;
+  g.save(); g.globalCompositeOperation = 'lighter';
+  for(const d of r.dec) if(d.t === 'torch'){
+    const X = d.x * T - camx + 8, Y = d.y * T - camy + 6, fl = .22 + .06 * Math.sin(t * 11 + d.x * 3);
+    const gr = g.createRadialGradient(X, Y, 2, X, Y, 46);
+    gr.addColorStop(0, 'rgba(255,150,40,' + fl + ')'); gr.addColorStop(1, 'rgba(255,150,40,0)');
+    g.fillStyle = gr; g.fillRect(X - 46, Y - 46, 92, 92);
+  }
+  g.restore();
+  const vg = g.createRadialGradient(W / 2, H / 2, 70, W / 2, H / 2, 200);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.5)');
+  g.fillStyle = vg; g.fillRect(0, 0, W, H);
+}
 
 // Minimapa estilo The Binding of Isaac
 function drawDungeonMinimap(){
@@ -1840,7 +2279,7 @@ function drawDungeonMinimap(){
 
     if(r.visited){
       const isCur = (r === curR);
-      hg.fillStyle = isCur ? '#ffd23f' : r.type === 'boss' ? '#ef4444' : r.type === 'treasure' ? '#a855f7' : r.type === 'shop' ? '#38d66b' : '#475569';
+      hg.fillStyle = isCur ? '#ffd23f' : r.type === 'boss' ? '#ef4444' : r.type === 'treasure' ? '#a855f7' : r.type === 'shop' ? '#38d66b' : r.type === 'fountain' ? '#38bdf8' : r.type === 'challenge' ? '#f97316' : '#475569';
       hg.fillRect(mx * hs, my * hs, size * hs, size * hs);
 
       if(isCur){
@@ -1962,6 +2401,12 @@ function draw(){
 
   // Renderizar entidades ordenadas por Y
   for(const e of enemies) dr.push({ y: e.y, f: () => drawEnemy(e) });
+  if(mode === 'dung' && dung.curRoom) for(const q of dung.curRoom.props) if(!q.dead) dr.push({ y: q.y * T + T, f: () => drawProp(q) });
+  if(net.on) for(const id in net.rem){
+    const r = net.rem[id];
+    if(r.av && r.dd && (mode !== 'dung' || r.rk === dung.curRoomKey)) dr.push({ y: r.y, f: () => { drawGrave(r.x, r.y); TX(r.name || '', r.x - camx, r.y - camy - 24, 3.2, '#9ca3af', 'center'); } });
+  }
+  if(p.dead > 1000) dr.push({ y: p.y, f: () => drawGrave(p.x, p.y) });
   if(pet) dr.push({ y: pet.y, f: () => drawPet(g, Math.round(pet.x - camx), Math.round(pet.y - camy), pet.ty, pet.t) });
 
   for(const q of coins) dr.push({
@@ -1994,6 +2439,7 @@ function draw(){
   }
 
   dr.sort((a, b) => a.y - b.y).forEach(d => d.f());
+  if(mode === 'dung' && state !== 'menu') drawDungeonFx();
 
   for(const b of bullets) R(b.x - 1, b.y - 1, 3, 3, b.col || '#ffe66d');
   for(const b of eb) R(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2, b.c || '#ff4d6d');
@@ -2021,6 +2467,8 @@ function draw(){
 
   if(mode === 'dung'){
     TX('PISO ' + dung.floor + ': ' + dung.floorTheme.n.toUpperCase(), W / 2, 9, 4.2, '#ffd23f', 'center');
+    const rr_ = dung.curRoom;
+    if(rr_ && !rr_.cleared) TX('ENEMIGOS: ' + enemies.length + (rr_.waves > 1 ? '   OLEADA ' + Math.max(1, rr_.wave) + '/' + rr_.waves : ''), W / 2, 17, 3.6, '#ff9d9d', 'center');
     if(dung.passives.length > 0){
       dung.passives.forEach((pi, idx) => {
         const rel = RELICS[pi];
@@ -2065,6 +2513,7 @@ function draw(){
     hg.globalAlpha = 1;
   }
 
+  drawReviveHud();
   if(state === 'play' && !paused){
     g.fillStyle = '#fff';
     g.fillRect(mx - 4, my, 3, 1); g.fillRect(mx + 2, my, 3, 1);
@@ -2129,6 +2578,8 @@ setInterval(() => {
 const spl = t => [...t].map((c, i) => `<span style="--i:${i}">${c}</span>`).join('');
 
 function main(msg){
+  dungIso(false); net.wait = false;
+  if(mode === 'dung'){ mode = 'surv'; genMap(3, 0, false); buildMini(); }
   state = 'menu'; paused = false; ret = main;
   panel(`<div class=mm>
     <div class=header-row>
@@ -2201,7 +2652,7 @@ function pauseMenu(){
   ${mode === 'dung' && dung.passives.length ? `<div class=r><small>RELIQUIAS ACTIVAS (${dung.passives.length}):</small><br>${dung.passives.map(i => `<span style="display:inline-block;margin:.3cqw;padding:.2cqw .5cqw;background:#080b1e;border:1px solid ${RELICS[i].col};border-radius:3px">${RELICS[i].ic} ${RELICS[i].n}</span>`).join('')}</div>` : ''}
   <div class=vlist>
     <button class=s data-a=resume>▶ CONTINUAR</button>
-    <button data-a=shop>🛒 TIENDA</button>
+    ${mode === 'dung' ? '' : '<button data-a=shop>🛒 TIENDA</button>'}
     <button data-a=set>⚙ AJUSTES</button>
     <button data-a=quit>✖ SALIR AL MENÚ</button>
   </div>`);
@@ -2218,8 +2669,8 @@ function over(){
     <div><small>MONEDAS</small><b>${V.coins}</b></div>
   </div>
   <div class=vlist>
-    <button class=s data-a=retry>↻ REINTENTAR</button>
-    <button data-a=shop>🛒 TIENDA</button>
+    ${net.on ? '' : '<button class=s data-a=retry>↻ REINTENTAR</button>'}
+    ${mode === 'dung' ? '' : '<button data-a=shop>🛒 TIENDA</button>'}
     <button data-a=quit>✖ MENÚ PRINCIPAL</button>
   </div>`);
 }
@@ -2232,7 +2683,8 @@ function clearMenu(){
   <div class=vlist>
     <button class=s data-a=quit>✖ VOLVER AL MENÚ</button>
   </div>`);
-  V.coins += 150; save();
+  if(DB) DB.coins += 150; else V.coins += 150;
+  save();
 }
 
 function settings(){
@@ -2484,6 +2936,11 @@ const A = {
     updVote();
   },
   om: v => { net.mode = v; online(); },
+  dstart: () => {
+    if(!net.on || !net.host || !net.wait) return;
+    const sdv = rnd(1, 99999); snd({ t: 'd_go', fl: 1, sd: sdv }); beginDung(1, sdv);
+  },
+  wquit: () => A.quit(),
   tab: v => shop(v),
   eqi: (v, k) => {
     if(k == 'w') V.eq = +v; if(k == 'a') V.arm = +v; if(k == 'p') V.pet = +v;
@@ -2505,8 +2962,8 @@ const A = {
   col: (v, k) => { V.av[k] = v; save(); avatar(); },
   acc: v => { V.av.acc = +v; save(); avatar(); },
   conn: () => { V.srv = $('#su').value.trim(); save(); connect(V.srv); },
-  join: v => raw({ t: 'join', room: v }),
-  make: () => { const n = $('#nr').value.trim().slice(0, 17); if(n) raw({ t: 'join', room: pref() + n }); },
+  join: v => { net.roomName = v; raw({ t: 'join', room: v }); },
+  make: () => { const n = $('#nr').value.trim().slice(0, 17); if(n){ net.roomName = pref() + n; raw({ t: 'join', room: pref() + n }); } },
   cancel: () => { if(net.abort) net.abort(); online(); },
   lback: () => { net.lob = false; if(!net.on) try{ net.ws.close(); }catch(e){} main(); }
 };
@@ -2549,7 +3006,7 @@ addEventListener('keydown', e => {
   if(k === ' ' && pl) e.preventDefault();
   if(k === 'escape' && state === 'play'){ paused ? A.resume() : pauseMenu(); }
   if(pl && k >= '1' && k <= '5'){ const i = +k - 1; if(V.owned.includes(i)) V.eq = i; }
-  if(pl && k === 'b'){ paused = true; ret = pauseMenu; shop(); }
+  if(pl && k === 'b' && mode !== 'dung'){ paused = true; ret = pauseMenu; shop(); }
 });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
