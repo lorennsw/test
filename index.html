@@ -299,7 +299,7 @@ function mulberry32(a) {
 }
 
 // ---------- DATOS GUARDADOS ----------
-let S = { sens: 1, mus: 0.5, sfx: 0.6, crt: true, opt: false };
+let S = { sens: 1, mus: 0.5, sfx: 0.6, crt: true, opt: false, cross: '#ffffff' };
 let V = {
   coins: 0, owned: [0], eq: 0, arm: -1, armo: [], pet: -1, peto: [],
   srv: '', room: '',
@@ -2132,6 +2132,8 @@ function drawDungeonRoom(){
   const r = dung.curRoom, th = dung.floorTheme;
   if(!r) return;
   const rw = r.w * T, rh = r.h * T;
+  // La sala (11 tiles = 176px) es más baja que la pantalla (180px): se pinta todo antes para no dejar restos del mapa anterior
+  g.fillStyle = th.wCol; g.fillRect(0, 0, W, H);
 
   // Suelo con variación sutil
   for(let ty = 0; ty < r.h; ty++){
@@ -2540,7 +2542,7 @@ function draw(){
 
   drawReviveHud();
   if(state === 'play' && !paused){
-    g.fillStyle = '#fff';
+    g.fillStyle = S.cross || '#fff';
     g.fillRect(mx - 4, my, 3, 1); g.fillRect(mx + 2, my, 3, 1);
     g.fillRect(mx, my - 4, 1, 3); g.fillRect(mx, my + 2, 1, 3);
   }
@@ -2717,6 +2719,7 @@ function clearMenu(){
   save();
 }
 
+const CROSS = ['#ffffff', '#ff3b3b', '#38ff6b', '#7df9ff', '#ffe66d', '#ff4dff', '#ff9d3d', '#000000'];
 function settings(){
   const pv = (v, a, b) => ((v - a) / (b - a) * 100) + '%';
   panel(`<h2>AJUSTES</h2>
@@ -2724,6 +2727,7 @@ function settings(){
   <div class=row><span>🎵 MÚSICA</span><span><input type=range min=0 max=1 step=.05 value=${S.mus} data-k=mus style="--v:${pv(S.mus, 0, 1)}"><b>${Math.round(S.mus * 100)}%</b></span></div>
   <div class=row><span>🔊 EFECTOS</span><span><input type=range min=0 max=1 step=.05 value=${S.sfx} data-k=sfx style="--v:${pv(S.sfx, 0, 1)}"><b>${Math.round(S.sfx * 100)}%</b></span></div>
   <div class=row><span>📺 FILTRO RETRO CRT</span><button class="tg ${S.crt !== false ? 'on' : ''}" data-a=crt>${S.crt !== false ? 'ON' : 'OFF'}</button></div>
+  <div class=row><span>➕ COLOR DE LA MIRA</span><span>${CROSS.map(x => `<span class="sw${S.cross === x ? ' s' : ''}" style="background:${x}" data-a=cross data-v="${x}"></span>`).join('')}</span></div>
   <div class=row><span>🚀 MODO OPTIMIZACIÓN<br><small>Menos partículas y efectos, sin animaciones de menú ni CRT. Ideal para PCs y celulares lentos.</small></span><button class="tg ${S.opt ? 'on' : ''}" data-a=opt>${S.opt ? 'ON' : 'OFF'}</button></div>
   <button class=s data-a=back>◀ VOLVER</button>`);
 }
@@ -3064,6 +3068,7 @@ const A = {
     document.getElementById('w').classList.toggle('crt', S.crt !== false);
     settings();
   },
+  cross: v => { if(CROSS.includes(v)){ S.cross = v; save(); } settings(); },
   opt: () => {
     S.opt = !S.opt; save();
     document.getElementById('w').classList.toggle('lite', S.opt);
