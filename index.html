@@ -557,6 +557,17 @@ function genDungeon(floor, sd){
   // Generar obstáculos y patrones de interior para cada sala
   for(const k in rooms) setupRoomInterior(rooms[k], th, floor, pr);
 
+  // Armerías: salas del tesoro extra con un arma garantizada (1 por piso, 2 desde el piso 3).
+  // Usan su propio generador para no cambiar el resto de la mazmorra de esa semilla.
+  const ar = mulberry32(sd ^ 0x5bd1e995);
+  const armCand = Object.values(rooms).filter(r => r.type === 'combat' && (r.x !== 0 || r.y !== 0));
+  for(let n = floor >= 3 ? 2 : 1; n > 0 && armCand.length; n--){
+    const r = armCand.splice(Math.floor(ar() * armCand.length), 1)[0];
+    r.type = 'treasure'; r.cleared = true; r.rug = true;
+    r.item = { t: 'wp', i: 1 + Math.floor(ar() * (WP.length - 1)) };
+    r.obs = []; r.props = []; r.spk = []; r.eps = []; r.ep = []; r.waves = 0;
+  }
+
   dung = {
     active: true, floor, seed: sd, rooms, curRoomKey: '0,0',
     curRoom: rooms['0,0'], keys: 1, passives: dung.passives || [],
@@ -902,13 +913,11 @@ function checkPedestals(){
       if(ped.item.t === 'relic'){
         obtainRelic(ped.item.i);
       } else if(ped.item.t === 'wp'){
-        if(!V.owned.includes(ped.item.i)) V.owned.push(ped.item.i);
-        V.eq = ped.item.i;
-        banner('¡' + WP[V.eq].n.toUpperCase() + ' EQUIPADA!');
-        sFan();
+        giveWp(ped.item.i, net.on ? '¡ARMA PARA TODOS! ' : '¡');
       }
       dung.curRoom.itemTaken = true;
-      if(net.on) snd({ t: 'd_take', k: dung.curRoomKey, id: ped.id });
+      // las armas se comparten con todo el equipo; las reliquias son solo de quien las agarra
+      if(net.on) snd({ t: 'd_take', k: dung.curRoomKey, id: ped.id, wp: ped.item.t === 'wp' ? ped.item.i : undefined, n: V.av.name });
       dung.pedestals.splice(i, 1);
     }
   }
@@ -974,6 +983,13 @@ function waitRoom(){
     const x = cv.getContext('2d'); x.clearRect(0, 0, 28, 32);
     drawChar(x, 14, 26, { ang: Math.PI / 2, walk: 0, moving: false }, Object.assign({ hs: 0, ec: '#111111', os: 0, pn: '#3a3a5c' }, o.av));
   });
+}
+
+function giveWp(i, msg){
+  if(!V.owned.includes(i)) V.owned.push(i);
+  V.eq = i;
+  banner(msg + WP[i].n.toUpperCase() + (msg === '¡' ? ' EQUIPADA!' : ''));
+  sFan();
 }
 
 function obtainRelic(idx){
@@ -1818,6 +1834,7 @@ function onNet(d){
   }
   else if(d.t === 'd_wave' && mode === 'dung' && dung.curRoomKey === d.k){ dung.curRoom.wave = d.n; banner('OLEADA ' + d.n + '/' + d.m); }
   else if(d.t === 'd_take' && mode === 'dung'){
+    if(d.wp != null && WP[d.wp]) giveWp(d.wp, String(d.n || 'UN AMIGO').toUpperCase().slice(0, 12) + ' COMPARTIÓ: ');
     if(dung.curRoomKey === d.k){
       const i = dung.pedestals.findIndex(q => q.id === d.id);
       if(i >= 0){ if(dung.pedestals[i].shop) dung.pedestals[i].shop.bought = true; dung.pedestals.splice(i, 1); }
@@ -2715,7 +2732,7 @@ function main(msg){
         <div class=info-title>CONTROLES</div>
         <div><span>Mover</span><kbd>WASD</kbd></div>
         <div><span>Disparar</span><kbd>Click</kbd></div>
-        <div><kbd>1-5</kbd><span>ARMAS</span></div>
+        <div><span>Cambiar arma</span><kbd>1-8</kbd></div>
         <div><span>Roll</span><kbd>Espacio</kbd></div>
         <div><span>Tienda</span><kbd>B</kbd></div>
         <div><span>Minimapa</span><kbd>M</kbd></div>
@@ -3208,7 +3225,7 @@ addEventListener('keydown', e => {
   if(k === 'f' && !(e.target && e.target.tagName === 'INPUT')) toggleFS();
   if(k === ' ' && pl) e.preventDefault();
   if(k === 'escape' && state === 'play'){ paused ? A.resume() : pauseMenu(); }
-  if(pl && k >= '1' && k <= '5'){ const i = +k - 1; if(V.owned.includes(i)) V.eq = i; }
+  if(pl && k >= '1' && k <= '8'){ const i = +k - 1; if(V.owned.includes(i)) V.eq = i; }
   if(pl && k === 'b' && mode !== 'dung'){ paused = true; ret = pauseMenu; shop(); }
 });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
