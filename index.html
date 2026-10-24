@@ -258,6 +258,45 @@ input[readonly]{color:var(--muted);cursor:default}
 .rlm{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:var(--acc);z-index:3;box-shadow:0 0 .8cqw var(--acc)}
 .rlm::before{content:'';position:absolute;top:0;left:-.6cqw;border:.6cqw solid transparent;border-top-color:var(--acc)}
 
+/* ---- controles táctiles (celular / tablet) */
+#tc{position:absolute;inset:0;z-index:5;pointer-events:none;display:none}
+#tc.on{display:block}
+.tcb{position:absolute;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;margin:0;padding:0;width:max(52px,8cqw);height:max(52px,8cqw);border-radius:50%;background:rgba(10,13,22,.42);border:1px solid rgba(255,255,255,.28);color:#fff;font-weight:800;font-size:max(10px,1.1cqw);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:.2cqw;transition:background .1s,opacity .2s}
+.tcb:hover{background:rgba(10,13,22,.42);border-color:rgba(255,255,255,.28)}
+.tcb.down,.tcb:active{background:rgba(255,255,255,.28);transform:none}
+.tcb .ico{width:45%;height:45%}
+.tcb small{color:#fff;font-size:max(8px,.75cqw);letter-spacing:.06em}
+#tcRoll{right:3cqw;bottom:20cqw;width:max(64px,10cqw);height:max(64px,10cqw)}
+#tcRoll.cd{opacity:.4}
+#tcWeap{right:14.5cqw;bottom:26cqw}
+#tcWeap .ico{color:var(--wc,#fff)}
+#tcPause{top:calc(2cqw + max(28px,3cqw));right:1cqw;width:max(32px,3.4cqw);height:max(32px,3.4cqw);border-radius:var(--r)}
+#tcRev{display:none;left:50%;bottom:4cqw;transform:translateX(-50%);width:auto;height:auto;padding:1cqw 2cqw;border-radius:2cqw;background:rgba(62,207,142,.3);border-color:var(--ok)}
+#tcRev.on{display:flex}
+#tcRev.down{transform:translateX(-50%)}
+#rot{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;text-align:center;background:var(--bg);font-size:20px;font-weight:800}
+#rot small{display:block;margin-top:8px;font-size:13px;font-weight:500}
+#rot div::before{content:'↻';display:block;font-size:56px;color:var(--acc);margin-bottom:10px}
+@media (orientation: portrait){ body.touch #rot{display:flex} }
+
+/* ---- pantallas chicas (celular en horizontal): menú principal compacto */
+@container (max-width: 820px){
+  .mm{padding:1.4cqw 2cqw 1cqw}
+  .logo{font-size:max(18px,4cqw)}
+  .sub,.info,.hero-tags,.hero-mode small,.mb small,.mb::after,.tick::before{display:none}
+  .cols{grid-template-columns:1.7fr 1fr;margin:1.2cqw 0 .8cqw;gap:1.2cqw}
+  .nav{gap:.5cqw}
+  .hero-mode{flex:1.2;padding:.4cqw 1.2cqw}
+  .hero-mode::before{top:50%;transform:translateY(-50%)}
+  .mb{padding:.2cqw 1.2cqw;min-height:max(26px,4.4cqw)}
+  .mb b,.hero-mode b{font-size:max(12px,1.6cqw)}
+  .pc{padding:.8cqw;gap:.5cqw}
+  .pcv{width:10cqw;height:10cqw}.pcv canvas{width:8.8cqw;height:10cqw}
+  .gs{width:3.6cqw;height:3.6cqw}
+  .tick{font-size:max(10px,1.2cqw)}
+  .p{max-width:96%;max-height:96%;padding:1.4cqw 2cqw}
+}
+
 /* ---- modo optimización: sin animaciones ni filtros costosos */
 #w.lite #ui{backdrop-filter:none}
 #w.lite .p,#w.lite .tick{animation:none}
@@ -267,6 +306,13 @@ input[readonly]{color:var(--muted);cursor:default}
   <canvas id="c"></canvas>
   <canvas id="hud"></canvas>
   <button id="fs" tabindex="-1" title="Pantalla completa">⛶</button>
+  <div id="tc">
+    <button class=tcb id=tcPause data-k=pause tabindex=-1 aria-label="Pausa"></button>
+    <button class=tcb id=tcWeap data-k=weap tabindex=-1 aria-label="Cambiar arma"></button>
+    <button class=tcb id=tcRoll data-k=roll tabindex=-1 aria-label="Roll"></button>
+    <button class=tcb id=tcRev data-k=rev tabindex=-1>Mantené para revivir</button>
+  </div>
+  <div id="rot"><div>Girá el celular<small>El juego se juega en horizontal</small></div></div>
   <div id="ui"><div id="fx"></div><div id="uic"></div></div>
 </div>
 
@@ -317,7 +363,7 @@ function mulberry32(a) {
 }
 
 // ---------- DATOS GUARDADOS ----------
-let S = { sens: 1, mus: 0.5, sfx: 0.6, crt: true, opt: false, cross: '#ffffff' };
+let S = { sens: 1, mus: 0.5, sfx: 0.6, crt: true, opt: false, cross: '#ffffff', touch: 'auto' };
 let V = {
   coins: 0, owned: [0], eq: 0, arm: -1, armo: [], pet: -1, peto: [],
   srv: '', room: '',
@@ -1339,7 +1385,7 @@ let spawnT = 1, nid = 1, camx = 0, camy = 0, boss = null, bd = false, pet = null
 let bn = { s: '', l: 0 }, eb = [], shw = [], key = false, nb = 30, rt = 300, mapIdx = 0;
 let lsb = [], spec = 0, door = null, vote = null, ret = () => main(), best = 0;
 const keys = {}, net = { on: false, id: 0, host: false, rem: {}, ws: null, mode: 'dung', sc: {}, max: 4 };
-let mx = W / 2, my = H / 2, mdown = false, stick = null, stickId = null, aimId = null;
+let mx = W / 2, my = H / 2, mdown = false, stick = null, stickId = null, aimId = null, aimStick = null, touchSeen = false;
 
 const snd = o => { if(net.on && net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify(o)); };
 const myId = () => net.on ? net.id : 0;
@@ -1746,6 +1792,10 @@ function update(dt){
     p.walk += dt * 10;
   }
 
+  if(aimStick){   // joystick derecho: la mira va hacia donde lo empujás y dispara si lo empujás más
+    if(aimStick.m > .2){ mx = p.x - camx + aimStick.x * 60; my = p.y - 6 - camy + aimStick.y * 60; }
+    mdown = aimStick.m > .45;
+  }
   p.ang = Math.atan2(my + camy - (p.y - 6), mx + camx - p.x);
   p.cd -= dt; p.inv -= dt; p.kick = Math.max(0, p.kick - dt * 40);
 
@@ -2726,7 +2776,7 @@ function draw(){
       const hint = key ? 'ANDÁ A LA PUERTA' : (goalDone() ? 'COMPLETÁ LA MISIÓN' : '');
       if(hint) TX(hint, W / 2, 21, 3.6, '#ffe66d', 'center');
     }
-    drawMini();
+    if(!touchOn()) drawMini();   // en el celular el minimapa taparía el joystick derecho
     if(mode === 'camp') drawArrow();
   }
 
@@ -2750,6 +2800,7 @@ function draw(){
   }
 
   drawReviveHud();
+  if(touchOn() && state === 'play' && !paused) drawSticks();
   if(state === 'play' && !paused){
     g.fillStyle = S.cross || '#fff';
     g.fillRect(mx - 4, my, 3, 1); g.fillRect(mx + 2, my, 3, 1);
@@ -2773,7 +2824,7 @@ function loop(ts){
   requestAnimationFrame(loop);
   const dt = Math.min(.05, (ts - last) / 1000 || 0);
   last = ts;
-  try{ update(dt); draw(); }catch(err){ console.error('Error en el bucle del juego:', err); }
+  try{ update(dt); draw(); tcSync(); }catch(err){ console.error('Error en el bucle del juego:', err); }
 }
 
 // ---------- MENÚS Y PANELES REDISEÑADOS ----------
@@ -2911,14 +2962,19 @@ function main(msg){
 
       <div class=info>
         <div class=info-title>CONTROLES</div>
-        <div><span>Mover</span><kbd>WASD</kbd></div>
+        ${touchOn() ? `<div><span>Mover</span><kbd>Joystick izq.</kbd></div>
+        <div><span>Apuntar y disparar</span><kbd>Joystick der.</kbd></div>
+        <div><span>Roll</span><kbd>Botón</kbd></div>
+        <div><span>Cambiar arma</span><kbd>Botón</kbd></div>
+        <div><span>Revivir</span><kbd>Mantener</kbd></div>
+        <div><span>Pausa</span><kbd>II</kbd></div>` : `<div><span>Mover</span><kbd>WASD</kbd></div>
         <div><span>Disparar</span><kbd>Click</kbd></div>
         <div><span>Cambiar arma</span><kbd>1-8</kbd></div>
         <div><span>Roll</span><kbd>Espacio</kbd></div>
         <div><span>Tienda</span><kbd>B</kbd></div>
         <div><span>Minimapa</span><kbd>M</kbd></div>
         <div><span>Pantalla completa</span><kbd>F</kbd></div>
-        <div><span>Pausa</span><kbd>Esc</kbd></div>
+        <div><span>Pausa</span><kbd>Esc</kbd></div>`}
       </div>
     </div>
     <div class=tick id=tick>${TIPS[tipI++ % TIPS.length]}</div>
@@ -2988,6 +3044,7 @@ function settings(){
   <div class=set>
     <div class=row>${lb(I.cross, 'Color de la mira')}<span>${CROSS.map(x => `<span class="sw${S.cross === x ? ' s' : ''}" style="background:${x}" data-a=cross data-v="${x}"></span>`).join('')}</span></div>
     <div class=row>${lb(I.monitor, 'Filtro retro CRT', 'Líneas de escaneo y viñeta')}${tg(S.crt !== false, 'crt')}</div>
+    <div class=row>${lb(I.users, 'Controles táctiles', 'Joysticks y botones en pantalla. En automático aparecen en celulares y tablets.')}<span>${[['auto', 'Automático'], ['on', 'Siempre'], ['off', 'Nunca']].map(([v, n]) => `<button class="mini${(S.touch || 'auto') === v ? ' s' : ''}" data-a=touch data-v=${v}>${n}</button>`).join('')}</span></div>
     <div class=row>${lb(I.zap, 'Modo optimización', 'Menos partículas y efectos, sin animaciones ni CRT. Ideal para equipos lentos.')}${tg(S.opt, 'opt')}</div>
   </div>
   <button class=s data-a=back>${I.back} Volver</button>`);
@@ -3605,6 +3662,7 @@ const A = {
     settings();
   },
   cross: v => { if(CROSS.includes(v)){ S.cross = v; save(); } settings(); },
+  touch: v => { S.touch = v; save(); applyTouch(); settings(); },
   opt: () => {
     S.opt = !S.opt; save();
     document.getElementById('w').classList.toggle('lite', S.opt);
@@ -3682,6 +3740,71 @@ ui.addEventListener('input', e => {
   vol(); save(); if(k === 'sfx') sHit();
 });
 
+// ---------- CONTROLES TÁCTILES (celular / tablet) ----------
+// Se activan solos si la pantalla es táctil (o al primer toque), y se pueden forzar desde Ajustes.
+const isTouchDev = () => matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && !matchMedia('(any-pointer: fine)').matches);
+const touchOn = () => S.touch === 'on' || (S.touch !== 'off' && (isTouchDev() || touchSeen));
+function applyTouch(){
+  const on = touchOn();
+  document.body.classList.toggle('touch', on);
+  document.getElementById('w').classList.toggle('touch', on);
+}
+const tc = document.getElementById('tc'), tcRev = document.getElementById('tcRev'), tcRoll = document.getElementById('tcRoll'), tcWeap = document.getElementById('tcWeap');
+let tcShown = false;
+function tcSync(){
+  const on = touchOn() && state === 'play' && !open();
+  if(on !== tcShown){ tcShown = on; tc.classList.toggle('on', on); if(!on){ stick = aimStick = null; stickId = aimId = null; mdown = false; } }
+  if(!on) return;
+  tcRev.classList.toggle('on', !!p.rvTgt);
+  tcRoll.classList.toggle('cd', p.rlc > 0 || p.roll > 0);
+  tcWeap.style.setProperty('--wc', WP[V.eq].col);
+}
+function drawSticks(){
+  const ring = (cx, cy, kx, ky, on) => {
+    hg.globalAlpha = on ? .55 : .22;
+    hg.lineWidth = Math.max(1, hs * .8); hg.strokeStyle = '#fff';
+    hg.beginPath(); hg.arc(cx * hs, cy * hs, 22 * hs, 0, 6.283); hg.stroke();
+    hg.fillStyle = 'rgba(255,255,255,.4)'; hg.beginPath(); hg.arc((cx + kx * 22) * hs, (cy + ky * 22) * hs, 9 * hs, 0, 6.283); hg.fill();
+    hg.globalAlpha = 1;
+  };
+  stick ? ring(stick.ox, stick.oy, stick.x, stick.y, 1) : ring(42, H - 40, 0, 0, 0);
+  aimStick ? ring(aimStick.ox, aimStick.oy, aimStick.x * aimStick.m, aimStick.y * aimStick.m, 1) : ring(W - 42, H - 40, 0, 0, 0);
+}
+function nextWeapon(){
+  const o = V.owned.slice().sort((a, b) => a - b);
+  V.eq = o[(o.indexOf(V.eq) + 1) % o.length];
+  banner(WP[V.eq].n.toUpperCase());
+}
+// En el celular, el primer toque en partida pone pantalla completa y horizontal (si el navegador deja)
+let tcFS = false;
+function touchFS(){
+  if(tcFS || state !== 'play' || isFS()) return;
+  tcFS = true; toggleFS();
+  try{ const r = screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape'); r && r.catch && r.catch(() => {}); }catch(e){}
+}
+tcRoll.innerHTML = I.retry + '<small>ROLL</small>';
+tcWeap.innerHTML = I.swap + '<small>ARMA</small>';
+document.getElementById('tcPause').innerHTML = '<b style="letter-spacing:.1em">II</b>';
+document.querySelectorAll('.tcb').forEach(b => {
+  const k = b.dataset.k;
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation(); initAudio(); b.classList.add('down');
+    try{ b.setPointerCapture(e.pointerId); }catch(er){}
+    if(k === 'roll') keys[' '] = true;
+    else if(k === 'rev') keys.e = true;
+    else if(k === 'weap') nextWeapon();
+    else if(k === 'pause'){ if(state === 'play') pauseMenu(); }
+  });
+  const rel = () => {
+    b.classList.remove('down');
+    if(k === 'roll') setTimeout(() => keys[' '] = false, 80);   // que dure al menos un cuadro
+    if(k === 'rev') keys.e = false;
+  };
+  b.addEventListener('pointerup', rel); b.addEventListener('pointercancel', rel);
+  b.addEventListener('contextmenu', e => e.preventDefault());
+});
+addEventListener('resize', applyTouch);
+
 // ---------- EVENTOS Y CONTROLES ----------
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase(); keys[k] = true;
@@ -3703,9 +3826,10 @@ const pos = e => {
 c.addEventListener('pointerdown', e => {
   initAudio(); const [x, y] = pos(e);
   if(e.pointerType === 'touch'){
-    c.setPointerCapture(e.pointerId);
+    try{ c.setPointerCapture(e.pointerId); }catch(er){}
+    touchSeen = true; applyTouch(); touchFS();
     if(x < W / 2){ stickId = e.pointerId; stick = { x: 0, y: 0, ox: x, oy: y }; }
-    else { aimId = e.pointerId; mx = x; my = y; mdown = true; }
+    else { aimId = e.pointerId; aimStick = { x: 0, y: 0, m: 0, ox: x, oy: y }; }
   } else {
     mdown = true;
     try{ const r = c.requestPointerLock(); r && r.catch && r.catch(() => {}); }catch(er){}
@@ -3722,13 +3846,17 @@ c.addEventListener('pointermove', e => {
     if(e.pointerId === stickId){
       const dx = x - stick.ox, dy = y - stick.oy, l = Math.hypot(dx, dy) || 1, k = Math.min(1, l / 25);
       stick.x = dx / l * k; stick.y = dy / l * k;
-    } else if(e.pointerId === aimId){ mx = x; my = y; }
+    } else if(e.pointerId === aimId){
+      const dx = x - aimStick.ox, dy = y - aimStick.oy, l = Math.hypot(dx, dy) || 1;
+      aimStick.x = dx / l; aimStick.y = dy / l; aimStick.m = Math.min(1, l / 25);
+    }
   }
 });
 
 const up = e => {
   if(e.pointerId === stickId){ stick = null; stickId = null; }
-  else { mdown = false; aimId = null; }
+  else if(e.pointerId === aimId){ aimId = null; aimStick = null; mdown = false; }
+  else if(e.pointerType !== 'touch') mdown = false;
 };
 addEventListener('pointerup', up);
 c.addEventListener('pointercancel', up);
@@ -3776,6 +3904,7 @@ fsUpd();
 
 document.getElementById('w').classList.toggle('crt', S.crt !== false);
 document.getElementById('w').classList.toggle('lite', !!S.opt);
+applyTouch();
 ['pointerdown', 'keydown'].forEach(ev => addEventListener(ev, () => initAudio(), { once: true }));
 
 // Estado inicial para que el fondo del menu pueda dibujarse antes de empezar una partida
