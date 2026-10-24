@@ -2131,9 +2131,13 @@ function onNet(d){
 }
 
 const DEFAULT_SERVER = 'wss://test-n4r0.onrender.com';
+// Versión del protocolo online: tiene que coincidir con GAME_V del servidor (subir las dos juntas)
+const GAME_V = 2;
+// Recarga la página salteando la caché del navegador (GitHub Pages la guarda hasta 10 minutos)
+const freshReload = () => location.replace(location.pathname + '?v=' + Date.now() + location.hash);
 // quien tenía guardado el servidor viejo (sin cuentas) pasa al nuevo
 if(/shooter-nhyt\.onrender\.com/.test(V.srv || '')) V.srv = DEFAULT_SERVER;
-const raw = o => { if(net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify(o)); };
+const raw = o => { if(net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify(Object.assign({ v: GAME_V }, o))); };
 
 function connect(url){
   // todo lo online necesita una cuenta o haber elegido jugar como invitado
@@ -2166,6 +2170,13 @@ function connect(url){
       else if(!net.lob){ net.lob = true; lobby(); } else updRooms();
     }
     else if(d.t === 'full') lobby('Esa sala está llena');
+    else if(d.t === 'old'){
+      // el servidor tiene una versión más nueva que este juego: hay que recargar
+      net.q = false; net.lob = false; if(net.abort) net.abort();
+      panel(`<h2>Hay una versión nueva</h2>
+      <div class=r>El juego se actualizó. Recargá la página para seguir jugando online.</div>
+      <div class=actions><button class=s data-a=reload>${I.retry} Recargar</button><button data-a=home>${I.back} Menú</button></div>`);
+    }
     else if(d.t === 'welcome'){
       net.lob = false; net.id = d.id; net.host = d.host; net.on = true; net.rem = {};
       if(d.max) net.max = d.max;
@@ -3729,6 +3740,7 @@ const A = {
   dtop: () => duelTop(),
   drematch: () => { DU.asked = true; raw({ t: 'duel_again' }); duelResult(); },
   home: () => main(),
+  reload: () => freshReload(),
   login: () => authPanel('login'),
   atab: v => { const u = $('#au'); if(u) authUser = u.value.trim(); authPanel(v); },
   guest: () => { guestS = true; main(); },

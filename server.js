@@ -14,6 +14,9 @@ const DUEL_MAPS = 6;                                  // mapas del duelo (el cli
 const FFA_KILLS = 10;
 const WEAPONS = 8, VETO_S = 12, ROULETTE_MS = 5800;   // veto de armas: 12 s por turno, empieza al terminar la ruleta                                 // todos contra todos: gana el primero en llegar
 const NAME_RE = /^[A-Za-z0-9_]{3,12}$/;
+// Versión del protocolo: subirla junto con GAME_V del juego cada vez que cambian los mensajes.
+// Un juego viejo (por ejemplo, guardado en la caché del navegador) no puede entrar a salas nuevas.
+const GAME_V = 2;
 
 (async () => {
   const store = await createStore();
@@ -54,7 +57,7 @@ const NAME_RE = /^[A-Za-z0-9_]{3,12}$/;
     'GET /': (req, res) => { res.writeHead(200, CORS); res.end('Pixel Shooter server OK'); },
     'GET /health': (req, res) => { res.writeHead(200, CORS); res.end('ok'); },
     // dónde se guardan las cuentas: con persistent=false se borran al reiniciar el servidor
-    'GET /api/info': (req, res) => json(res, 200, { storage: store.kind, persistent: store.kind === 'PostgreSQL' }),
+    'GET /api/info': (req, res) => json(res, 200, { storage: store.kind, persistent: store.kind === 'PostgreSQL', v: GAME_V }),
     'POST /api/register': async (req, res, ip) => {
       if (limited(ip)) return json(res, 429, { error: 'Demasiados intentos, esperá un minuto' });
       const { username, password, password2 } = await readBody(req);
@@ -272,6 +275,7 @@ const NAME_RE = /^[A-Za-z0-9_]{3,12}$/;
       if (m.n) ws.nick = String(m.n).slice(0, 12);
       if (m.t === 'auth') { ws.user = readToken(m.token); return send(ws, { t: 'authok', ok: !!ws.user }); }
       if (m.t === 'list') return send(ws, { t: 'rooms', l: list() });
+      if ((m.t === 'join' || m.t === 'duel_q') && m.v !== GAME_V) return send(ws, { t: 'old', v: GAME_V });
       if (m.t === 'join') { if (!ws.room) joinRoom(ws, String(m.room || 'D|Sala 1').slice(0, 30), m.max); return; }
       if (m.t === 'duel_q') return queueDuel(ws, m.md in queues ? m.md : '1v1');
       if (m.t === 'duel_qx') return dropQ(ws);
