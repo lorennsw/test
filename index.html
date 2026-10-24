@@ -1585,7 +1585,7 @@ function update(dt){
   if(dung.passives && dung.passives.includes(0)) spMod *= 1.3; // Alas de Hermes
 
   p.rlc = (p.rlc || 0) - dt;
-  if(keys.q && !p.dead && !paused && !(p.roll > 0) && p.rlc <= 0){
+  if(keys[' '] && !p.dead && !paused && !(p.roll > 0) && p.rlc <= 0){
     const ra = l > .1 ? Math.atan2(dy, dx) : p.ang;
     p.roll = ROLL_T; p.rlc = ROLL_CD; p.rdx = Math.cos(ra); p.rdy = Math.sin(ra); p.rsg = p.rdx < 0 ? -1 : 1;
     burst(p.x, p.y - 2, '#9aa5c8', 6); tone('triangle', 420, 140, .16, .12, sg);
@@ -1608,7 +1608,7 @@ function update(dt){
   if(p.dead > 0){
     p.dead -= dt;
     if(p.dead <= 0){ p.dead = 0; p.hp = 5; p.inv = 3; safeSpot(); }
-  } else if(!paused && !(p.roll > 0) && (mdown || keys[' ']) && p.cd <= 0) shoot();
+  } else if(!paused && !(p.roll > 0) && mdown && p.cd <= 0) shoot();
 
   // Revivir compañeros caídos: mantené E cerca de su cuerpo
   if(net.on && (mode === 'dung' || mode === 'camp') && !p.dead){
@@ -1929,7 +1929,7 @@ function shd(hex, f){
   const m = f < 0 ? 0 : 255, k = Math.abs(f), q = v => Math.round(v + (m - v) * k);
   return '#' + ((1 << 24) + (q(n >> 16) << 16) + (q((n >> 8) & 255) << 8) + q(n & 255)).toString(16).slice(1);
 }
-// Roll (Q): voltereta rápida con invulnerabilidad
+// Roll (Espacio): voltereta rápida con invulnerabilidad
 const ROLL_T = .32, ROLL_SP = 215, ROLL_CD = .9;
 function drawRolling(X, Y, st, av, k, sg){
   g.save(); g.translate(X, Y - 9); g.rotate(k * 6.283 * sg);
@@ -2688,7 +2688,7 @@ function main(msg){
         <div><kbd>WASD</kbd><span>MOVER</span></div>
         <div><kbd>CLICK</kbd><span>DISPARAR</span></div>
         <div><kbd>1-5</kbd><span>ARMAS</span></div>
-        <div><kbd>Q</kbd><span>ROLL</span></div>
+        <div><kbd>ESPACIO</kbd><span>ROLL</span></div>
         <div><kbd>B</kbd><span>TIENDA</span></div>
         <div><kbd>M</kbd><span>MINIMAPA</span></div>
         <div><kbd>F</kbd><span>PANTALLA</span></div>
