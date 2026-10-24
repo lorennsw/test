@@ -2042,7 +2042,9 @@ function onNet(d){
   }
 }
 
-const DEFAULT_SERVER = 'wss://shooter-nhyt.onrender.com';
+const DEFAULT_SERVER = 'wss://test-n4r0.onrender.com';
+// quien tenía guardado el servidor viejo (sin cuentas) pasa al nuevo
+if(/shooter-nhyt\.onrender\.com/.test(V.srv || '')) V.srv = DEFAULT_SERVER;
 const raw = o => { if(net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify(o)); };
 
 function connect(url){
