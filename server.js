@@ -52,6 +52,8 @@ const NAME_RE = /^[A-Za-z0-9_]{3,12}$/;
   const routes = {
     'GET /': (req, res) => { res.writeHead(200, CORS); res.end('Pixel Shooter server OK'); },
     'GET /health': (req, res) => { res.writeHead(200, CORS); res.end('ok'); },
+    // dónde se guardan las cuentas: con persistent=false se borran al reiniciar el servidor
+    'GET /api/info': (req, res) => json(res, 200, { storage: store.kind, persistent: store.kind === 'PostgreSQL' }),
     'POST /api/register': async (req, res, ip) => {
       if (limited(ip)) return json(res, 429, { error: 'Demasiados intentos, esperá un minuto' });
       const { username, password, password2 } = await readBody(req);
@@ -71,8 +73,10 @@ const NAME_RE = /^[A-Za-z0-9_]{3,12}$/;
       json(res, 200, { token: issueToken(u.name), user: publicUser(u) });
     },
     'GET /api/me': async (req, res) => {
-      const u = await store.getUser(authName(req) || '');
-      if (!u) return json(res, 401, { error: 'Sesión vencida, iniciá sesión de nuevo' });
+      const name = authName(req);
+      if (!name) return json(res, 401, { error: 'Sesión vencida, iniciá sesión de nuevo' });
+      const u = await store.getUser(name);
+      if (!u) return json(res, 404, { error: 'Tu cuenta ya no existe en el servidor (se reinició sin base de datos). Registrate de nuevo.' });
       json(res, 200, publicUser(u));
     },
     'POST /api/save': async (req, res) => {
@@ -266,5 +270,8 @@ const NAME_RE = /^[A-Za-z0-9_]{3,12}$/;
     });
   });
 
-  server.listen(PORT, () => console.log('Servidor escuchando en el puerto', PORT, '· cuentas:', store.kind));
+  server.listen(PORT, () => {
+    console.log('Servidor escuchando en el puerto', PORT, '· cuentas:', store.kind);
+    if (store.kind !== 'PostgreSQL') console.warn('ATENCIÓN: sin DATABASE_URL las cuentas y el ranking se borran cada vez que Render reinicia el servidor.');
+  });
 })();
