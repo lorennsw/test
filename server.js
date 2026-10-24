@@ -1,14 +1,15 @@
 // Servidor del Pixel Shooter. Uso: npm i ws && node server.js
 const { WebSocketServer } = require('ws');
 const PORT = process.env.PORT || 8080;
-const MAX = 4;                                        // jugadores por sala
+const MAX = 4;                                        // jugadores por sala si el cliente no elige
+const MIN_P = 2, TOP_P = 8;                           // límites para la cantidad elegida
 const DEFAULT_ROOMS = ['Sala 1', 'Sala 2', 'Sala 3']; // salas que siempre aparecen en la lista
 const wss = new WebSocketServer({ port: PORT, maxPayload: 16 * 1024 });
 const rooms = {};
 let nextId = 1;
 const send = (ws, o) => ws.readyState === 1 && ws.send(JSON.stringify(o));
 const list = () => [...new Set([...DEFAULT_ROOMS, ...Object.keys(rooms)])]
-  .map(n => [n, rooms[n] ? rooms[n].size : 0, MAX]);
+  .map(n => [n, rooms[n] ? rooms[n].size : 0, rooms[n] ? rooms[n].max : MAX]);
 
 wss.on('connection', ws => {
   ws.id = nextId++;
@@ -19,13 +20,14 @@ wss.on('connection', ws => {
     if (m.t === 'join') {
       if (ws.room) return;
       const name = String(m.room || 'D|Sala 1').slice(0, 30);
-      const r = rooms[name] || new Set();
-      if (r.size >= MAX) return send(ws, { t: 'full' });
+      // el que crea la sala elige cuántos jugadores entran
+      const r = rooms[name] || Object.assign(new Set(), { max: Math.max(MIN_P, Math.min(TOP_P, m.max | 0 || MAX)) });
+      if (r.size >= r.max) return send(ws, { t: 'full' });
       rooms[name] = r;
       ws.room = name;
       ws.host = r.size === 0;                         // el primero es el anfitrión (maneja los enemigos)
       r.add(ws);
-      return send(ws, { t: 'welcome', id: ws.id, host: ws.host });
+      return send(ws, { t: 'welcome', id: ws.id, host: ws.host, max: r.max });
     }
     const r = rooms[ws.room];
     if (!r) return;
