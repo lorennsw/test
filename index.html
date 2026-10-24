@@ -1441,8 +1441,19 @@ const isBossLvl = () => mode === 'camp' && lvl % 5 === 0;
 const bossFor = () => BOSS[(lvl / 5 - 1) % 4];
 const goalDone = () => isBossLvl() ? bd : kills >= goal();
 
+// Punto libre más cercano: un enemigo nunca debe nacer dentro de un obstáculo
+// (las balas no le llegarían y la sala no se podría terminar)
+function freeNear(x, y, r){
+  if(!hit4(x, y, r)) return [x, y];
+  for(let d = 4; d <= 160; d += 4) for(let a = 0; a < 16; a++){
+    const X = x + Math.cos(a * .3927) * d, Y = y + Math.sin(a * .3927) * d;
+    if(!hit4(X, Y, r)) return [X, Y];
+  }
+  return [x, y];
+}
 function mk(k, x, y, opt){
   const d = EN[k];
+  if(mode === 'dung' && !d.nc) [x, y] = freeNear(x, y, d.r > 8 ? 6 : 4);
   let hm = d.boss ? (mode === 'camp' ? 1 + .15 * (lvl - 1) : mode === 'dung' ? 1.25 + .2 * (dung.floor - 1) : 1 + .2 * (tier() - 1)) : hpMul();
   const el = mode === 'dung' && !d.boss && !(opt && opt.noElite) && Math.random() < Math.min(.5, .08 + dung.floor * .07);
   if(el) hm *= 2;
