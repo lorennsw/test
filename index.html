@@ -1893,6 +1893,8 @@ function update(dt){
         if(dd < bm){ bm = dd; tg = q; }
       }
       aiMove(e, dt, sm, tg);
+      // si quedó dentro de un obstáculo (por ejemplo, la araña al caer de un salto), lo saca
+      if(mode === 'dung' && !d.nc && !(e.z > 0) && hit4(e.x, e.y, d.r > 8 ? 6 : 4)) [e.x, e.y] = freeNear(e.x, e.y, d.r > 8 ? 6 : 4);
     }
     if(!p.dead && p.inv <= 0 && (e.z || 0) < 8 && !(e.born > 0) && Math.hypot(p.x - e.x, p.y - e.y) < d.r + 4) hurt();
   }
@@ -1909,13 +1911,8 @@ function update(dt){
       }
       if(b.l <= 0) continue;
     }
-    if(mode === 'dung' && !b.rm){
-      const pq = propAt(b.x, b.y);
-      if(pq){ b.l = 0; hitPropNet(pq, b.d || 1); burst(b.x, b.y, '#c9a227', 3); continue; }
-    }
-    if(tile(b.x, b.y) === 1){
-      b.l = 0; burst(b.x, b.y, '#9ad17a', 3); continue;
-    }
+    // primero los enemigos y después las paredes: un enemigo pegado a un obstáculo se dibuja
+    // encima de él, y si la pared frenara antes la bala no se le podría pegar nunca
     for(const e of enemies){
       const d = EN[e.k];
       if(b.l > 0 && !e.dead && Math.hypot(b.x - e.x, b.y - (e.y - d.cy - (e.z || 0))) < d.r + 2){
@@ -1925,6 +1922,14 @@ function update(dt){
         // Pólvora volátil (explosión)
         if(dung.passives && dung.passives.includes(4)) shock(b.x, b.y, 35);
       }
+    }
+    if(b.l <= 0) continue;
+    if(mode === 'dung' && !b.rm){
+      const pq = propAt(b.x, b.y);
+      if(pq){ b.l = 0; hitPropNet(pq, b.d || 1); burst(b.x, b.y, '#c9a227', 3); continue; }
+    }
+    if(tile(b.x, b.y) === 1){
+      b.l = 0; burst(b.x, b.y, '#9ad17a', 3); continue;
     }
   }
   bullets = bullets.filter(b => b.l > 0);
