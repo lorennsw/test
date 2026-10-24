@@ -21,6 +21,17 @@ Variables de entorno opcionales:
 | `TOKEN_SECRET` | Clave para firmar las sesiones. Si no está, se genera una y se guarda junto a las cuentas. |
 | `PORT` | Puerto (Render lo pone solo). |
 
+### Guardar las cuentas para siempre (PostgreSQL gratis con Neon)
+
+Sin base de datos, Render gratis borra las cuentas y el ranking cada vez que reinicia el servidor.
+
+1. Entrá a [neon.tech](https://neon.tech), creá una cuenta (sirve la de GitHub) y un proyecto nuevo.
+2. Copiá la *connection string*. Empieza con `postgresql://` y termina en `neon.tech/neondb?sslmode=require`.
+3. En Render abrí el servicio → **Environment** → **Add Environment Variable**: nombre `DATABASE_URL`, valor la URL que copiaste → **Save, rebuild and deploy**.
+4. Abrí `https://TU-SERVICIO.onrender.com/api/info`: tiene que decir `"storage":"PostgreSQL","persistent":true`.
+
+Las tablas se crean solas la primera vez.
+
 ## Cuentas
 
 - Registro e inicio de sesión desde la primera pantalla del juego (o "Jugar como invitado").

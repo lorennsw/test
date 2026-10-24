@@ -2098,6 +2098,8 @@ if(/shooter-nhyt\.onrender\.com/.test(V.srv || '')) V.srv = DEFAULT_SERVER;
 const raw = o => { if(net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify(o)); };
 
 function connect(url){
+  // todo lo online necesita una cuenta o haber elegido jugar como invitado
+  if(!AU.token && !guestS) return authPanel('login', 'Para jugar online iniciá sesión o entrá como invitado.');
   let w, ok = false, done = false, tm;
   const fail = m => { if(done) return; done = true; clearTimeout(tm); try{ w.close(); }catch(e){} net.mode === 'duel' ? duelMenu(m) : online(m); };
   try{ w = new WebSocket(url); } catch(e){ return online('Dirección inválida. Debe empezar con wss://'); }
@@ -3306,9 +3308,9 @@ function applyAccount(u){
   V.av.name = u.name;
   try{ localStorage.setItem('ps_v', JSON.stringify(DB ? Object.assign({}, V, DB) : V)); }catch(e){}
 }
-function authExpired(){
+function authExpired(msg){
   AU = { token: null, name: null, stats: null }; saveAU();
-  if(state === 'menu' && !net.on) authPanel('login', 'Tu sesión venció. Iniciá sesión de nuevo.');
+  if(state === 'menu' && !net.on) authPanel('login', msg || 'Tu sesión venció. Iniciá sesión de nuevo.');
 }
 
 let authTab = 'login', authUser = '';
@@ -3316,6 +3318,17 @@ function authPanel(tab, msg, busy){
   if(tab) authTab = tab;
   const reg = authTab === 'register';
   state = 'menu'; ret = () => authPanel();
+  if(AU.token && !busy){   // ya hay una sesión guardada en este navegador
+    panel(`<div class=alogo><span class=l1>PIXEL</span><span class=l2>SHOOTER</span></div>
+    <div class=aform>
+      ${msg ? `<div class="msg bad">${esc(msg)}</div>` : ''}
+      <div class=acct style="justify-content:center">${I.user}<span><small>SESIÓN GUARDADA</small><b>${esc(AU.name)}</b></span></div>
+      <button class=s data-a=acont>${I.play} Continuar como ${esc(AU.name)}</button>
+    </div>
+    <button class=aguest data-a=logout>Usar otra cuenta</button>
+    <button class=aguest data-a=guest>Jugar como invitado</button>`);
+    return;
+  }
   panel(`<div class=alogo><span class=l1>PIXEL</span><span class=l2>SHOOTER</span></div>
   <div class=tabs><button class="tab${reg ? '' : ' on'}" data-a=atab data-v=login>Iniciar sesión</button><button class="tab${reg ? ' on' : ''}" data-a=atab data-v=register>Registrarse</button></div>
   <form id=af class=aform autocomplete=on>
@@ -3340,20 +3353,18 @@ async function authSubmit(){
   try{
     const d = await api(reg ? '/api/register' : '/api/login', reg ? { username: u, password: pw, password2: pw2 } : { username: u, password: pw });
     AU.token = d.token; applyAccount(d.user);
-    try{ localStorage.removeItem('ps_guest'); }catch(e){}
+    guestS = false;
     main();
   } catch(e){ authPanel(null, e.message); }
 }
 ui.addEventListener('submit', e => { e.preventDefault(); if(e.target.id === 'af') authSubmit(); });
 
+// Lo primero que aparece siempre es la cuenta: iniciar sesión, registrarse o jugar como invitado
+let guestS = false;   // eligió "Jugar como invitado" en esta visita
 function boot(){
-  let guest = false; try{ guest = !!localStorage.getItem('ps_guest'); }catch(e){}
-  if(AU.token){
-    main();
-    // revisa la sesión en segundo plano (el servidor puede estar dormido: no bloquea el menú)
-    api('/api/me').then(u => { applyAccount(u); if($('.mm')) main(); }).catch(e => { if(e.status === 401) authExpired(); });
-  } else if(guest) main();
-  else authPanel('login');
+  authPanel('login');
+  // si hay una sesión guardada, la verifica en segundo plano (el servidor puede estar dormido)
+  if(AU.token) api('/api/me').then(u => { applyAccount(u); if($('.mm')) main(); }).catch(e => { if(e.status === 401 || e.status === 404) authExpired(e.message); });
 }
 
 // ---------- ARENA PVP: 1V1, 2V2 Y TODOS CONTRA TODOS ----------
@@ -3638,8 +3649,9 @@ const A = {
   home: () => main(),
   login: () => authPanel('login'),
   atab: v => { const u = $('#au'); if(u) authUser = u.value.trim(); authPanel(v); },
-  guest: () => { try{ localStorage.setItem('ps_guest', '1'); }catch(e){} main(); },
-  logout: () => { AU = { token: null, name: null, stats: null }; saveAU(); cloudLast = ''; authPanel('login'); },
+  guest: () => { guestS = true; main(); },
+  acont: () => main(),
+  logout: () => { AU = { token: null, name: null, stats: null }; saveAU(); cloudLast = ''; guestS = false; authPanel('login'); },
   sload: v => loadGame(+v),
   sdel: v => { const l = getSaves(); l.splice(+v, 1); putSaves(l); savesMenu(); },
   gsave: () => saveGame(),
