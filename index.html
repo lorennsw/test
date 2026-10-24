@@ -225,6 +225,39 @@ button.mini.s{background:rgba(242,179,61,.16);border-color:rgba(242,179,61,.6);c
 .mp::before{content:'';position:absolute;left:12%;top:18%;width:.8cqw;height:.8cqw;background:var(--t);box-shadow:3cqw 1cqw 0 var(--t),6cqw 3cqw 0 var(--t),1cqw 3cqw 0 var(--t),9cqw 1cqw 0 var(--t),11cqw 3.4cqw 0 var(--t)}
 .mp::after{content:'';position:absolute;right:8%;bottom:10%;width:3cqw;height:1.6cqw;background:var(--w)}
 
+/* ---- cuenta: login / registro */
+.alogo{font-family:var(--px);font-size:max(16px,2.6cqw);margin:.4cqw 0 1.4cqw;white-space:nowrap}
+.alogo span{-webkit-background-clip:text;background-clip:text;color:transparent;margin:0 .3cqw}
+.alogo .l1{background-image:linear-gradient(#fff 30%,#b9c4dc)}.alogo .l2{background-image:linear-gradient(#ffd57a 30%,var(--acc))}
+.aform{display:flex;flex-direction:column;gap:.9cqw;width:max(240px,30cqw);margin:1.4cqw auto 0;text-align:left}
+.aform label{display:flex;flex-direction:column;gap:.35cqw;font-size:.85em;font-weight:600;color:var(--muted)}
+.aform button{margin:.4cqw 0 0;width:100%;padding:.9cqw}
+.aform .msg{margin:0}
+input[type=password]{font-family:inherit;font-weight:500;background:rgba(0,0,0,.35);border:1px solid var(--line2);color:var(--text);padding:.7cqw .9cqw;font-size:max(11px,1.1cqw);border-radius:var(--r);outline:none;transition:border-color .15s,box-shadow .15s}
+input[type=password]:focus{border-color:var(--acc2);box-shadow:0 0 0 3px rgba(86,200,224,.18)}
+input[readonly]{color:var(--muted);cursor:default}
+.aguest{background:transparent;border-color:transparent;color:var(--muted);margin-top:.6cqw}
+.aguest:hover{color:#fff;background:transparent;border-color:transparent;text-decoration:underline}
+.srv{margin-top:.6cqw;font-size:.8em;color:var(--muted)}.srv summary{cursor:pointer}.srv input{margin-top:.5cqw;width:30cqw}
+.acct{display:flex;align-items:center;gap:.8cqw;padding:.4cqw .5cqw .4cqw 1cqw;border:1px solid var(--line2);border-radius:var(--r);background:var(--panel)}
+.acct>.ico{color:var(--acc2)}
+.acct span{display:flex;flex-direction:column;line-height:1.2}.acct small{font-size:max(8px,.7cqw);font-weight:700;letter-spacing:.1em}.acct b{font-size:max(11px,1.1cqw)}
+.acct button{margin:0}
+.msg .mini{margin-left:.6cqw}
+.lbr small{margin-right:1cqw}
+
+/* ---- ruleta de mapas del duelo */
+.rlw{position:relative;width:62cqw;overflow:hidden;margin:1.4cqw auto 1cqw;border-radius:var(--r);border:1px solid var(--line2);background:rgba(0,0,0,.35);padding:1cqw 0}
+.rlw::before,.rlw::after{content:'';position:absolute;top:0;bottom:0;width:9cqw;z-index:2;pointer-events:none}
+.rlw::before{left:0;background:linear-gradient(90deg,var(--panel),transparent)}.rlw::after{right:0;background:linear-gradient(-90deg,var(--panel),transparent)}
+.rls{display:flex;gap:1cqw;will-change:transform}
+.rlc{flex:none;width:14cqw;display:flex;flex-direction:column;align-items:center;gap:.4cqw;padding:.6cqw;box-sizing:border-box;border-radius:var(--r);background:var(--panel2);border:1px solid var(--line)}
+.rlc canvas{width:100%;aspect-ratio:144/88;image-rendering:pixelated;border-radius:.4cqw}
+.rlc b{font-size:.85em;white-space:nowrap}
+.rlc.win{border-color:var(--acc);background:rgba(242,179,61,.14);box-shadow:0 0 0 1px var(--acc)}
+.rlm{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:var(--acc);z-index:3;box-shadow:0 0 .8cqw var(--acc)}
+.rlm::before{content:'';position:absolute;top:0;left:-.6cqw;border:.6cqw solid transparent;border-top-color:var(--acc)}
+
 /* ---- modo optimización: sin animaciones ni filtros costosos */
 #w.lite #ui{backdrop-filter:none}
 #w.lite .p,#w.lite .tick{animation:none}
@@ -296,12 +329,17 @@ try {
   Object.assign(V, JSON.parse(localStorage.getItem('ps_v') || '{}'));
 } catch(e){}
 V.av = Object.assign({ skin: '#f2c18d', hair: '#5a3a22', shirt: '#3b82f6', acc: 0, name: 'Jugador', hs: 0, ec: '#111111', os: 0, pn: '#3a3a5c' }, V.av);
-let DB = null;   // inventario real guardado mientras dura una partida de mazmorras
+let DB = null;   // inventario real guardado mientras dura una partida de mazmorras o un duelo
+// Cuenta con sesión iniciada (token firmado por el servidor)
+let AU = { token: null, name: null, stats: null };
+try{ Object.assign(AU, JSON.parse(localStorage.getItem('ps_auth') || '{}')); }catch(e){}
+if(AU.token && AU.name) V.av.name = AU.name;
 const save = () => {
   try {
     localStorage.setItem('ps_s', JSON.stringify(S));
     localStorage.setItem('ps_v', JSON.stringify(DB ? Object.assign({}, V, DB) : V));
   } catch(e){}
+  cloudPush();
 };
 setInterval(save, 5000);
 
@@ -427,7 +465,7 @@ const PAL = [
 const m = new Uint8Array(MW * MH); let pal = PAL[0];
 
 function genMap(sd, pi, wd){
-  pal = PAL[pi]; door = null;
+  pal = PAL[pi]; door = null; DT = null;
   for(let y = 0; y < MH; y++) for(let x = 0; x < MW; x++){
     const ed = x < 1 || y < 1 || x >= MW - 1 || y >= MH - 1;
     m[y * MW + x] = ed || hash(x + sd * 97, y + sd * 53) < .07 ? 1 : 0;
@@ -442,6 +480,103 @@ function genMap(sd, pi, wd){
     if(Math.hypot(x - MW / 2, y - MH / 2) < 4) m[y * MW + x] = 0;
   if(wd) mkDoor(sd);
 }
+
+// ---------- MAPAS DEL DUELO 1V1 ----------
+// Cada mapa es una arena simétrica: `lay` coloca obstáculos (1) y agua/lava (2) con put(),
+// que los repite en los cuatro cuadrantes para que ningún lado tenga ventaja.
+const DMAPS = [
+  { n: 'Bosque', wall: 'tree', wc: '#2d6a3e', flowers: 1, pal: PAL[0],
+    lay(put){
+      for(const [x, y] of [[6, 4], [6, 5], [11, 8], [12, 8], [15, 3], [9, 2]]) put(x, y);
+      for(const [x, y] of [[16, 9], [15, 9], [16, 8], [15, 8]]) put(x, y, 2);
+      for(let y = 7; y <= 12; y++) if(y !== 9 && y !== 10) put(3, y);
+    } },
+  { n: 'Mazmorra', wall: 'stone', wc: '#4a5180', outer: '#0d0f1c', outer2: '#11142a',
+    pal: { a: '#1b1f36', b: '#16192d', t: '#252a45', tr: '#2a2f4f', tl: '#4a5180', w: '#5a1408', wl: '#ff7a2a' },
+    lay(put){
+      for(const [x, y] of [[6, 3], [7, 3], [6, 4], [7, 4], [12, 7], [12, 8], [12, 9], [3, 2], [9, 8]]) put(x, y);
+      for(const [x, y] of [[16, 4], [16, 5], [15, 5]]) put(x, y, 2);   // pozos de lava
+    } },
+  { n: 'Barco pirata', wall: 'crate', wc: '#b07a3e', out: 2, planks: 1, w: 30, h: 10,
+    pal: { a: '#8a5a32', b: '#80532e', t: '#6e4526', tr: '#5a3a1e', tl: '#a0703f', w: '#1f5fa8', wl: '#7fb6f0' },
+    lay(put){
+      for(const [x, y] of [[0, 0], [1, 0], [0, 1], [2, 0]]) put(x, y, 2);   // proa y popa en punta
+      for(const [x, y] of [[14, 5], [7, 2], [8, 2], [10, 5], [11, 1]]) put(x, y);   // mástil y cajas
+    } },
+  { n: 'Cueva', wall: 'rock', wc: '#6a5f54', outer: '#14110f', outer2: '#1a1613',
+    pal: { a: '#2b2622', b: '#26211e', t: '#3a332d', tr: '#4a423a', tl: '#6a5f54', w: '#123a4a', wl: '#3fa7c9' },
+    lay(put, w, h){
+      for(let x = 2; x < w / 2; x++) for(let y = 1; y < h / 2; y++) if(hash(x * 3 + 7, y * 5 + 11) < .13 && !(x < 7 && y > 6)) put(x, y);
+      for(const [x, y] of [[16, 2], [15, 2], [16, 3]]) put(x, y, 2);   // lagos subterráneos
+    } },
+  { n: 'Desierto', wall: 'cactus', wc: '#3f8f3a', outer: '#b08d55', outer2: '#a8854f', pal: PAL[1],
+    lay(put){
+      for(const [x, y] of [[8, 3], [12, 6], [6, 8], [15, 2], [10, 9], [3, 3]]) put(x, y);
+      for(const [x, y] of [[16, 8], [16, 9], [15, 9]]) put(x, y, 2);   // oasis
+    } },
+  { n: 'Glaciar', wall: 'ice', wc: '#bfe6ff', outer: '#e8f1f8', outer2: '#dbe7f2', pal: PAL[2],
+    lay(put){
+      for(const [x, y] of [[9, 3], [9, 4], [9, 5], [13, 8], [14, 8], [5, 2], [4, 6]]) put(x, y);
+      for(const [x, y] of [[16, 3], [15, 3], [16, 4], [14, 3]]) put(x, y, 2);   // lago congelado
+    } }
+];
+let ARN = { x: 0, y: 0, w: 34, h: 20 }, DT = null;   // arena y mapa del duelo actual
+// Genera el mapa `mi` en `arr` (por defecto el mapa del juego). Devuelve el rectángulo de la arena.
+function genArena(mi, arr){
+  const M = DMAPS[(mi | 0) % DMAPS.length], w = M.w || 34, h = M.h || 20, x0 = (MW - w) >> 1, y0 = (MH - h) >> 1, A = arr || m;
+  for(let y = 0; y < MH; y++) for(let x = 0; x < MW; x++)
+    A[y * MW + x] = x < x0 || y < y0 || x >= x0 + w || y >= y0 + h ? (M.out || 1) : 0;
+  const put = (x, y, k) => {
+    for(const [a, b] of [[x, y], [w - 1 - x, y], [x, h - 1 - y], [w - 1 - x, h - 1 - y]])
+      if(a >= 0 && b >= 0 && a < w && b < h) A[(y0 + b) * MW + x0 + a] = k || 1;
+  };
+  M.lay(put, w, h);
+  // puntos de aparición libres: los de cada equipo (hasta ±2 casillas) y los de todos contra todos
+  for(const sx of [4, w - 4]) for(let dy = -3; dy <= 3; dy++) for(let dx = -1; dx <= 1; dx++) A[(y0 + (h >> 1) + dy) * MW + x0 + sx + dx] = 0;
+  for(const [sx, sy] of ffaSpots(w, h)) for(let dy = -1; dy <= 1; dy++) for(let dx = -1; dx <= 1; dx++) A[(y0 + sy + dy) * MW + x0 + sx + dx] = 0;
+  const R = { x: x0, y: y0, w, h };
+  if(!arr){ ARN = R; DT = M; pal = M.pal; door = null; }
+  return R;
+}
+function ffaSpots(w, h){
+  return [[4, h >> 1], [w - 4, h >> 1], [w >> 1, 2], [w >> 1, h - 3], [7, 2], [w - 8, 2], [7, h - 3], [w - 8, h - 3]];
+}
+const arenaSpawn = side => ({ x: (ARN.x + (side ? ARN.w - 4 : 4)) * T + 8, y: (ARN.y + (ARN.h >> 1)) * T + 8 });
+const inArena = (tx, ty) => tx >= ARN.x && ty >= ARN.y && tx < ARN.x + ARN.w && ty < ARN.y + ARN.h;
+
+// Vista previa en miniatura de un mapa (para la ruleta)
+function mapThumb(i){
+  const A = new Uint8Array(MW * MH), R = genArena(i, A), M = DMAPS[i], cv = document.createElement('canvas');
+  cv.width = 144; cv.height = 88;
+  const x = cv.getContext('2d'), cw = Math.min(144 / (R.w + 2), 88 / (R.h + 2)), ox = (144 - cw * (R.w + 2)) / 2, oy = (88 - cw * (R.h + 2)) / 2;
+  const out = M.out === 2 ? M.pal.w : (M.outer || M.pal.tr);
+  x.fillStyle = out; x.fillRect(0, 0, 144, 88);
+  for(let ty = -1; ty <= R.h; ty++) for(let tx = -1; tx <= R.w; tx++){
+    const k = A[(R.y + ty) * MW + R.x + tx], inA = tx >= 0 && ty >= 0 && tx < R.w && ty < R.h;
+    x.fillStyle = k === 2 ? ((tx * 7 + ty * 3) % 5 ? M.pal.w : M.pal.wl) : k === 1 ? (inA ? M.wc : out) : ((tx + ty) & 1 ? M.pal.a : M.pal.b);
+    x.fillRect(Math.floor(ox + (tx + 1) * cw), Math.floor(oy + (ty + 1) * cw), Math.ceil(cw), Math.ceil(cw));
+  }
+  return cv;
+}
+
+// Obstáculos dibujados según el mapa
+const tileR = (X, Y) => (a, b, w, h, col) => { g.fillStyle = col; g.fillRect(Math.round(X - camx + a), Math.round(Y - camy + b), w, h); };
+const WALLS = {
+  tree: (X, Y) => drawTree(X, Y),
+  stone(X, Y){ const R = tileR(X, Y);
+    R(0, 12, 16, 4, 'rgba(0,0,0,.35)'); R(0, -6, 16, 20, '#2a2f4f'); R(0, -6, 16, 4, '#4a5180');
+    R(1, -1, 14, 1, '#1b1f36'); R(5, 0, 1, 6, '#1b1f36'); R(1, 6, 14, 1, '#1b1f36'); R(10, 7, 1, 6, '#1b1f36'); },
+  crate(X, Y){ const R = tileR(X, Y);
+    R(1, 12, 15, 3, 'rgba(0,0,0,.3)'); R(1, -3, 14, 16, '#8a5a2b'); R(1, -3, 14, 2, '#b07a3e');
+    R(1, -3, 1, 16, '#5e3a18'); R(14, -3, 1, 16, '#5e3a18'); R(1, 5, 14, 1, '#5e3a18'); R(1, 12, 14, 1, '#5e3a18'); R(7, -1, 2, 13, '#6e4522'); },
+  rock(X, Y){ const R = tileR(X, Y);
+    R(1, 12, 14, 3, 'rgba(0,0,0,.35)'); R(1, -1, 14, 14, '#5a5047'); R(3, -4, 10, 4, '#6a5f54'); R(3, -3, 4, 3, '#7d7166'); R(9, 7, 5, 4, '#463e37'); },
+  cactus(X, Y){ const R = tileR(X, Y);
+    R(4, 12, 8, 2, 'rgba(0,0,0,.25)'); R(6, -8, 4, 21, '#3f8f3a'); R(7, -8, 1, 21, '#5fb85a'); R(2, -1, 4, 3, '#3f8f3a'); R(2, -5, 2, 6, '#3f8f3a');
+    R(10, 1, 4, 3, '#3f8f3a'); R(12, -3, 2, 6, '#3f8f3a'); },
+  ice(X, Y){ const R = tileR(X, Y);
+    R(1, 12, 14, 3, 'rgba(40,80,120,.3)'); R(1, -4, 14, 17, '#9fd3f0'); R(1, -4, 14, 3, '#e6f7ff'); R(3, 0, 2, 8, 'rgba(230,247,255,.55)'); R(1, 11, 14, 2, '#5f9fc4'); }
+};
 
 function mkDoor(sd){
   const side = Math.floor(hash(sd, 3) * 4), r_ = hash(sd, 4); let tx, ty, nx, ny;
@@ -886,7 +1021,7 @@ function drawReviveHud(){
     g.fillStyle = '#7df9a0'; g.fillRect(Math.round(X - 12), Math.round(Y - 29), Math.round(24 * pr_), 3);
     TX(pr_ > 0 ? 'REVIVIENDO...' : 'MANTENÉ [E] PARA REVIVIR', X, Y - 33, 3.4, '#7df9a0', 'center');
   }
-  if(p.dead > 1000){
+  if(p.dead > 1000 && mode !== 'duel'){
     TX('ESTÁS CAÍDO', W / 2, H / 2 - 6, 6, '#ff6b6b', 'center');
     TX((p.rev > 0 && t - (p.revT || -9) < .6) ? 'TE ESTÁN REVIVIENDO ' + Math.round(p.rev * 100) + '%' : 'ESPERÁ A QUE UN AMIGO TE REVIVA', W / 2, H / 2 + 4, 3.8, '#fff', 'center');
   }
@@ -1219,7 +1354,7 @@ function dungIso(on){
   } else if(DB){ Object.assign(V, DB); DB = null; }
 }
 function start(md, lv, mp, sdd){
-  dungIso(md === 'dung');
+  dungIso(md === 'dung' || md === 'duel');
   mode = md; lvl = lv || 1; mapIdx = mp || 0;
   p = {
     ar: ARM[V.arm] ? ARM[V.arm].a : 0,
@@ -1237,6 +1372,9 @@ function start(md, lv, mp, sdd){
     genDungeon(lvl, sdd || rnd(1, 99999));
     p.x = RW * T / 2; p.y = RH * T / 2;
     banner('PISO ' + lvl + ': ' + dung.floorTheme.n.toUpperCase());
+  } else if(md === 'duel'){
+    genArena(mapIdx); buildMini(); ms = null;
+    V.owned = WP.map((w, i) => i); V.eq = 0;
   } else if(md === 'camp'){
     genMap(lvl * 7, Math.floor((lvl - 1) / 2) % 3, true);
     buildMini();
@@ -1303,13 +1441,14 @@ function hurt(){
   missionEvent('hurt');
   if(p.ar > 0) p.ar--;
   else p.hp--;
-  p.inv = 1;
+  p.inv = mode === 'duel' ? .35 : 1;
   burst(p.x, p.y - 6, '#e43b44', 8);
   sHurt();
   if(p.hp <= 0){
     if(net.on){
-      p.dead = (mode === 'camp' || mode === 'dung') ? 1e9 : 4;
-      if(p.dead > 1000) banner('¡CAÍSTE! TUS AMIGOS PUEDEN REVIVIRTE');
+      p.dead = mode === 'duel' && DU.md === 'ffa' ? 2.5 : (mode === 'camp' || mode === 'dung' || mode === 'duel') ? 1e9 : 4;
+      if(mode === 'duel'){ snd({ t: 'dd', k: p.lastHit || 0 }); burst(p.x, p.y - 6, '#e43b44', 20); }
+      else if(p.dead > 1000) banner('¡CAÍSTE! TUS AMIGOS PUEDEN REVIVIRTE');
     }
     else {
       state = 'over';
@@ -1583,13 +1722,15 @@ function update(dt){
   let dy = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0);
   if(stick){ dx = stick.x; dy = stick.y; }
 
+  const fz = mode === 'duel' && DU.fz > 0;
+  if(fz){ DU.fz -= dt; dx = dy = 0; }
   const l = Math.hypot(dx, dy);
   p.moving = l > .1 && !p.dead && !paused;
   let spMod = 75;
   if(dung.passives && dung.passives.includes(0)) spMod *= 1.3; // Alas de Hermes
 
   p.rlc = (p.rlc || 0) - dt;
-  if(keys[' '] && !p.dead && !paused && !(p.roll > 0) && p.rlc <= 0){
+  if(keys[' '] && !fz && !p.dead && !paused && !(p.roll > 0) && p.rlc <= 0){
     const ra = l > .1 ? Math.atan2(dy, dx) : p.ang;
     p.roll = ROLL_T; p.rlc = ROLL_CD; p.rdx = Math.cos(ra); p.rdy = Math.sin(ra); p.rsg = p.rdx < 0 ? -1 : 1;
     burst(p.x, p.y - 2, '#9aa5c8', 6); tone('triangle', 420, 140, .16, .12, sg);
@@ -1611,8 +1752,8 @@ function update(dt){
   if(p.dead > 1000){ if(mdown && !p.mm) spec++; p.mm = mdown; }
   if(p.dead > 0){
     p.dead -= dt;
-    if(p.dead <= 0){ p.dead = 0; p.hp = 5; p.inv = 3; safeSpot(); }
-  } else if(!paused && !(p.roll > 0) && mdown && p.cd <= 0) shoot();
+    if(p.dead <= 0){ p.dead = 0; if(mode === 'duel'){ const sp = pvSpawnPoint(); p.x = sp.x; p.y = sp.y; p.hp = p.maxHp; p.inv = 1.2; p.lastHit = 0; } else { p.hp = 5; p.inv = 3; safeSpot(); } }
+  } else if(!paused && !fz && !(p.roll > 0) && mdown && p.cd <= 0) shoot();
 
   // Revivir compañeros caídos: mantené E cerca de su cuerpo
   if(net.on && (mode === 'dung' || mode === 'camp') && !p.dead){
@@ -1665,7 +1806,7 @@ function update(dt){
     if(net.host && rt <= 0){ endRound(); return; }
   }
 
-  if(host && mode !== 'dung'){
+  if(host && mode !== 'dung' && mode !== 'duel'){
     spawnT -= dt;
     if(spawnT <= 0){
       if(enemies.length < cap()) spawn(pick());
@@ -1698,6 +1839,15 @@ function update(dt){
   // Balas del jugador
   for(const b of bullets){
     b.x += b.vx * dt; b.y += b.vy * dt; b.l -= dt;
+    if(mode === 'duel'){
+      if(b.rm){
+        if(!isMate(b.own) && !p.dead && p.inv <= 0 && !(p.roll > 0) && Math.hypot(b.x - p.x, b.y - (p.y - 6)) < 6){ b.l = 0; p.lastHit = b.own; hurt(); continue; }
+      } else for(const id in net.rem){
+        const r = net.rem[id];
+        if(!isMate(id) && !r.dd && !(r.roll > 0) && Math.hypot(b.x - r.x, b.y - (r.y - 6)) < 6){ b.l = 0; burst(b.x, b.y, '#ff5a5a', 3); sHit(); break; }
+      }
+      if(b.l <= 0) continue;
+    }
     if(mode === 'dung' && !b.rm){
       const pq = propAt(b.x, b.y);
       if(pq){ b.l = 0; hitPropNet(pq, b.d || 1); burst(b.x, b.y, '#c9a227', 3); continue; }
@@ -1775,7 +1925,7 @@ function update(dt){
     net.pt = (net.pt || 0) - dt;
     if(net.pt <= 0){
       net.pt = .066;
-      snd({ t: 'p', x: p.x, y: p.y, a: p.ang, n: V.av.name, av: V.av, ar: V.arm, dd: p.dead > 1000 ? 1 : 0, rk: dung.curRoomKey });
+      snd({ t: 'p', x: p.x, y: p.y, a: p.ang, n: V.av.name, av: V.av, ar: V.arm, dd: p.dead > 1000 || (mode === 'duel' && p.dead > 0) ? 1 : 0, rk: dung.curRoomKey, hp: p.hp, w: V.eq });
     }
     if(net.host){
       net.et = (net.et || 0) - dt;
@@ -1801,10 +1951,10 @@ function update(dt){
 function onNet(d){
   if(d.t === 'p'){
     const r = net.rem[d.from] || (net.rem[d.from] = { x: d.x, y: d.y, walk: 0, moving: false, kick: 0 });
-    r.tx = d.x; r.ty = d.y; r.ang = d.a; r.av = d.av; r.name = d.n; r.arm = d.ar; r.dd = d.dd; r.lt = t; r.rk = d.rk;
+    r.tx = d.x; r.ty = d.y; r.ang = d.a; r.av = d.av; r.name = d.n; r.arm = d.ar; r.dd = d.dd; r.lt = t; r.rk = d.rk; r.hp = d.hp; r.w = d.w;
   }
   else if(d.t === 'rl'){ const r = net.rem[d.from]; if(r){ r.roll = ROLL_T; r.rsg = d.s < 0 ? -1 : 1; } }
-  else if(d.t === 's') bullets.push({ x: d.x, y: d.y, vx: d.vx, vy: d.vy, l: d.l, d: 0, rm: 1, col: d.col });
+  else if(d.t === 's') bullets.push({ x: d.x, y: d.y, vx: d.vx, vy: d.vy, l: d.l, d: 0, rm: 1, col: d.col, own: d.from });
   else if(d.t === 'eb') eb.push({ x: d.x, y: d.y, vx: d.vx, vy: d.vy, l: d.l, r: d.r, c: d.c });
   else if(d.t === 'sw') shw.push({ x: d.x, y: d.y, r: 2, m: d.m, l: .6 });
   else if(d.t === 'e' && !net.host){
@@ -1877,6 +2027,13 @@ function onNet(d){
     V.coins += d.n; num(d.x, d.y - 10, '+' + d.n, '#ffd23f');
     sCoin(); missionEvent('kill', d.k); missionEvent('coin', 0, d.n);
   }
+  else if(d.t === 'duel_start') duelRoulette(d);
+  else if(d.t === 'duel_round') duelRound(d);
+  else if(d.t === 'duel_kill') duelKill(d);
+  else if(d.t === 'duel_end') duelOver(d);
+  else if(d.t === 'duel_again' && state === 'duelend') duelResult(`Revancha: ${d.n} de ${d.need} listos`);
+  else if(d.t === 'duel_wait') duelSearching(d.n, d.need);
+  else if(d.t === 'duel_room' && net.mode === 'duel' && state !== 'play' && state !== 'roulette' && state !== 'duelend'){ net.host = d.host === net.id; duelWaiting(d); }
   else if(d.t === 'left'){ delete net.rem[d.id]; if(net.wl) delete net.wl[d.id]; if(net.wait) waitRoom(); }
   else if(d.t === 'host'){
     net.host = true; nid = enemies.reduce((a, e) => Math.max(a, e.id), 0) + 1;
@@ -1890,26 +2047,30 @@ const raw = o => { if(net.ws && net.ws.readyState === 1) net.ws.send(JSON.string
 
 function connect(url){
   let w, ok = false, done = false, tm;
-  const fail = m => { if(done) return; done = true; clearTimeout(tm); try{ w.close(); }catch(e){} online(m); };
+  const fail = m => { if(done) return; done = true; clearTimeout(tm); try{ w.close(); }catch(e){} net.mode === 'duel' ? duelMenu(m) : online(m); };
   try{ w = new WebSocket(url); } catch(e){ return online('Dirección inválida. Debe empezar con wss://'); }
   net.ws = w; net.abort = () => { done = true; clearTimeout(tm); try{ w.close(); }catch(e){} };
   panel(`<h2>Conectando</h2><div class=load><i></i><i></i><i></i><i></i></div><div class=r>${esc(url)}</div><div class=r><small>El servidor gratis de Render puede tardar hasta 1 minuto en despertar.</small></div><button data-a=cancel>${I.x} Cancelar</button>`);
   tm = setTimeout(() => { if(!ok) fail('Sin respuesta tras 90s. Abrí la URL en otra pestaña para despertarlo.'); }, 90000);
   w.onopen = () => {
-    ok = true; clearTimeout(tm); raw({ t: 'list' });
+    ok = true; clearTimeout(tm);
+    if(AU.token) raw({ t: 'auth', token: AU.token });
+    if(net.q) raw({ t: 'duel_q', n: V.av.name, md: pvMode });
+    else raw({ t: 'list' });
   };
   w.onerror = () => { if(!ok) fail('Error de conexión. Revisá la URL o escudos del navegador.'); };
   w.onclose = ev => {
     if(!ok) fail('Conexión cerrada (' + ev.code + ').');
     else if(net.on){ net.on = false; main('Se perdió la conexión'); }
     else if(net.lob){ net.lob = false; online('Servidor desconectado'); }
+    else if(net.q){ net.q = false; duelMenu('Servidor desconectado'); }
   };
   w.onmessage = ev => {
     let d; try{ d = JSON.parse(ev.data); } catch(e){ return; }
     if(d.t === 'rooms'){
       net.rooms = d.l;
       if(net.on) return;
-      if(net.autoRoom){ net.roomName = net.autoRoom; net.autoRoom = null; raw({ t: 'join', room: net.roomName, max: net.max }); }
+      if(net.autoRoom){ net.roomName = net.autoRoom; net.autoRoom = null; raw({ t: 'join', room: net.roomName, max: net.max, n: V.av.name }); }
       else if(!net.lob){ net.lob = true; lobby(); } else updRooms();
     }
     else if(d.t === 'full') lobby('Esa sala está llena');
@@ -1919,7 +2080,8 @@ function connect(url){
       const L = net.load;
       net.guest = !!(L && !d.host);           // la sala ya tenía anfitrión: entrás como invitado
       if(net.guest) net.load = null;
-      if(net.mode === 'dung') enterWait();
+      if(net.mode === 'duel'){ net.q = false; duelWaiting(); }
+      else if(net.mode === 'dung') enterWait();
       else if(net.load){ net.load = null; applySave(L); }
       else start(net.mode, 1);
     }
@@ -2396,8 +2558,12 @@ function drawDoor(X, Y){
   }
 }
 function drawArrow(){
-  if(!key || !door) return;
-  const sx = door.x - camx, sy = door.y - camy;
+  if(key && door) drawArrowTo(door.x, door.y, '#ffe66d', true);
+}
+// Flecha hacia un punto del mapa: encima si está en pantalla (si onScreen), o en el borde apuntando hacia él
+function drawArrowTo(px, py, col, onScreen){
+  const sx = px - camx, sy = py - camy;
+  if(!onScreen && sx > 10 && sx < W - 10 && sy > 10 && sy < H - 10) return;
   let ax, ay, an;
   if(sx > 10 && sx < W - 10 && sy > 10 && sy < H - 10){ ax = sx; ay = sy - 18 + Math.sin(t * 5) * 2; an = Math.PI / 2; }
   else {
@@ -2407,7 +2573,7 @@ function drawArrow(){
   hg.save(); hg.translate(ax * hs, ay * hs); hg.rotate(an);
   const z = 6 * hs;
   hg.beginPath(); hg.moveTo(z, 0); hg.lineTo(-z * .7, -z * .8); hg.lineTo(-z * .3, 0); hg.lineTo(-z * .7, z * .8); hg.closePath();
-  hg.fillStyle = '#ffe66d'; hg.fill(); hg.lineWidth = Math.max(1, hs * .4); hg.strokeStyle = '#000'; hg.stroke(); hg.restore();
+  hg.fillStyle = col; hg.fill(); hg.lineWidth = Math.max(1, hs * .4); hg.strokeStyle = '#000'; hg.stroke(); hg.restore();
 }
 function draw(){
   hudPrep();
@@ -2442,11 +2608,16 @@ function draw(){
       if(k === 2){
         R(X, Y, T, T, pal.w);
         const o = Math.floor(t * 3 + h * 9) % 4; R(X + 3 + o * 2, Y + 4, 4, 1, pal.wl);
+      } else if(k === 1 && DT && DT.outer && !inArena(tx, ty)){
+        // fuera de la arena: muro, roca, dunas o nieve según el mapa
+        R(X, Y, T, T, h < .5 ? DT.outer : DT.outer2);
+        if(h > .8) R(X + 3 + h * 8, Y + 4 + h * 6, 3, 2, 'rgba(255,255,255,.06)');
       } else {
         R(X, Y, T, T, h < .5 ? pal.a : pal.b);
-        if(h > .7) R(X + 4 + h * 6, Y + 5, 1, 3, pal.t);
-        if(h < .04) R(X + 7, Y + 7, 2, 2, '#ffe66d'); else if(h > .96) R(X + 5, Y + 9, 2, 2, '#ff6b9d');
-        if(k === 1) dr.push({ y: Y + T, f: () => drawTree(X, Y) });
+        if(DT && DT.planks){ R(X, Y + 7, T, 1, pal.t); if((tx + ty) % 3 === 0) R(X + 10, Y, 1, 7, pal.t); }
+        else if(h > .7) R(X + 4 + h * 6, Y + 5, 1, 3, pal.t);
+        if(!DT || DT.flowers){ if(h < .04) R(X + 7, Y + 7, 2, 2, '#ffe66d'); else if(h > .96) R(X + 5, Y + 9, 2, 2, '#ff6b9d'); }
+        if(k === 1) dr.push({ y: Y + T, f: () => DT ? WALLS[DT.wall](X, Y) : drawTree(X, Y) });
         if(k === 3) dr.push({ y: Y + T, f: () => drawDoor(X, Y) });
       }
     }
@@ -2483,7 +2654,12 @@ function draw(){
       y: r.y, f: () => {
         if(r.roll > 0) drawRolling(Math.round(r.x - camx), Math.round(r.y - camy), r, r.av, 1 - r.roll / ROLL_T, r.rsg);
         else drawChar(g, Math.round(r.x - camx), Math.round(r.y - camy), r, r.av);
-        TX(r.name || '', r.x - camx, r.y - camy - 22, 3.4, '#fff', 'center');
+        if(mode === 'duel'){
+          const c_ = isMate(id) ? '#56c8e0' : '#ef5b6b', X = Math.round(r.x - camx - 9), Y = Math.round(r.y - camy - 30);
+          TX(r.name || '', r.x - camx, r.y - camy - 32, 3.2, c_, 'center');
+          g.fillStyle = '#000'; g.fillRect(X - 1, Y - 1, 20, 4); g.fillStyle = '#3a1d27'; g.fillRect(X, Y, 18, 2);
+          g.fillStyle = c_; g.fillRect(X, Y, Math.round(18 * Math.max(0, r.hp != null ? r.hp : DUEL_HP) / DUEL_HP), 2);
+        } else TX(r.name || '', r.x - camx, r.y - camy - 22, 3.4, '#fff', 'center');
       }
     });
   }
@@ -2513,8 +2689,7 @@ function draw(){
   g.fillStyle = 'rgba(6,8,14,.55)'; g.fillRect(2, 2, nIc * 9 + 3, 24);
   for(let i = 0; i < maxHearts; i++) pxIcon(HEART, 4 + i * 9, 4, i < p.hp ? '#ef4b5a' : '#3a1d27', i < p.hp ? '#ff9aa4' : null);
   for(let i = 0; i < (p.ar || 0); i++) pxIcon(SHIELD, 4 + (maxHearts + i) * 9, 4, '#56c8e0', '#c4f1fb');
-  pxIcon(COIN, 4, 13, '#f2b33d', '#ffe9a8');
-  TX(V.coins, 12, 18.5, 4.2, '#fff');
+  if(mode !== 'duel'){ pxIcon(COIN, 4, 13, '#f2b33d', '#ffe9a8'); TX(V.coins, 12, 18.5, 4.2, '#fff'); }
   // recarga del roll
   g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(4, 22, 20, 2);
   g.fillStyle = p.rlc > 0 ? '#56c8e0' : '#3ecf8e'; g.fillRect(4, 22, Math.round(20 * Math.min(1, 1 - Math.max(0, p.rlc) / ROLL_CD)), 2);
@@ -2530,6 +2705,8 @@ function draw(){
       });
     }
     drawDungeonMinimap();
+  } else if(mode === 'duel'){
+    drawDuelHud();
   } else {
     TX(mode === 'camp' ? 'BAJAS ' + kills : 'OLEADA ' + (1 + Math.floor(kills / 10)), W - 17, 9, 3.8, '#fff', 'right');
     if(ms) TX('MISIÓN: ' + ms.t + (ms.done ? ' OK' : ' ' + Math.floor(ms.v) + '/' + ms.n), 4, 28, 3.6, ms.done ? '#7df9a0' : '#cfe8ff');
@@ -2688,7 +2865,8 @@ function main(msg){
         <div class=sub>MAZMORRAS PROCEDURALES · RELIQUIAS · COOPERATIVO ONLINE</div>
       </div>
       <div>
-        <span class=badge-ver>DUNGEON &amp; CO-OP EXPANSION</span>
+        ${AU.token ? `<div class=acct>${I.user}<span><small>SESIÓN INICIADA</small><b>${esc(AU.name)}</b></span><button class=mini data-a=logout title="Cerrar sesión">${I.exit}</button></div>`
+          : `<button data-a=login>${I.user} Iniciar sesión</button>`}
       </div>
     </div>
     ${msg ? `<div class="msg bad" style="margin:1cqw 0 0">${esc(msg)}</div>` : ''}
@@ -2704,17 +2882,18 @@ function main(msg){
         </div>
 
         <button class="mb s" data-a=online>${I.globe}<span><b>Cooperativo online</b><small>Salas públicas y privadas</small></span></button>
+        <button class=mb data-a=duel>${I.target}<span><b>Arena PvP</b><small>1v1, 2v2 y todos contra todos · ranking</small></span></button>
         <button class=mb data-a=camp>${I.flag}<span><b>Campaña clásica</b><small>Niveles y misiones · 1-8 jugadores</small></span></button>
         <button class=mb data-a=surv>${I.swords}<span><b>Supervivencia</b><small>Oleadas sin fin · 1-8 jugadores</small></span></button>
-        <button class=mb data-a=shop>${I.cart}<span><b>Tienda</b><small>Armas, armaduras y mascotas</small></span></button>
         <div class=nrow>
+          <button class=mb data-a=shop>${I.cart}<span><b>Tienda</b><small>Armas y equipo</small></span></button>
           <button class=mb data-a=loads>${I.save}<span><b>Cargar</b><small>Partidas guardadas</small></span></button>
           <button class=mb data-a=set>${I.sliders}<span><b>Ajustes</b><small>Audio, video, controles</small></span></button>
         </div>
       </div>
 
       <div class=pc>
-        <input type=text data-k=name maxlength=12 placeholder="Tu usuario" value="${esc(V.av.name)}">
+        <input type=text data-k=name maxlength=12 placeholder="Tu usuario" value="${esc(V.av.name)}"${AU.token ? ' readonly title="Es el nombre de tu cuenta"' : ''}>
         <div class=pcv><canvas id=pv width=28 height=32></canvas></div>
         <div class=gear>
           <div class=gs>${V.eq >= 0 ? '<canvas class=gi data-k=w data-i=' + V.eq + ' width=24 height=24></canvas>' : '<span>—</span>'}</div>
@@ -2752,12 +2931,12 @@ function pauseMenu(msg){
   <div class=stats>
     <div><small>BAJAS</small><b>${kills}</b></div>
     <div><small>MONEDAS</small><b>${V.coins}</b></div>
-    <div><small>${mode === 'dung' ? 'PISO' : mode === 'camp' ? 'NIVEL' : 'OLEADA'}</small><b>${mode === 'dung' ? dung.floor : mode === 'camp' ? lvl : 1 + Math.floor(kills / 10)}</b></div>
+    <div><small>${mode === 'dung' ? 'PISO' : mode === 'camp' ? 'NIVEL' : mode === 'duel' ? 'RONDA' : 'OLEADA'}</small><b>${mode === 'dung' ? dung.floor : mode === 'camp' ? lvl : mode === 'duel' ? DU.n : 1 + Math.floor(kills / 10)}</b></div>
   </div>
   ${mode === 'dung' && dung.passives.length ? `<div class=r><small>RELIQUIAS ACTIVAS · ${dung.passives.length}</small></div><div class=relics>${dung.passives.map(i => `<span style="--c:${RELICS[i].col}">${RELICS[i].ic} ${RELICS[i].n}</span>`).join('')}</div>` : ''}
   <div class=vlist>
     <button class=s data-a=resume>${I.play} Continuar</button>
-    <button data-a=gsave>${I.save} Guardar partida <small>${net.on ? 'Multijugador' : 'Solitario'}</small></button>
+    ${mode === 'duel' ? '' : `<button data-a=gsave>${I.save} Guardar partida <small>${net.on ? 'Multijugador' : 'Solitario'}</small></button>`}
     ${mode === 'dung' ? '' : `<button data-a=shop>${I.cart} Tienda</button>`}
     <button data-a=set>${I.sliders} Ajustes</button>
     <button data-a=quit>${I.exit} Salir al menú</button>
@@ -2949,7 +3128,7 @@ function avatar(){
   <div class=av2>
     <div class=pcv><canvas id=pv width=28 height=32></canvas></div>
     <div class=opts>
-      <div class=orow><small>NOMBRE</small><div><input type=text data-k=name value="${esc(V.av.name)}" maxlength=12></div></div>
+      <div class=orow><small>NOMBRE</small><div><input type=text data-k=name value="${esc(V.av.name)}" maxlength=12${AU.token ? ' readonly title="Es el nombre de tu cuenta"' : ''}></div></div>
       <div class=orow><small>PIEL</small><div>${sw('skin', SK)}</div></div>
       <div class=orow><small>PELO</small><div>${sw('hair', HR)}</div></div>
       <div class=orow><small>PEINADO</small><div>${optb('hs', HSN)}</div></div>
@@ -2964,8 +3143,8 @@ function avatar(){
   drawPv();
 }
 
-const pref = () => net.mode === 'dung' ? 'D|' : net.mode === 'camp' ? 'C|' : 'S|';
-const MN = { dung: 'MAZMORRAS', camp: 'CAMPAÑA', surv: 'SUPERVIVENCIA' }, MAXP = 8;
+const pref = () => net.mode === 'dung' ? 'D|' : net.mode === 'camp' ? 'C|' : net.mode === 'duel' ? PVM[pvMode].pre : 'S|';
+const MN = { dung: 'MAZMORRAS', camp: 'CAMPAÑA', surv: 'SUPERVIVENCIA', duel: 'ARENA PVP' }, MAXP = 8;
 
 // Elegir cuántos jugadores: 1 = solitario, 2+ = sala online para esa cantidad
 function players(md, onlineOnly){
@@ -2999,9 +3178,9 @@ function online(msg){
     <button class=s data-a=conn>${I.link} Conectar y buscar salas</button>
   </div>
   <div class=actions>
-    <button data-a=online>${I.swap} Cambiar modo</button>
+    ${net.mode === 'duel' ? `<button data-a=duel>${I.back} Volver</button>` : `<button data-a=online>${I.swap} Cambiar modo</button>
     <button data-a=np2>${I.users} Cambiar jugadores</button>
-    <button data-a=back>${I.back} Menú</button>
+    <button data-a=back>${I.back} Menú</button>`}
   </div>`);
 }
 
@@ -3025,6 +3204,278 @@ function lobby(msg){
   <div class="r mk"><input type=text id=nr maxlength=17 placeholder="Nombre de la sala"><button class=s data-a=make>${I.plus} Crear sala</button></div>
   <button data-a=lback>${I.back} Volver</button>`);
   updRooms();
+}
+
+// ---------- CUENTAS: login, registro y progreso en la nube ----------
+const saveAU = () => { try{ AU.token ? localStorage.setItem('ps_auth', JSON.stringify(AU)) : localStorage.removeItem('ps_auth'); }catch(e){} };
+const apiBase = () => (V.srv || DEFAULT_SERVER).trim().replace(/^ws/i, 'http').replace(/\/+$/, '');
+async function api(path, body){
+  const ac = new AbortController(), tm = setTimeout(() => ac.abort(), 90000);
+  try{
+    const r = await fetch(apiBase() + path, {
+      method: body ? 'POST' : 'GET', signal: ac.signal, body: body ? JSON.stringify(body) : undefined,
+      headers: { 'Content-Type': 'application/json', ...(AU.token ? { Authorization: 'Bearer ' + AU.token } : {}) }
+    });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw Object.assign(new Error(d.error || 'Error del servidor (' + r.status + ')'), { status: r.status });
+    return d;
+  } catch(e){
+    if(e.status) throw e;
+    throw new Error(e.name === 'AbortError' ? 'El servidor no respondió. Probá de nuevo en un minuto.' : 'No se pudo conectar con el servidor. Revisá la dirección en "Servidor".');
+  } finally { clearTimeout(tm); }
+}
+
+// Lo que se guarda en la cuenta: monedas, compras, equipo, récords y personaje
+const CLOUD = ['coins', 'owned', 'eq', 'arm', 'armo', 'pet', 'peto', 'bestDung', 'bestKills', 'av'];
+const cloudData = () => { const src = DB ? Object.assign({}, V, DB) : V, o = {}; CLOUD.forEach(k => o[k] = src[k]); return o; };
+let cloudLast = '', cloudT = 0;
+function cloudPush(force){
+  if(!AU.token) return;
+  const d = cloudData(), j = JSON.stringify(d);
+  if(j === cloudLast || (!force && Date.now() - cloudT < 15000)) return;
+  cloudLast = j; cloudT = Date.now();
+  api('/api/save', { data: d }).catch(e => { cloudLast = ''; if(e.status === 401) authExpired(); });
+}
+function applyAccount(u){
+  AU.name = u.name; AU.stats = u.stats || null; saveAU();
+  if(u.data){
+    const dst = DB || V;   // en medio de una mazmorra o duelo, el progreso real está en DB
+    for(const k of CLOUD) if(k !== 'av' && u.data[k] !== undefined) dst[k] = u.data[k];
+    for(const k in u.data.av || {}) if(u.data.av[k] != null) V.av[k] = u.data.av[k];
+    cloudLast = JSON.stringify(cloudData());
+  } else cloudPush(true);   // cuenta nueva: sube el progreso que ya tenías en este navegador
+  V.av.name = u.name;
+  try{ localStorage.setItem('ps_v', JSON.stringify(DB ? Object.assign({}, V, DB) : V)); }catch(e){}
+}
+function authExpired(){
+  AU = { token: null, name: null, stats: null }; saveAU();
+  if(state === 'menu' && !net.on) authPanel('login', 'Tu sesión venció. Iniciá sesión de nuevo.');
+}
+
+let authTab = 'login', authUser = '';
+function authPanel(tab, msg, busy){
+  if(tab) authTab = tab;
+  const reg = authTab === 'register';
+  state = 'menu'; ret = () => authPanel();
+  panel(`<div class=alogo><span class=l1>PIXEL</span><span class=l2>SHOOTER</span></div>
+  <div class=tabs><button class="tab${reg ? '' : ' on'}" data-a=atab data-v=login>Iniciar sesión</button><button class="tab${reg ? ' on' : ''}" data-a=atab data-v=register>Registrarse</button></div>
+  <form id=af class=aform autocomplete=on>
+    <label>Usuario<input type=text id=au name=username autocomplete=username maxlength=12 value="${esc(authUser)}" required></label>
+    <label>Contraseña<input type=password id=ap name=password autocomplete=${reg ? 'new-password' : 'current-password'} maxlength=64 required></label>
+    ${reg ? '<label>Repetí la contraseña<input type=password id=ap2 autocomplete=new-password maxlength=64 required></label>' : ''}
+    ${msg ? `<div class="msg bad">${esc(msg)}</div>` : ''}
+    ${busy ? '<div class=r><small>Conectando con el servidor… puede tardar hasta un minuto si estaba dormido.</small></div>' : ''}
+    <button class=s type=submit ${busy ? 'disabled' : ''}>${busy ? 'Conectando…' : reg ? 'Crear cuenta' : 'Entrar'}</button>
+  </form>
+  <button class=aguest data-a=guest>Jugar como invitado</button>
+  <details class=srv><summary>Servidor</summary><input type=text id=asrv value="${esc(V.srv || DEFAULT_SERVER)}"></details>`);
+  setTimeout(() => { const i = $(authUser ? '#ap' : '#au'); if(i && !busy) i.focus(); }, 60);
+}
+async function authSubmit(){
+  const reg = authTab === 'register', u = $('#au').value.trim(), pw = $('#ap').value, pw2 = reg ? $('#ap2').value : '';
+  authUser = u;
+  const sv = $('#asrv') && $('#asrv').value.trim(); if(sv){ V.srv = sv; save(); }
+  if(!/^[A-Za-z0-9_]{3,12}$/.test(u)) return authPanel(null, 'El usuario debe tener de 3 a 12 caracteres (letras, números o _)');
+  if(reg && pw !== pw2) return authPanel(null, 'Las contraseñas no coinciden');
+  authPanel(null, '', true);
+  try{
+    const d = await api(reg ? '/api/register' : '/api/login', reg ? { username: u, password: pw, password2: pw2 } : { username: u, password: pw });
+    AU.token = d.token; applyAccount(d.user);
+    try{ localStorage.removeItem('ps_guest'); }catch(e){}
+    main();
+  } catch(e){ authPanel(null, e.message); }
+}
+ui.addEventListener('submit', e => { e.preventDefault(); if(e.target.id === 'af') authSubmit(); });
+
+function boot(){
+  let guest = false; try{ guest = !!localStorage.getItem('ps_guest'); }catch(e){}
+  if(AU.token){
+    main();
+    // revisa la sesión en segundo plano (el servidor puede estar dormido: no bloquea el menú)
+    api('/api/me').then(u => { applyAccount(u); if($('.mm')) main(); }).catch(e => { if(e.status === 401) authExpired(); });
+  } else if(guest) main();
+  else authPanel('login');
+}
+
+// ---------- ARENA PVP: 1V1, 2V2 Y TODOS CONTRA TODOS ----------
+// El servidor arma las partidas y los equipos, lleva el marcador y actualiza el rating Elo.
+const DUEL_HP = 6;
+const PVM = {
+  '1v1': { n: '1v1', d: 'Uno contra uno al mejor de 5 rondas.', max: 2, pre: 'V|', ic: 'target' },
+  '2v2': { n: '2v2', d: 'Dos equipos de 2, sin fuego amigo. Gana el equipo que se lleve 3 rondas.', max: 4, pre: 'W|', ic: 'users' },
+  ffa: { n: 'Todos contra todos', d: 'De 2 a 8 jugadores. Reaparecés al morir; gana el primero en llegar a 10 bajas.', max: 8, pre: 'F|', ic: 'swords' }
+};
+let pvMode = '1v1';
+let DU = { md: '1v1', ps: [], sc: {}, n: 1, win: 3, fz: 0, res: null };
+const pvMe = () => DU.ps.find(q => q[0] === net.id) || [net.id, V.av.name, null, 0];
+const teamOf = id => { const q = DU.ps.find(q => q[0] === +id); return q ? q[3] : -1; };
+const isMate = id => DU.md !== 'ffa' && teamOf(id) === pvMe()[3];
+const pvName = id => { const q = DU.ps.find(q => q[0] === +id); return q ? q[1] : '?'; };
+
+function duelMenu(msg){
+  net.mode = 'duel'; net.max = PVM[pvMode].max; net.q = false; ret = duelMenu;
+  const st = AU.stats || {};
+  panel(`<h2>Arena PvP</h2>
+  <div class=duo>${Object.keys(PVM).map(k => `<button class="big${k === pvMode ? ' s' : ''}" data-a=pvm data-v=${k}>${I[PVM[k].ic]}<b>${PVM[k].n}</b><small>${PVM[k].d}</small></button>`).join('')}</div>
+  <div class=r><small>Las 8 armas para todos · ${DUEL_HP} corazones · ${DMAPS.length} mapas sorteados con ruleta</small></div>
+  ${AU.token ? `<div class=stats><div><small>RATING</small><b>${st.rating || 1000}</b></div><div><small>VICTORIAS</small><b>${st.wins || 0}</b></div><div><small>DERROTAS</small><b>${st.losses || 0}</b></div><div><small>BAJAS</small><b>${st.kills || 0}</b></div></div>`
+    : `<div class="msg bad">Jugás como invitado: tus partidas no suman al ranking. <button class=mini data-a=login>Iniciar sesión</button></div>`}
+  ${msg ? `<div class="msg bad">${esc(msg)}</div>` : ''}
+  <div class=actions>
+    <button class=s data-a=dfind>${I.swords} Buscar partida</button>
+    <button data-a=dpriv>${I.users} Sala privada</button>
+    <button data-a=dtop>${I.trophy} Ranking</button>
+    <button data-a=home>${I.back} Volver</button>
+  </div>`);
+}
+function duelSearching(n, need){
+  panel(`<h2>Buscando partida · ${PVM[pvMode].n}</h2><div class=load><i></i><i></i><i></i><i></i></div>
+  <div class=r>${n ? `<b>${n}</b> de ${need} jugadores encontrados` : 'Buscando jugadores…'}</div>
+  ${pvMode === 'ffa' ? '<div class=r><small>Si no se llena, arranca con 3 jugadores a los 8 segundos (o con 2 a los 20).</small></div>' : ''}
+  <button data-a=cancel>${I.x} Cancelar</button>`);
+}
+function duelWaiting(info){
+  DU.wait = Object.assign(DU.wait || { n: 1, max: net.max }, info || {});
+  const w = DU.wait, ffa = pvMode === 'ffa';
+  panel(`<h2>Sala ${PVM[pvMode].n}</h2><div class=load><i></i><i></i><i></i><i></i></div>
+  <div class=r>Sala <b style="color:var(--acc)">${esc(String(net.roomName || '').slice(2))}</b> · <b>${w.n}</b> de ${w.max} jugadores</div>
+  <div class=r><small>${ffa ? 'El anfitrión empieza cuando estén todos (mínimo 2).' : 'La partida empieza sola cuando se llena la sala.'} Pasale el nombre a tus amigos para que entren desde Arena PvP → ${PVM[pvMode].n} → Sala privada.</small></div>
+  <div class=actions>
+    ${ffa && net.host ? `<button class=s data-a=dgo ${w.n < 2 ? 'disabled' : ''}>${I.play} Comenzar</button>` : ''}
+    <button data-a=quit>${I.exit} Salir</button>
+  </div>`);
+}
+async function duelTop(){
+  panel(`<h2>Ranking PvP</h2><div class=load><i></i><i></i><i></i><i></i></div>`);
+  try{
+    const l = await api('/api/top'), me = String(AU.name || '').toLowerCase();
+    panel(`<h2>Ranking PvP</h2>
+    <div class=r><small>El rating se gana en 1v1 y 2v2 cuando todos los jugadores tienen cuenta.</small></div>
+    <div class=lb>${l.length ? l.map((r, i) => `<div class="lbr${r[0].toLowerCase() === me ? ' me' : ''}"><span>${i + 1}.</span><span class=nm>${esc(r[0])}</span><small>${r[2]} V · ${r[3]} D</small><b>${r[1]}</b></div>`).join('') : '<div class=r>Todavía nadie jugó con cuenta.</div>'}</div>
+    <div><button data-a=duel>${I.back} Volver</button></div>`);
+  } catch(e){ duelMenu(e.message); }
+}
+// Ruleta: todos ven girar las imágenes de los mapas hasta caer en el que sorteó el servidor
+function duelRoulette(d){
+  state = 'roulette'; paused = false; DU.ps = d.p; DU.md = d.md || '1v1'; DU.wait = null;
+  const N = DMAPS.length, LOOPS = 7, mi = (d.mp | 0) % N, tgt = (LOOPS - 2) * N + mi, me = pvMe();
+  const col = q => q[0] === net.id ? 'var(--acc)' : DU.md !== 'ffa' && q[3] === me[3] ? 'var(--acc2)' : 'var(--bad)';
+  const who = q => `<b style="color:${col(q)}">${esc(q[1])}</b>${q[2] != null ? ` <small>${q[2]}</small>` : ''}`;
+  const vs = DU.md === 'ffa' ? DU.ps.map(who).join(' · ')
+    : [0, 1].map(t => DU.ps.filter(q => q[3] === t).map(who).join(' + ')).join(' <small>vs</small> ');
+  let cards = '';
+  for(let i = 0; i < LOOPS * N; i++) cards += `<div class=rlc data-i=${i % N}><canvas width=144 height=88></canvas><b>${DMAPS[i % N].n}</b></div>`;
+  panel(`<h2>¡Partida encontrada! · ${PVM[DU.md].n}</h2>
+  <div class=r>${vs}</div>
+  <div class=rlw><div class=rls id=rls>${cards}</div><i class=rlm></i></div>
+  <div class=r id=rln><small>Sorteando el mapa…</small></div>`);
+  const th = DMAPS.map((M, i) => mapThumb(i));
+  document.querySelectorAll('.rlc canvas').forEach(cv => cv.getContext('2d').drawImage(th[+cv.parentNode.dataset.i], 0, 0));
+  const strip = $('#rls'), cw = strip.children[0].offsetWidth, step = cw + (parseFloat(getComputedStyle(strip).columnGap) || 0), wrap = strip.parentNode.clientWidth;
+  const end = tgt * step + cw / 2 - wrap / 2 + (Math.random() - .5) * cw * .6;
+  requestAnimationFrame(() => requestAnimationFrame(() => { strip.style.transition = 'transform 4s cubic-bezier(.08,.7,.12,1)'; strip.style.transform = `translateX(${-end}px)`; }));
+  let last = -1;
+  const tick = setInterval(() => {   // "tic" cada vez que una tarjeta pasa por el marcador
+    const x = -new DOMMatrix(getComputedStyle(strip).transform).m41 + wrap / 2, i = Math.floor(x / step);
+    if(i !== last){ last = i; uiS('h'); }
+  }, 25);
+  setTimeout(() => {
+    clearInterval(tick);
+    if(state !== 'roulette') return;
+    strip.children[tgt].classList.add('win');
+    $('#rln').innerHTML = `Mapa: <b style="color:var(--acc)">${DMAPS[mi].n}</b>`; sFan();
+  }, 4150);
+  setTimeout(() => { if(state === 'roulette') duelBegin(d); }, 5600);
+}
+// Dónde aparece cada uno: 1v1/2v2 en el lado de su equipo; en FFA, el punto más lejos de los rivales
+function pvSpawnPoint(){
+  const me = pvMe();
+  if(DU.md === 'ffa'){
+    const live = Object.values(net.rem).filter(r => !r.dd && r.x != null);
+    let best = null, bd = -1;
+    for(const [ax, ay] of ffaSpots(ARN.w, ARN.h)){
+      const x = (ARN.x + ax) * T + 8, y = (ARN.y + ay) * T + 8, d = live.length ? Math.min(...live.map(r => Math.hypot(r.x - x, r.y - y))) : Math.random() * 999;
+      if(d > bd){ bd = d; best = { x, y }; }
+    }
+    return best;
+  }
+  const mates = DU.ps.filter(q => q[3] === me[3]), sp = arenaSpawn(me[3]);
+  if(mates.length > 1) sp.y += (mates.indexOf(me) ? 2 : -2) * T;
+  return sp;
+}
+function duelSpawn(){
+  const sp = pvSpawnPoint();
+  p.x = sp.x; p.y = sp.y; p.maxHp = p.hp = DUEL_HP; p.ar = 0; p.dead = 0; p.inv = 0; p.roll = 0; p.rlc = 0; p.lastHit = 0;
+  bullets = []; eb = []; parts = []; nums = [];
+  DU.fz = 2.2;
+  banner(DU.md === 'ffa' ? '¡A 10 BAJAS!' : 'RONDA ' + DU.n);
+}
+function duelBegin(d){
+  DU = { md: d.md || '1v1', ps: d.p, sc: d.md === 'ffa' ? {} : { 0: 0, 1: 0 }, n: d.n || 1, win: d.win || 3, fz: 0, res: null, asked: false };
+  if(DU.md === 'ffa') d.p.forEach(q => DU.sc[q[0]] = 0);
+  start('duel', 1, (d.mp | 0) % DMAPS.length);
+  duelSpawn();
+}
+function duelRound(d){
+  DU.sc = d.sc; DU.n = d.n;
+  d.w === pvMe()[3] ? sFan() : sHurt();
+  duelSpawn();
+}
+function duelKill(d){
+  DU.sc = d.sc;
+  if(d.k === net.id){ sFan(); num(p.x, p.y - 26, '+1 BAJA', '#f2b33d'); }
+  banner(d.k ? pvName(d.k).toUpperCase() + ' ELIMINÓ A ' + pvName(d.v).toUpperCase() : pvName(d.v).toUpperCase() + ' CAYÓ');
+}
+function duelOver(d){
+  DU.sc = d.sc; state = 'duelend'; paused = false;
+  if(d.st && d.st[net.id] && AU.token){ AU.stats = d.st[net.id]; saveAU(); }
+  const win = DU.md === 'ffa' ? d.w === net.id : d.w === pvMe()[3];
+  DU.res = { win, w: d.w, ff: d.ff, d: d.d };
+  win ? sFan() : sHurt();
+  duelResult();
+}
+function duelResult(note){
+  const R = DU.res, me = pvMe(), ffa = DU.md === 'ffa';
+  const rows = ffa ? DU.ps.slice().sort((a, b) => (DU.sc[b[0]] || 0) - (DU.sc[a[0]] || 0)) : null;
+  panel(`<h1 class=glitch style="color:${R.win ? 'var(--ok)' : 'var(--bad)'}">${R.win ? 'Victoria' : 'Derrota'}</h1>
+  ${ffa && !R.win ? `<div class=r>Ganó <b style="color:var(--acc)">${esc(pvName(R.w))}</b></div>` : ''}
+  ${R.ff ? '<div class=r><small>La partida terminó porque abandonaron jugadores</small></div>' : ''}
+  ${ffa ? `<div class=lb>${rows.map((q, i) => `<div class="lbr${q[0] === net.id ? ' me' : ''}"><span>${i + 1}.</span><span class=nm>${esc(q[1])}</span><b>${DU.sc[q[0]] || 0}</b></div>`).join('')}</div>`
+    : `<div class=stats>
+    <div><small>${DU.md === '2v2' ? 'TU EQUIPO' : 'VOS'}</small><b>${DU.sc[me[3]] || 0}</b></div>
+    <div><small>${DU.md === '2v2' ? 'RIVALES' : esc(String(pvName(DU.ps.find(q => q[3] !== me[3])?.[0])).toUpperCase())}</small><b>${DU.sc[1 - me[3]] || 0}</b></div>
+    ${R.d != null ? `<div><small>RATING</small><b>${AU.stats ? AU.stats.rating : '—'} <small style="color:${R.win ? 'var(--ok)' : 'var(--bad)'}">${R.win ? '+' : '−'}${R.d}</small></b></div>` : ''}
+  </div>`}
+  ${!ffa && R.d == null ? '<div class=r><small>Partida sin ranking (hace falta que todos tengan cuenta)</small></div>' : ''}
+  ${note ? `<div class="msg ok">${esc(note)}</div>` : ''}
+  <div class=vlist>
+    ${net.on ? `<button class=s data-a=drematch ${DU.asked ? 'disabled' : ''}>${I.retry} ${DU.asked ? 'Esperando a los demás…' : 'Revancha'}</button>` : ''}
+    <button data-a=quit>${I.exit} Salir al menú</button>
+  </div>`);
+}
+
+function drawDuelHud(){
+  const me = pvMe(), ffa = DU.md === 'ffa';
+  g.fillStyle = 'rgba(6,8,14,.55)'; g.fillRect(W / 2 - 64, 2, 128, 22);
+  if(ffa){
+    const top = DU.ps.slice().sort((a, b) => (DU.sc[b[0]] || 0) - (DU.sc[a[0]] || 0))[0];
+    TX('VOS ' + (DU.sc[net.id] || 0), W / 2 - 6, 11, 3.8, '#56c8e0', 'right');
+    TX('1º ' + String(top[1]).toUpperCase().slice(0, 8) + ' ' + (DU.sc[top[0]] || 0), W / 2 + 6, 11, 3.8, '#f2b33d', 'left');
+    TX('TODOS CONTRA TODOS · A ' + DU.win + ' · ' + (DT ? DT.n.toUpperCase() : ''), W / 2, 20, 2.6, '#8a93a8', 'center');
+  } else {
+    const opp = DU.ps.find(q => q[3] !== me[3]);
+    TX(DU.md === '2v2' ? 'TU EQUIPO' : 'VOS', W / 2 - 14, 11, 3.6, '#56c8e0', 'right');
+    TX((DU.sc[me[3]] || 0) + '-' + (DU.sc[1 - me[3]] || 0), W / 2, 11.5, 5.2, '#fff', 'center');
+    TX(DU.md === '2v2' ? 'RIVALES' : String(opp ? opp[1] : 'RIVAL').toUpperCase().slice(0, 10), W / 2 + 14, 11, 3.6, '#ef5b6b', 'left');
+    TX('RONDA ' + DU.n + ' · ' + (DT ? DT.n.toUpperCase() : ''), W / 2, 20, 2.8, '#8a93a8', 'center');
+  }
+  // flechas hacia los demás jugadores que están fuera de la pantalla
+  for(const id in net.rem){ const r = net.rem[id]; if(r.av && !r.dd) drawArrowTo(r.x, r.y - 8, isMate(id) ? '#56c8e0' : '#ef5b6b', false); }
+  if(DU.fz > 0){
+    const n = Math.ceil(DU.fz - .4);
+    TX(n > 0 ? n : '¡YA!', W / 2, H / 2 - 14, n > 0 ? 14 : 10, n > 0 ? '#fff' : '#f2b33d', 'center');
+  }
+  if(p.dead > 0) TX(ffa ? 'REAPARECÉS EN ' + Math.ceil(p.dead) : 'CAÍSTE · ESPERÁ EL FIN DE LA RONDA', W / 2, H / 2 + 4, 4, '#fff', 'center');
 }
 
 // ---------- PARTIDAS GUARDADAS ----------
@@ -3065,7 +3516,7 @@ function snapGame(){
   return s;
 }
 function saveGame(){
-  if(state !== 'play') return;
+  if(state !== 'play' || mode === 'duel') return;
   const s = snapGame(), l = getSaves().filter(o => o.id !== s.id);
   l.unshift(s); curSave = s.id;
   const ok = putSaves(l.slice(0, SAVES_MAX));
@@ -3118,6 +3569,18 @@ const A = {
   },
   np2: () => players(net.mode),
   loads: () => savesMenu(),
+  duel: () => duelMenu(),
+  pvm: v => { if(PVM[v]){ pvMode = v; duelMenu(); } },
+  dfind: () => { net.mode = 'duel'; net.max = PVM[pvMode].max; net.q = true; DU.wait = null; connect(V.srv || DEFAULT_SERVER); },
+  dpriv: () => { net.mode = 'duel'; net.max = PVM[pvMode].max; DU.wait = null; online(); },
+  dgo: () => raw({ t: 'duel_go' }),
+  dtop: () => duelTop(),
+  drematch: () => { DU.asked = true; raw({ t: 'duel_again' }); duelResult(); },
+  home: () => main(),
+  login: () => authPanel('login'),
+  atab: v => { const u = $('#au'); if(u) authUser = u.value.trim(); authPanel(v); },
+  guest: () => { try{ localStorage.setItem('ps_guest', '1'); }catch(e){} main(); },
+  logout: () => { AU = { token: null, name: null, stats: null }; saveAU(); cloudLast = ''; authPanel('login'); },
   sload: v => loadGame(+v),
   sdel: v => { const l = getSaves(); l.splice(+v, 1); putSaves(l); savesMenu(); },
   gsave: () => saveGame(),
@@ -3182,9 +3645,9 @@ const A = {
   col: (v, k) => { V.av[k] = v; save(); avatar(); },
   acc: v => { V.av.acc = +v; save(); avatar(); },
   conn: () => { V.srv = $('#su').value.trim(); save(); connect(V.srv); },
-  join: v => { net.roomName = v; raw({ t: 'join', room: v, max: net.max }); },
-  make: () => { const n = $('#nr').value.trim().slice(0, 17); if(n){ net.roomName = pref() + n; raw({ t: 'join', room: pref() + n, max: net.max }); } },
-  cancel: () => { if(net.abort) net.abort(); online(); },
+  join: v => { net.roomName = v; raw({ t: 'join', room: v, max: net.max, n: V.av.name }); },
+  make: () => { const n = $('#nr').value.trim().slice(0, 17); if(n){ net.roomName = pref() + n; raw({ t: 'join', room: pref() + n, max: net.max, n: V.av.name }); } },
+  cancel: () => { if(net.abort) net.abort(); net.q = false; net.mode === 'duel' ? duelMenu() : online(); },
   lback: () => { net.lob = false; if(!net.on) try{ net.ws.close(); }catch(e){} main(); }
 };
 
@@ -3210,7 +3673,7 @@ ui.addEventListener('click', e => {
 
 ui.addEventListener('input', e => {
   const k = e.target.dataset.k; if(!k) return;
-  if(k === 'name'){ V.av.name = e.target.value.slice(0, 12) || 'Jugador'; save(); return; }
+  if(k === 'name'){ if(AU.token) return; V.av.name = e.target.value.slice(0, 12) || 'Jugador'; save(); return; }
   S[k] = +e.target.value;
   e.target.nextElementSibling.textContent = k === 'sens' ? S[k] : Math.round(S[k] * 100) + '%';
   e.target.style.setProperty('--v', ((e.target.value - e.target.min) / (e.target.max - e.target.min) * 100) + '%');
@@ -3226,7 +3689,7 @@ addEventListener('keydown', e => {
   if(k === ' ' && pl) e.preventDefault();
   if(k === 'escape' && state === 'play'){ paused ? A.resume() : pauseMenu(); }
   if(pl && k >= '1' && k <= '8'){ const i = +k - 1; if(V.owned.includes(i)) V.eq = i; }
-  if(pl && k === 'b' && mode !== 'dung'){ paused = true; ret = pauseMenu; shop(); }
+  if(pl && k === 'b' && mode !== 'dung' && mode !== 'duel'){ paused = true; ret = pauseMenu; shop(); }
 });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
@@ -3319,6 +3782,6 @@ genMap(3, 0, false);
 buildMini();
 p = { ar: 0, x: MW * T / 2, y: MH * T / 2, hp: 5, maxHp: 5, cd: 0, inv: 0, ang: 0, walk: 0, moving: false, kick: 0, dead: 0 };
 
-main();
+boot();
 requestAnimationFrame(loop);
 </script></body></html>
