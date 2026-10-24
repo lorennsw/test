@@ -2132,6 +2132,8 @@ function drawDungeonRoom(){
   const r = dung.curRoom, th = dung.floorTheme;
   if(!r) return;
   const rw = r.w * T, rh = r.h * T;
+  // La sala (11 tiles = 176px) es más baja que la pantalla (180px): se pinta todo antes para no dejar restos del mapa anterior
+  g.fillStyle = th.wCol; g.fillRect(0, 0, W, H);
 
   // Suelo con variación sutil
   for(let ty = 0; ty < r.h; ty++){
