@@ -297,6 +297,16 @@ input[readonly]{color:var(--muted);cursor:default}
   .p{max-width:96%;max-height:96%;padding:1.4cqw 2cqw}
 }
 
+/* ---- veto de armas */
+.vgrid{grid-template-columns:repeat(4,1fr)}
+.vw{font:inherit;color:inherit;cursor:default;margin:0}
+.vw.pick{cursor:pointer}
+.vw.pick:hover{border-color:var(--bad);background:rgba(239,91,107,.1)}
+.vw:disabled{opacity:1}
+.vw.out{opacity:.35;filter:grayscale(1)}
+.vw.out .nm{text-decoration:line-through}
+.vby{font-weight:700;font-size:.7em;filter:none}
+
 /* ---- modo optimización: sin animaciones ni filtros costosos */
 #w.lite #ui{backdrop-filter:none}
 #w.lite .p,#w.lite .tick{animation:none}
@@ -1903,11 +1913,17 @@ function update(dt){
   for(const b of bullets){
     b.x += b.vx * dt; b.y += b.vy * dt; b.l -= dt;
     if(mode === 'duel'){
+      // los impactos los decide el que dispara (lo que ves en tu pantalla es lo que cuenta):
+      // las balas del rival que te tocan acá son solo visuales; el daño llega con 'pvhit'
       if(b.rm){
-        if(!isMate(b.own) && !p.dead && p.inv <= 0 && !(p.roll > 0) && Math.hypot(b.x - p.x, b.y - (p.y - 6)) < 6){ b.l = 0; p.lastHit = b.own; hurt(); continue; }
+        if(!isMate(b.own) && !p.dead && Math.hypot(b.x - p.x, b.y - (p.y - 6)) < 6){ b.l = 0; burst(b.x, b.y, '#ff5a5a', 2); continue; }
       } else for(const id in net.rem){
         const r = net.rem[id];
-        if(!isMate(id) && !r.dd && !(r.roll > 0) && Math.hypot(b.x - r.x, b.y - (r.y - 6)) < 6){ b.l = 0; burst(b.x, b.y, '#ff5a5a', 3); sHit(); break; }
+        if(!isMate(id) && !r.dd && !(r.roll > 0) && Math.hypot(b.x - r.x, b.y - (r.y - 6)) < 6){
+          b.l = 0; burst(b.x, b.y, '#ff5a5a', 3); sHit();
+          snd({ t: 'pvhit', to: +id });
+          break;
+        }
       }
       if(b.l <= 0) continue;
     }
@@ -2096,10 +2112,16 @@ function onNet(d){
   else if(d.t === 'duel_start') duelRoulette(d);
   else if(d.t === 'duel_round') duelRound(d);
   else if(d.t === 'duel_kill') duelKill(d);
+  else if(d.t === 'veto_st') vetoState(d);
+  else if(d.t === 'veto_done') vetoDone(d);
+  else if(d.t === 'pvhit' && mode === 'duel' && state === 'play'){
+    // impacto confirmado por el que disparó: si en su pantalla la bala te pegó, te saca vida
+    if(!isMate(d.from) && !p.dead && !(DU.fz > 0) && p.inv <= 0){ p.lastHit = d.from; hurt(); }
+  }
   else if(d.t === 'duel_end') duelOver(d);
   else if(d.t === 'duel_again' && state === 'duelend') duelResult(`Revancha: ${d.n} de ${d.need} listos`);
   else if(d.t === 'duel_wait') duelSearching(d.n, d.need);
-  else if(d.t === 'duel_room' && net.mode === 'duel' && state !== 'play' && state !== 'roulette' && state !== 'duelend'){ net.host = d.host === net.id; duelWaiting(d); }
+  else if(d.t === 'duel_room' && net.mode === 'duel' && state !== 'play' && state !== 'roulette' && state !== 'veto' && state !== 'duelend'){ net.host = d.host === net.id; duelWaiting(d); }
   else if(d.t === 'left'){ delete net.rem[d.id]; if(net.wl) delete net.wl[d.id]; if(net.wait) waitRoom(); }
   else if(d.t === 'host'){
     net.host = true; nid = enemies.reduce((a, e) => Math.max(a, e.id), 0) + 1;
@@ -3443,7 +3465,7 @@ async function duelTop(){
 }
 // Ruleta: todos ven girar las imágenes de los mapas hasta caer en el que sorteó el servidor
 function duelRoulette(d){
-  state = 'roulette'; paused = false; DU.ps = d.p; DU.md = d.md || '1v1'; DU.wait = null;
+  state = 'roulette'; paused = false; DU.ps = d.p; DU.md = d.md || '1v1'; DU.wait = null; DU.veto = null; DU.vw = null;
   const N = DMAPS.length, LOOPS = 7, mi = (d.mp | 0) % N, tgt = (LOOPS - 2) * N + mi, me = pvMe();
   const col = q => q[0] === net.id ? 'var(--acc)' : DU.md !== 'ffa' && q[3] === me[3] ? 'var(--acc2)' : 'var(--bad)';
   const who = q => `<b style="color:${col(q)}">${esc(q[1])}</b>${q[2] != null ? ` <small>${q[2]}</small>` : ''}`;
@@ -3471,8 +3493,50 @@ function duelRoulette(d){
     strip.children[tgt].classList.add('win');
     $('#rln').innerHTML = `Mapa: <b style="color:var(--acc)">${DMAPS[mi].n}</b>`; sFan();
   }, 4150);
-  setTimeout(() => { if(state === 'roulette') duelBegin(d); }, 5600);
+  setTimeout(() => { if(state === 'roulette'){ DU.start = d; vetoPanel(); } }, 5600);
 }
+// Veto de armas: por turnos (alternando equipos) hasta que queda una, que usan todos en la partida
+let vetoTick = null;
+function vetoPanel(){
+  state = 'veto';
+  const v = DU.veto, me = pvMe();
+  const whoCol = id => +id === net.id ? 'var(--acc)' : isMate(id) ? 'var(--acc2)' : 'var(--bad)';
+  const mine = v && v.turn === net.id, vetoed = {};
+  if(v) v.log.forEach(([id, w, auto]) => vetoed[w] = [id, auto]);
+  panel(`<h2>Veto de armas</h2>
+  <div class=r>${!v ? 'Preparando el veto…' : mine ? '<b style="color:var(--acc)">Te toca: elegí un arma para sacarla</b>' : `Veta <b style="color:${whoCol(v.turn)}">${esc(pvName(v.turn))}</b>…`}
+    ${v ? ` · <b id=vtm class=vt>${Math.max(0, Math.ceil((v.until - Date.now()) / 1000))}</b>s` : ''}</div>
+  <div class="grid vgrid">${WP.map((w, i) => {
+    const out = vetoed[i], live = v && v.left.includes(i);
+    return `<button class="it vw${out ? ' out' : ''}${mine && live ? ' pick' : ''}" ${mine && live ? `data-a=veto data-v=${i}` : 'disabled'}>
+      <canvas class=ic data-k=w data-i=${i} width=24 height=24></canvas><b class=nm>${w.n}</b>
+      ${sbar('DAÑO', w.d * w.pel / 6)}${sbar('CADENCIA', 1 / w.cd / 11)}
+      ${out ? `<small class=vby style="color:${whoCol(out[0])}">✕ ${esc(pvName(out[0]))}${out[1] ? ' (tiempo)' : ''}</small>` : ''}
+    </button>`;
+  }).join('')}</div>
+  <div class=r><small>Quedan ${v ? v.left.length : WP.length} armas · la última se usa en todas las rondas</small></div>`);
+  document.querySelectorAll('.vgrid .ic').forEach(cv => icon(cv.getContext('2d'), 'w', +cv.dataset.i, 0, 0));
+  clearInterval(vetoTick);
+  vetoTick = setInterval(() => {
+    const e = $('#vtm');
+    if(state !== 'veto' || !e){ clearInterval(vetoTick); return; }
+    e.textContent = Math.max(0, Math.ceil((DU.veto.until - Date.now()) / 1000));
+  }, 250);
+}
+function vetoState(d){
+  DU.veto = { left: d.left, turn: d.turn, log: d.log || [], until: Date.now() + d.dl * 1000 };
+  if(state === 'veto') vetoPanel();
+}
+function vetoDone(d){
+  clearInterval(vetoTick);
+  if(state !== 'veto' && state !== 'roulette') return;
+  DU.vw = d.w;
+  const st = DU.start;
+  banner('ARMA: ' + WP[d.w].n.toUpperCase());
+  duelBegin(st, d.w);
+  DU.vlog = d.log;   // quién vetó cada arma (para el resultado)
+}
+
 // Dónde aparece cada uno: 1v1/2v2 en el lado de su equipo; en FFA, el punto más lejos de los rivales
 function pvSpawnPoint(){
   const me = pvMe();
@@ -3496,10 +3560,11 @@ function duelSpawn(){
   DU.fz = 2.2;
   banner(DU.md === 'ffa' ? '¡A 10 BAJAS!' : 'RONDA ' + DU.n);
 }
-function duelBegin(d){
-  DU = { md: d.md || '1v1', ps: d.p, sc: d.md === 'ffa' ? {} : { 0: 0, 1: 0 }, n: d.n || 1, win: d.win || 3, fz: 0, res: null, asked: false };
+function duelBegin(d, w){
+  DU = { md: d.md || '1v1', ps: d.p, sc: d.md === 'ffa' ? {} : { 0: 0, 1: 0 }, n: d.n || 1, win: d.win || 3, fz: 0, res: null, asked: false, vw: w };
   if(DU.md === 'ffa') d.p.forEach(q => DU.sc[q[0]] = 0);
   start('duel', 1, (d.mp | 0) % DMAPS.length);
+  if(WP[w]){ V.owned = [w]; V.eq = w; }   // todos juegan con el arma que sobrevivió al veto
   duelSpawn();
 }
 function duelRound(d){
@@ -3660,6 +3725,7 @@ const A = {
   dfind: () => { net.mode = 'duel'; net.max = PVM[pvMode].max; net.q = true; DU.wait = null; connect(V.srv || DEFAULT_SERVER); },
   dpriv: () => { net.mode = 'duel'; net.max = PVM[pvMode].max; DU.wait = null; online(); },
   dgo: () => raw({ t: 'duel_go' }),
+  veto: v => { if(state === 'veto' && DU.veto && DU.veto.turn === net.id){ raw({ t: 'veto', w: +v }); DU.veto.turn = -1; vetoPanel(); } },
   dtop: () => duelTop(),
   drematch: () => { DU.asked = true; raw({ t: 'duel_again' }); duelResult(); },
   home: () => main(),

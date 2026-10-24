@@ -11,7 +11,8 @@ const MIN_P = 2, TOP_P = 8;                           // límites para la cantid
 const DEFAULT_ROOMS = ['Sala 1', 'Sala 2', 'Sala 3']; // salas que siempre aparecen en la lista
 const WIN_ROUNDS = 3;                                 // duelo al mejor de 5
 const DUEL_MAPS = 6;                                  // mapas del duelo (el cliente los dibuja)
-const FFA_KILLS = 10;                                 // todos contra todos: gana el primero en llegar
+const FFA_KILLS = 10;
+const WEAPONS = 8, VETO_S = 12, ROULETTE_MS = 5800;   // veto de armas: 12 s por turno, empieza al terminar la ruleta                                 // todos contra todos: gana el primero en llegar
 const NAME_RE = /^[A-Za-z0-9_]{3,12}$/;
 
 (async () => {
@@ -147,6 +148,35 @@ const NAME_RE = /^[A-Za-z0-9_]{3,12}$/;
       return [x.id, nameOf(x), u ? u.stats.rating : null, x.team];
     }));
     duelBroadcast(r, { t: 'duel_start', p: info, n: 1, md, win: md === 'ffa' ? FFA_KILLS : WIN_ROUNDS, mp });
+    // veto: el turno pasa por todos alternando equipos (A1, B1, A2, B2…) hasta que queda un arma
+    const order = md === 'ffa' ? ps.map(x => x.id)
+      : [].concat(...ps.filter(x => x.team === 0).map((x, i) => [x.id, (ps.filter(y => y.team === 1)[i] || {}).id])).filter(Boolean);
+    r.duel.veto = { left: [...Array(WEAPONS).keys()], order, i: 0, log: [] };
+    clearTimeout(r.vetoT);
+    r.vetoT = setTimeout(() => vetoTurn(r), ROULETTE_MS);
+  }
+  // turno del veto: avisa a todos de quién es; si no elige a tiempo (o se fue), se veta un arma al azar
+  function vetoTurn(r) {
+    const d = r.duel, v = d && d.veto;
+    if (!d || !d.live || !v || v.done) return;
+    const ids = new Set([...r].map(x => x.id));
+    let tries = v.order.length;
+    while (!ids.has(v.order[v.i % v.order.length]) && tries--) v.i++;
+    v.turn = v.order[v.i % v.order.length];
+    duelBroadcast(r, { t: 'veto_st', left: v.left, turn: v.turn, log: v.log, dl: VETO_S });
+    clearTimeout(r.vetoT);
+    r.vetoT = setTimeout(() => doVeto(r, v.turn, v.left[Math.floor(Math.random() * v.left.length)], true), VETO_S * 1000);
+  }
+  function doVeto(r, id, w, auto) {
+    const d = r.duel, v = d && d.veto;
+    if (!d || !d.live || !v || v.done || id !== v.turn || !v.left.includes(w)) return;
+    v.left = v.left.filter(x => x !== w);
+    v.log.push([id, w, auto ? 1 : 0]);
+    v.i++;
+    if (v.left.length > 1) return vetoTurn(r);
+    v.done = true;
+    clearTimeout(r.vetoT);
+    duelBroadcast(r, { t: 'veto_done', w: v.left[0], log: v.log });
   }
   function duelDeath(r, ws, kid) {
     const d = r.duel;
@@ -174,6 +204,7 @@ const NAME_RE = /^[A-Za-z0-9_]{3,12}$/;
   async function duelEnd(r, w, ff) {
     const d = r.duel;
     d.live = false;
+    clearTimeout(r.vetoT);
     let delta = null;
     const st = {}, ps = d.all.filter(x => x.user);
     const won = x => d.md === 'ffa' ? x.id === w : x.team === w;
@@ -201,6 +232,7 @@ const NAME_RE = /^[A-Za-z0-9_]{3,12}$/;
   function duelLeft(r, ws) {
     const d = r.duel;
     if (!d.live) return duelRoomInfo(r);
+    if (d.veto && !d.veto.done && d.veto.turn === ws.id) setTimeout(() => vetoTurn(r), 300);   // le tocaba al que se fue
     if (d.md === 'ffa') {
       if (r.size < 2) { const last = [...r][0]; duelEnd(r, last ? last.id : 0, true); }
       return;
@@ -245,7 +277,8 @@ const NAME_RE = /^[A-Za-z0-9_]{3,12}$/;
       if (m.t === 'duel_qx') return dropQ(ws);
       const r = rooms[ws.room];
       if (!r) return;
-      if (r.duel && m.t === 'dd') return duelDeath(r, ws, m.k);
+      if (r.duel && m.t === 'veto') return doVeto(r, ws.id, m.w | 0, false);
+      if (r.duel && m.t === 'dd') { if (r.duel.veto && !r.duel.veto.done) return; return duelDeath(r, ws, m.k); }
       if (r.duel && m.t === 'duel_go') { if (ws.host && !r.duel.live && r.size >= 2) duelStart(r); return; }
       if (r.duel && m.t === 'duel_again') {
         if (r.duel.live) return;
