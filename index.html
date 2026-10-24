@@ -1411,9 +1411,9 @@ function start(md, lv, mp, sdd){
   kills = 0; spawnT = 1; boss = null; bd = false; key = false; nb = 30; rt = 300; net.sc = {};
   lsb = []; spec = 0; vote = null; pet = null; lastBossId = -1; bossNear = false;
   state = 'play'; paused = false; close();
+  dung.passives = [];   // las reliquias son solo de la partida de mazmorras en curso
 
   if(md === 'dung'){
-    dung.passives = [];
     ms = null;
     genDungeon(lvl, sdd || rnd(1, 99999));
     p.x = RW * T / 2; p.y = RH * T / 2;
@@ -2921,7 +2921,7 @@ const I = {
 const spl = t => [...t].map((c, i) => `<span style="--i:${i}">${c}</span>`).join('');
 
 function main(msg){
-  dungIso(false); net.wait = false;
+  dungIso(false); net.wait = false; dung.passives = [];
   if(mode === 'dung'){ mode = 'surv'; genMap(3, 0, false); buildMini(); }
   state = 'menu'; paused = false; ret = main;
   panel(`<div class=mm>
