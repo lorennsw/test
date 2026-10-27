@@ -35,10 +35,14 @@
 }
 html,body{height:100%;margin:0;background:var(--bg);font-family:var(--ui);color:var(--text);overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-font-smoothing:antialiased}
 body{display:flex;align-items:center;justify-content:center}
-#w{position:relative;width:100%;max-width:calc((100vh - 20px)*16/9);container-type:inline-size;box-shadow:0 0 0 1px var(--line),0 2cqw 6cqw rgba(0,0,0,.6);border-radius:6px;overflow:hidden}
+#w{position:relative;width:100%;max-width:calc((100vh - 20px)*16/9);--ex:0px;container-type:inline-size;box-shadow:0 0 0 1px var(--line),0 2cqw 6cqw rgba(0,0,0,.6);border-radius:6px;overflow:hidden}
 html:fullscreen #w,html:-webkit-full-screen #w{max-width:calc(100vh*16/9);border-radius:0;box-shadow:none}
-canvas#c{display:block;image-rendering:pixelated;width:100%;aspect-ratio:16/9;background:#000;cursor:none;touch-action:none}
-#hud{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+canvas#c{display:block;image-rendering:pixelated;width:calc(100% + 2*var(--ex));margin-left:calc(-1*var(--ex));aspect-ratio:var(--ar,16/9);background:#000;cursor:none;touch-action:none}
+#hud{position:absolute;left:calc(-1*var(--ex));top:0;width:calc(100% + 2*var(--ex));height:100%;pointer-events:none}
+/* pantallas más anchas que 16:9: el área de juego se estira a los costados (--ex) y los menús siguen midiendo en 16:9 */
+#w.wide{overflow:visible;box-shadow:none;border-radius:0}
+#w.wide #ui,#w.wide #tc,#w.wide.crt::after{left:calc(-1*var(--ex));right:calc(-1*var(--ex))}
+#w.wide #fs{right:calc(1cqw - var(--ex))}
 #w.crt::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:4;background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 65%,rgba(0,0,0,.45))}
 #fs{position:absolute;top:1cqw;right:1cqw;z-index:6;margin:0;width:max(28px,3cqw);height:max(28px,3cqw);padding:0;display:flex;align-items:center;justify-content:center;font-size:max(12px,1.4cqw);background:rgba(10,13,22,.7);border:1px solid var(--line2);color:var(--text);border-radius:var(--r);cursor:pointer;box-shadow:none;transition:background .15s,border-color .15s}
 #fs:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);transform:none}
@@ -345,9 +349,24 @@ a.aguest{display:inline-block;margin-top:.6cqw;padding:.75cqw 1.4cqw;color:var(-
 // =========================================================================
 //  PIXEL SHOOTER - TBOI DUNGEON & COOP EXPANSION
 // =========================================================================
-const W = 320, H = 180, T = 16, MW = 110, MH = 80;
+const H = 180, T = 16, MW = 110, MH = 80;
+// Ancho visible: 320 en 16:9 y más en celulares anchos (hasta 21:9) para no dejar bordes negros
+let W = 320;
 const c = document.getElementById('c'), g = c.getContext('2d'), ui = document.getElementById('ui'), uic = document.getElementById('uic'), fx = document.getElementById('fx');
 c.width = W; c.height = H; g.imageSmoothingEnabled = false;
+function fitWide(){
+  const w = document.getElementById('w'), app = w.classList.contains('app') || document.fullscreenElement || document.body.classList.contains('touch');
+  const ar = innerWidth / Math.max(1, innerHeight - (app ? 0 : 20));
+  const nw = Math.max(320, Math.min(420, Math.round(H * ar / 2) * 2));
+  if(nw !== W){ W = nw; c.width = W; g.imageSmoothingEnabled = false; }
+  w.classList.toggle('wide', W > 320);
+  w.style.setProperty('--ar', W + '/' + H);
+  w.style.setProperty('--ex', ((W / 320 - 1) * 50) + 'cqw');
+  // el bloque de 16:9 (donde viven los menús) se achica para que todo entre a lo ancho
+  w.style.width = (320 / W * 100) + '%';
+}
+fitWide();
+addEventListener('resize', fitWide);
 const hc = document.getElementById('hud'), hg = hc.getContext('2d'); let hs = 1;
 
 function hudPrep(){
@@ -2756,7 +2775,8 @@ function draw(){
   // Cámara fija en Mazmorras vs cámara de seguimiento en supervivencia
   if(mode === 'dung' && dung.curRoom){
     const rw = dung.curRoom.w * T, rh = dung.curRoom.h * T;
-    camx = Math.max(0, Math.min(rw - W, Math.round(fx - W / 2)));
+    // si la sala es más angosta que la pantalla, queda centrada
+    camx = rw <= W ? Math.round((rw - W) / 2) : Math.max(0, Math.min(rw - W, Math.round(fx - W / 2)));
     camy = Math.max(0, Math.min(rh - H, Math.round(fy - H / 2)));
   } else {
     camx = Math.max(0, Math.min(MW * T - W, Math.round(fx - W / 2)));
@@ -4077,6 +4097,7 @@ function applyTouch(){
   const on = touchOn();
   document.body.classList.toggle('touch', on);
   document.getElementById('w').classList.toggle('touch', on);
+  fitWide();
 }
 const tcMap = document.getElementById('tcMap'), tc = document.getElementById('tc'), tcRev = document.getElementById('tcRev'), tcRoll = document.getElementById('tcRoll'), tcWeap = document.getElementById('tcWeap');
 let tcShown = false;
@@ -4258,6 +4279,7 @@ window.appBack = () => {
   return 'ok';
 };
 if(IS_APP) document.getElementById('w').classList.add('app');
+fitWide();
 
 boot();
 requestAnimationFrame(loop);
