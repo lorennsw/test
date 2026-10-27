@@ -14,7 +14,7 @@ Shooter pixel art para navegador: mazmorras procedurales, campaña, supervivenci
 - La app trae el juego adentro (`index.html` + `fonts/`): los modos sin conexión se juegan sin internet y el online usa el mismo servidor.
 - Código en `android/`: una WebView a pantalla completa y horizontal, con el botón "atrás" para pausar o volver.
 - Compilar a mano: `cd android && ./gradlew assembleRelease` (necesita JDK 17+ y el SDK de Android).
-- **Partida local sin internet** (solo en la app): por Wi-Fi local (misma red o zona Wi-Fi) o por Bluetooth (hasta 4 jugadores). Un celular crea la partida y corre el motor de salas (`rooms.js`, el mismo del servidor); los demás se unen desde una lista. Sirve para el cooperativo y para el PvP privado (sin cambiar el rating). La parte de Android está en `android/.../LocalNet.java`.
+- **Partida local sin internet** (solo en la app): por Wi-Fi local (misma red o zona Wi-Fi) o por Bluetooth (hasta 8 jugadores). Un celular crea la partida y corre el motor de salas (`rooms.js`, el mismo del servidor); los demás se unen desde una lista. Sirve para el cooperativo y para el PvP privado (sin cambiar el rating). La parte de Android está en `android/.../LocalNet.java`.
 - Está firmada con `android/pixelshooter.keystore` (clave de juego casero, incluida en el repo) para que cada versión nueva se instale encima de la anterior.
 
 ## Servidor (Render)

@@ -3781,7 +3781,7 @@ function localMenu(msg){
   ${NB ? '' : `<div class="msg bad">Las partidas locales funcionan solo en la app de Android.</div>${apkLink()}`}
   <div class=tabs>${[['wifi', 'Wi-Fi local'], ['bt', 'Bluetooth']].map(([v, n]) => `<button class="tab${k === v ? ' on' : ''}" data-a=lkind data-v=${v}>${n}</button>`).join('')}</div>
   <div class=r><small>${k === 'wifi' ? 'Todos conectados a la misma red Wi-Fi, o uno comparte zona Wi-Fi (hotspot) y los demás se conectan. No usa datos.'
-    : 'Emparejá los celulares por Bluetooth si te lo pide. Hasta 4 jugadores; se nota un poco más de demora que por Wi-Fi.'}</small></div>
+    : 'Emparejá los celulares por Bluetooth si te lo pide. Hasta 8 jugadores; se nota un poco más de demora que por Wi-Fi.'}</small></div>
   <div class=duo style="grid-template-columns:1fr 1fr">
     <button class="big s" data-a=lhostm ${NB ? '' : 'disabled'}>${I.plus}<b>Crear partida</b><small>Tu celular es el anfitrión</small></button>
     <button class=big data-a=ljoinm ${NB ? '' : 'disabled'}>${I.link}<b>Unirse</b><small>Buscá la partida de un amigo</small></button>
@@ -3790,7 +3790,7 @@ function localMenu(msg){
 }
 function lanHostMenu(){
   ret = lanHostMenu;
-  const md = LAN.md, maxP = LAN.kind === 'bt' ? 4 : 8;
+  const md = LAN.md, maxP = 8;
   LAN.max = Math.min(LAN.max, maxP);
   panel(`<h2>Crear partida · ${LAN.kind === 'bt' ? 'Bluetooth' : 'Wi-Fi local'}</h2>
   <div class=r>Elegí el modo</div>
