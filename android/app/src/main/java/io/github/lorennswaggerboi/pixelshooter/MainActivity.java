@@ -26,6 +26,7 @@ public class MainActivity extends Activity {
     private static final String HOST = "appassets.androidplatform.net";
     private static final String START = "https://" + HOST + "/assets/www/index.html";
     private WebView web;
+    private LocalNet net;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -61,6 +62,10 @@ public class MainActivity extends Activity {
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setAllowFileAccess(false);
         s.setUserAgentString(s.getUserAgentString() + " PixelShooterApp");
+
+        // partidas locales sin internet (Wi-Fi o Bluetooth): el juego lo usa como window.PSNative
+        net = new LocalNet(this, web);
+        web.addJavascriptInterface(net, "PSNative");
 
         if (state == null) web.loadUrl(START);
         else web.restoreState(state);
@@ -108,6 +113,18 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         web.onResume();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
+        super.onRequestPermissionsResult(code, perms, results);
+        net.onPermissionsResult(code, results);
+    }
+
+    @Override
+    protected void onDestroy() {
+        net.shutdown();
+        super.onDestroy();
     }
 
     @Override

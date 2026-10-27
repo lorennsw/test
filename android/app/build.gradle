@@ -52,7 +52,7 @@ android {
 
 // Copia el juego de la raíz del repo a los assets de la app (assets/www/...), así no hay dos copias
 def copyWeb = tasks.register('copyWeb', Copy) {
-    from(rootProject.file('..')) { include 'index.html', 'fonts/**' }
+    from(rootProject.file('..')) { include 'index.html', 'rooms.js', 'fonts/**' }
     into "$buildDir/generated/web/www"
 }
 preBuild.dependsOn copyWeb

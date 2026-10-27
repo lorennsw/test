@@ -271,6 +271,10 @@ input[readonly]{color:var(--muted);cursor:default}
 .tcb small{color:#fff;font-size:max(8px,.75cqw);letter-spacing:.06em}
 #tcRoll{right:3cqw;bottom:20cqw;width:max(64px,10cqw);height:max(64px,10cqw)}
 #tcRoll.cd{opacity:.4}
+#tcMap{display:none;top:calc(2cqw + max(28px,3cqw));right:calc(2cqw + max(32px,3.4cqw));width:auto;height:max(32px,3.4cqw);padding:0 1cqw;border-radius:var(--r);flex-direction:row}
+#tcMap.on{display:flex}
+#tcMap.act{background:rgba(242,179,61,.3);border-color:var(--acc)}
+#w.app #tcMap{top:1cqw}
 #tcWeap{right:14.5cqw;bottom:26cqw}
 #tcWeap .ico{color:var(--wc,#fff)}
 #tcPause{top:calc(2cqw + max(28px,3cqw));right:1cqw;width:max(32px,3.4cqw);height:max(32px,3.4cqw);border-radius:var(--r)}
@@ -321,6 +325,7 @@ a.aguest{display:inline-block;margin-top:.6cqw;padding:.75cqw 1.4cqw;color:var(-
 #w.lite .p,#w.lite .tick{animation:none}
 #w.lite .stl,#w.lite.crt::after{display:none}
 </style></head><body>
+<script src="rooms.js"></script>
 <div id="w">
   <canvas id="c"></canvas>
   <canvas id="hud"></canvas>
@@ -330,6 +335,7 @@ a.aguest{display:inline-block;margin-top:.6cqw;padding:.75cqw 1.4cqw;color:var(-
     <button class=tcb id=tcWeap data-k=weap tabindex=-1 aria-label="Cambiar arma"></button>
     <button class=tcb id=tcRoll data-k=roll tabindex=-1 aria-label="Roll"></button>
     <button class=tcb id=tcRev data-k=rev tabindex=-1>Mantené para revivir</button>
+    <button class=tcb id=tcMap data-k=map tabindex=-1 aria-label="Mapa"></button>
   </div>
   <div id="rot"><div>Girá el celular<small>El juego se juega en horizontal</small></div></div>
   <div id="ui"><div id="fx"></div><div id="uic"></div></div>
@@ -1171,6 +1177,7 @@ function waitRoom(){
   <div class=r><small>${MN[net.mode]} COOPERATIVO · SALA ${esc(String(net.roomName || '').slice(2))}</small></div>
   <div class=plist>${ids.map(i => `<div class="pl${i === net.id ? ' me' : ''}"><canvas class=wpv data-id=${i} width=28 height=32></canvas><b>${esc(net.wl[i].n || '?')}</b><small>${net.wl[i].h ? 'ANFITRIÓN' : (i === net.id ? 'VOS' : 'JUGADOR')}</small></div>`).join('')}</div>
   <div class=r><small>${ids.length}/${net.max} JUGADORES</small></div>
+  ${net.lan && LAN.hub ? `<div class=r><small>${lanHint()}</small></div>` : ''}
   ${net.host && net.load ? `<div class="msg ok">Partida guardada · piso ${net.load.d.fl}</div>` : ''}
   ${net.guest ? '<div class="msg bad">La sala ya tenía anfitrión: entraste como invitado.</div>' : ''}
   ${net.host ? '' : '<div class=r><small>Esperando a que el anfitrión comience la partida…</small></div>'}
@@ -2152,14 +2159,16 @@ const freshReload = () => location.replace(location.pathname + '?v=' + Date.now(
 if(/shooter-nhyt\.onrender\.com/.test(V.srv || '')) V.srv = DEFAULT_SERVER;
 const raw = o => { if(net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify(Object.assign({ v: GAME_V }, o))); };
 
-function connect(url){
+// sock: conexión local ya abierta (partida por Wi-Fi o Bluetooth); si no, se conecta al servidor online
+function connect(url, sock){
   // todo lo online necesita una cuenta o haber elegido jugar como invitado
-  if(!AU.token && !guestS) return authPanel('login', 'Para jugar online iniciá sesión o entrá como invitado.');
+  if(!sock && !AU.token && !guestS) return authPanel('login', 'Para jugar online iniciá sesión o entrá como invitado.');
   let w, ok = false, done = false, tm;
-  const fail = m => { if(done) return; done = true; clearTimeout(tm); try{ w.close(); }catch(e){} net.mode === 'duel' ? duelMenu(m) : online(m); };
-  try{ w = new WebSocket(url); } catch(e){ return online('Dirección inválida. Debe empezar con wss://'); }
+  const fail = m => { if(done) return; done = true; clearTimeout(tm); try{ w.close(); }catch(e){} net.lan ? localMenu(m) : net.mode === 'duel' ? duelMenu(m) : online(m); };
+  if(sock) w = sock;
+  else try{ w = new WebSocket(url); } catch(e){ return online('Dirección inválida. Debe empezar con wss://'); }
   net.ws = w; net.abort = () => { done = true; clearTimeout(tm); try{ w.close(); }catch(e){} };
-  panel(`<h2>Conectando</h2><div class=load><i></i><i></i><i></i><i></i></div><div class=r>${esc(url)}</div><div class=r><small>El servidor gratis de Render puede tardar hasta 1 minuto en despertar.</small></div><button data-a=cancel>${I.x} Cancelar</button>`);
+  panel(`<h2>Conectando</h2><div class=load><i></i><i></i><i></i><i></i></div><div class=r>${sock ? 'Partida local' : esc(url)}</div>${sock ? '' : '<div class=r><small>El servidor gratis de Render puede tardar hasta 1 minuto en despertar.</small></div>'}<button data-a=cancel>${I.x} Cancelar</button>`);
   tm = setTimeout(() => { if(!ok) fail('Sin respuesta tras 90s. Abrí la URL en otra pestaña para despertarlo.'); }, 90000);
   w.onopen = () => {
     ok = true; clearTimeout(tm);
@@ -2170,7 +2179,8 @@ function connect(url){
   w.onerror = () => { if(!ok) fail(navigator.onLine === false ? 'No hay internet: el modo online necesita conexión. Los modos sin conexión se pueden jugar igual.' : 'Error de conexión. Revisá la URL o escudos del navegador.'); };
   w.onclose = ev => {
     if(!ok) fail('Conexión cerrada (' + ev.code + ').');
-    else if(net.on){ net.on = false; main('Se perdió la conexión'); }
+    else if(net.on){ net.on = false; lanStop(); main('Se perdió la conexión'); }
+    else if(net.lan){ lanStop(); localMenu('Se cortó la conexión con la partida local'); }
     else if(net.lob){ net.lob = false; online('Servidor desconectado'); }
     else if(net.q){ net.q = false; duelMenu('Servidor desconectado'); }
   };
@@ -2179,10 +2189,16 @@ function connect(url){
     if(d.t === 'rooms'){
       net.rooms = d.l;
       if(net.on) return;
+      // partida local: el anfitrión tiene una sola sala; se entra a esa y se toma su modo
+      if(net.lan && !net.autoRoom){
+        const r = d.l.find(x => x[1] > 0);
+        if(!r) return fail('Esa partida ya no existe');
+        lanSetMode(r[0]); net.autoRoom = r[0]; net.max = r[2];
+      }
       if(net.autoRoom){ net.roomName = net.autoRoom; net.autoRoom = null; raw({ t: 'join', room: net.roomName, max: net.max, n: V.av.name }); }
       else if(!net.lob){ net.lob = true; lobby(); } else updRooms();
     }
-    else if(d.t === 'full') lobby('Esa sala está llena');
+    else if(d.t === 'full'){ if(net.lan){ lanStop(); localMenu('La partida está llena o ya empezó'); } else lobby('Esa sala está llena'); }
     else if(d.t === 'old'){
       // el servidor tiene una versión más nueva que este juego: hay que recargar
       net.q = false; net.lob = false; if(net.abort) net.abort();
@@ -2203,6 +2219,7 @@ function connect(url){
     }
     else onNet(d);
   };
+  if(sock && sock.readyState === 1) setTimeout(() => w.onopen(), 0);
 }
 
 // ---------- RENDERIZADO / DIBUJO ----------
@@ -2629,7 +2646,7 @@ function drawDungeonMinimap(){
   }
 }
 
-let mm = null, mini = true;
+let mm = null, mini = true, miniTouch = false;
 function buildMini(){
   mm = document.createElement('canvas'); mm.width = MW; mm.height = MH;
   const x = mm.getContext('2d');
@@ -2640,8 +2657,11 @@ function buildMini(){
   }
 }
 function drawMini(){
-  if(!mini || !mm) return;
-  const mw = 66, mh = Math.round(66 * MH / MW), X = W - mw - 5, Y = H - mh - 5;
+  if(!mm) return;
+  // en el celular se muestra con el botón MAPA, arriba a la izquierda (abajo a la derecha taparía los controles)
+  const tch = touchOn();
+  if(tch ? !miniTouch : !mini) return;
+  const mw = tch ? 60 : 66, mh = Math.round(mw * MH / MW), X = tch ? 4 : W - mw - 5, Y = tch ? 40 : H - mh - 5;
   hg.imageSmoothingEnabled = false; hg.globalAlpha = .92;
   hg.drawImage(mm, X * hs, Y * hs, mw * hs, mh * hs);
   hg.globalAlpha = 1;
@@ -2840,7 +2860,7 @@ function draw(){
       const hint = key ? 'ANDÁ A LA PUERTA' : (goalDone() ? 'COMPLETÁ LA MISIÓN' : '');
       if(hint) TX(hint, W / 2, 21, 3.6, '#ffe66d', 'center');
     }
-    if(!touchOn()) drawMini();   // en el celular el minimapa taparía el joystick derecho
+    drawMini();
     if(mode === 'camp') drawArrow();
   }
 
@@ -3003,6 +3023,7 @@ function main(msg){
         <button class=mb data-a=camp>${I.flag}<span><b>Campaña clásica</b><small>Niveles y misiones · 1-8 jugadores</small></span></button>
         <button class=mb data-a=surv>${I.swords}<span><b>Supervivencia</b><small>Oleadas sin fin · 1-8 jugadores</small></span></button>
         <div class=nrow>
+          ${NB ? `<button class=mb data-a=local>${I.link}<span><b>Local</b><small>Sin internet</small></span></button>` : ''}
           <button class=mb data-a=shop>${I.cart}<span><b>Tienda</b><small>Armas y equipo</small></span></button>
           <button class=mb data-a=loads>${I.save}<span><b>Cargar</b><small>Partidas guardadas</small></span></button>
           <button class=mb data-a=set>${I.sliders}<span><b>Ajustes</b><small>Audio, video, controles</small></span></button>
@@ -3473,7 +3494,7 @@ function duelWaiting(info){
   const w = DU.wait, ffa = pvMode === 'ffa';
   panel(`<h2>Sala ${PVM[pvMode].n}</h2><div class=load><i></i><i></i><i></i><i></i></div>
   <div class=r>Sala <b style="color:var(--acc)">${esc(String(net.roomName || '').slice(2))}</b> · <b>${w.n}</b> de ${w.max} jugadores</div>
-  <div class=r><small>${ffa ? 'El anfitrión empieza cuando estén todos (mínimo 2).' : 'La partida empieza sola cuando se llena la sala.'} Pasale el nombre a tus amigos para que entren desde Arena PvP → ${PVM[pvMode].n} → Sala privada.</small></div>
+  <div class=r><small>${ffa ? 'El anfitrión empieza cuando estén todos (mínimo 2).' : 'La partida empieza sola cuando se llena la sala.'} ${net.lan ? lanHint() : `Pasale el nombre a tus amigos para que entren desde Arena PvP → ${PVM[pvMode].n} → Sala privada.`}</small></div>
   <div class=actions>
     ${ffa && net.host ? `<button class=s data-a=dgo ${w.n < 2 ? 'disabled' : ''}>${I.play} Comenzar</button>` : ''}
     <button data-a=quit>${I.exit} Salir</button>
@@ -3623,7 +3644,7 @@ function duelResult(note){
     <div><small>${DU.md === '2v2' ? 'RIVALES' : esc(String(pvName(DU.ps.find(q => q[3] !== me[3])?.[0])).toUpperCase())}</small><b>${DU.sc[1 - me[3]] || 0}</b></div>
     ${R.d != null ? `<div><small>RATING</small><b>${AU.stats ? AU.stats.rating : '—'} <small style="color:${R.win ? 'var(--ok)' : 'var(--bad)'}">${R.win ? '+' : '−'}${R.d}</small></b></div>` : ''}
   </div>`}
-  ${!ffa && R.d == null ? '<div class=r><small>Partida sin ranking (hace falta que todos tengan cuenta)</small></div>' : ''}
+  ${!ffa && R.d == null ? `<div class=r><small>${net.lan ? 'Partida local: no cambia el rating' : 'Partida sin ranking (hace falta que todos tengan cuenta)'}</small></div>` : ''}
   ${note ? `<div class="msg ok">${esc(note)}</div>` : ''}
   <div class=vlist>
     ${net.on ? `<button class=s data-a=drematch ${DU.asked ? 'disabled' : ''}>${I.retry} ${DU.asked ? 'Esperando a los demás…' : 'Revancha'}</button>` : ''}
@@ -3653,6 +3674,141 @@ function drawDuelHud(){
     TX(n > 0 ? n : '¡YA!', W / 2, H / 2 - 14, n > 0 ? 14 : 10, n > 0 ? '#fff' : '#f2b33d', 'center');
   }
   if(p.dead > 0) TX(ffa ? 'REAPARECÉS EN ' + Math.ceil(p.dead) : 'CAÍSTE · ESPERÁ EL FIN DE LA RONDA', W / 2, H / 2 + 4, 4, '#fff', 'center');
+}
+
+// ---------- PARTIDA LOCAL SIN INTERNET (Wi-Fi o Bluetooth, solo en la app) ----------
+// El celular que crea la partida corre el mismo motor de salas que el servidor online (rooms.js)
+// y los demás se conectan a él a través de Android (PSNative). Sin servidor no hay ranking:
+// el PvP local es privado y no cambia el rating.
+const NB = window.PSNative || null;
+const LAN = { kind: 'wifi', found: {}, hub: null, peers: {}, client: null, host: null, md: 'dung', max: 4, joining: false };
+const LAN_MODES = [['dung', 'Mazmorras', 'key', 'D|'], ['camp', 'Campaña', 'flag', 'C|'], ['surv', 'Supervivencia', 'swords', 'S|'],
+  ['1v1', '1v1', 'target', 'V|'], ['2v2', '2v2', 'users', 'W|'], ['ffa', 'Todos contra todos', 'swords', 'F|']];
+const lanPvp = md => md === '1v1' || md === '2v2' || md === 'ffa';
+const lanName = md => (LAN_MODES.find(x => x[0] === md) || [0, md])[1];
+function lanSetMode(room){
+  const m = LAN_MODES.find(x => room.startsWith(x[3]));
+  if(!m) return;
+  if(lanPvp(m[0])){ net.mode = 'duel'; pvMode = m[0]; } else net.mode = m[0];
+}
+function lanStop(){
+  if(NB && (net.lan || LAN.hub || LAN.client)) try{ NB.stopHost(); NB.disconnect(); NB.stopScan(); }catch(e){}
+  net.lan = false; LAN.hub = null; LAN.peers = {}; LAN.client = null; LAN.host = null; LAN.joining = false;
+}
+// el anfitrión se conecta a su propia sala sin pasar por la red
+function lanSelfSocket(){
+  const sock = { readyState: 1, onmessage: null, onclose: null, onopen: null, onerror: null,
+    send(t){ const a = LAN.host; setTimeout(() => LAN.hub && a && LAN.hub.message(a, t), 0); },
+    close(){ sock.readyState = 3; lanStop(); } };
+  LAN.host = { readyState: 1, send(t){ setTimeout(() => sock.readyState === 1 && sock.onmessage && sock.onmessage({ data: t }), 0); } };
+  LAN.hub.open(LAN.host);
+  return sock;
+}
+// el que se une: sus mensajes van y vienen por Android (Wi-Fi o Bluetooth)
+function lanBridgeSocket(){
+  const sock = { readyState: 1, onmessage: null, onclose: null, onopen: null, onerror: null,
+    send(t){ try{ NB.send(0, t); }catch(e){} },
+    close(){ sock.readyState = 3; lanStop(); } };
+  return LAN.client = sock;
+}
+// eventos que manda Android
+window.psNet = ev => {
+  if(typeof ev === 'string') try{ ev = JSON.parse(ev); }catch(e){ return; }
+  if(ev.e === 'found'){ LAN.found[ev.addr] = ev; if($('#lanl')) lanList(); }
+  else if(ev.e === 'hosting') lanHosting(ev);
+  else if(ev.e === 'conn'){
+    if(LAN.hub){ const a = { readyState: 1, send: t => { try{ NB.send(ev.id, t); }catch(e){} } }; LAN.peers[ev.id] = a; LAN.hub.open(a); }
+    else if(LAN.joining){ LAN.joining = false; net.lan = true; connect('local', lanBridgeSocket()); }
+  }
+  else if(ev.e === 'msg'){
+    if(LAN.hub){ const a = LAN.peers[ev.id]; if(a) LAN.hub.message(a, ev.d); }
+    else if(LAN.client && LAN.client.onmessage) LAN.client.onmessage({ data: ev.d });
+  }
+  else if(ev.e === 'close'){
+    if(LAN.hub){ const a = LAN.peers[ev.id]; if(a){ a.readyState = 3; delete LAN.peers[ev.id]; LAN.hub.close(a); } }
+    else if(LAN.client && LAN.client.readyState === 1){ const c = LAN.client; c.readyState = 3; if(c.onclose) c.onclose({ code: 1006 }); }
+  }
+  else if(ev.e === 'error'){
+    if(state === 'play' || net.on) banner(String(ev.msg || 'Error de conexión').toUpperCase().slice(0, 40));
+    else { lanStop(); localMenu(ev.msg); }
+  }
+};
+
+function localMenu(msg){
+  ret = localMenu;
+  const k = LAN.kind;
+  panel(`<h2>Partida local</h2>
+  <div class=r>Sin internet, con celulares cerca. El PvP local es privado: no cambia el rating.</div>
+  ${msg ? `<div class="msg bad">${esc(msg)}</div>` : ''}
+  ${NB ? '' : `<div class="msg bad">Las partidas locales funcionan solo en la app de Android.</div>${apkLink()}`}
+  <div class=tabs>${[['wifi', 'Wi-Fi local'], ['bt', 'Bluetooth']].map(([v, n]) => `<button class="tab${k === v ? ' on' : ''}" data-a=lkind data-v=${v}>${n}</button>`).join('')}</div>
+  <div class=r><small>${k === 'wifi' ? 'Todos conectados a la misma red Wi-Fi, o uno comparte zona Wi-Fi (hotspot) y los demás se conectan. No usa datos.'
+    : 'Emparejá los celulares por Bluetooth si te lo pide. Hasta 4 jugadores; se nota un poco más de demora que por Wi-Fi.'}</small></div>
+  <div class=duo style="grid-template-columns:1fr 1fr">
+    <button class="big s" data-a=lhostm ${NB ? '' : 'disabled'}>${I.plus}<b>Crear partida</b><small>Tu celular es el anfitrión</small></button>
+    <button class=big data-a=ljoinm ${NB ? '' : 'disabled'}>${I.link}<b>Unirse</b><small>Buscá la partida de un amigo</small></button>
+  </div>
+  <button data-a=home>${I.back} Volver</button>`);
+}
+function lanHostMenu(){
+  ret = lanHostMenu;
+  const md = LAN.md, maxP = LAN.kind === 'bt' ? 4 : 8;
+  LAN.max = Math.min(LAN.max, maxP);
+  panel(`<h2>Crear partida · ${LAN.kind === 'bt' ? 'Bluetooth' : 'Wi-Fi local'}</h2>
+  <div class=r>Elegí el modo</div>
+  <div class=pcount style="grid-template-columns:repeat(3,1fr)">${LAN_MODES.map(([v, n, ic]) => `<button class="${v === md ? 's' : ''}" data-a=lmode data-v=${v} style="font-size:max(11px,1.2cqw)">${I[ic]}${n}<small>${lanPvp(v) ? 'PVP PRIVADO' : 'COOPERATIVO'}</small></button>`).join('')}</div>
+  ${lanPvp(md) ? `<div class=r><small>${PVM[md].d} Con ruleta de mapas y veto de armas.</small></div>`
+    : `<div class=r>Jugadores: ${[2, 3, 4, 5, 6, 7, 8].filter(n => n <= maxP).map(n => `<button class="mini${n === LAN.max ? ' s' : ''}" data-a=lmax data-v=${n}>${n}</button>`).join('')}</div>`}
+  <div class=actions><button class=s data-a=lhost>${I.play} Crear</button><button data-a=lnback>${I.back} Volver</button></div>`);
+}
+function lanHost(){
+  lanStop();
+  net.lan = true;
+  panel(`<h2>Preparando la partida</h2><div class=load><i></i><i></i><i></i><i></i></div>
+  <div class=r><small>${LAN.kind === 'bt' ? 'Si Android lo pide, aceptá que tu celular sea visible por Bluetooth.' : 'Abriendo la partida en la red Wi-Fi…'}</small></div>
+  <button data-a=lcancel>${I.x} Cancelar</button>`);
+  try{ NB.host(LAN.kind, JSON.stringify({ g: 'ps', n: V.av.name, md: LAN.md })); }catch(e){ lanStop(); localMenu('No se pudo crear la partida'); }
+}
+// Android avisa que ya está escuchando: el anfitrión entra a su propia sala
+function lanHosting(ev){
+  if(!net.lan) return;
+  LAN.hub = PSRooms.createRooms({ gameV: GAME_V });
+  LAN.ip = ev.ip || '';
+  const m = LAN_MODES.find(x => x[0] === LAN.md);
+  lanSetMode(m[3]);
+  net.max = lanPvp(LAN.md) ? PVM[LAN.md].max : LAN.max;
+  net.autoRoom = m[3] + 'Local';
+  net.load = null; net.q = false; curSave = null;
+  connect('local', lanSelfSocket());
+}
+const lanHint = () => !net.lan ? '' : LAN.hub
+  ? `Tus amigos entran desde Partida local → ${LAN.kind === 'bt' ? 'Bluetooth' : 'Wi-Fi local'} → Unirse${LAN.kind === 'wifi' && LAN.ip ? ` (o escribiendo la IP <b>${esc(LAN.ip)}</b>)` : ''}.`
+  : 'Partida local';
+function lanJoinMenu(){
+  ret = localMenu;
+  LAN.found = {};
+  panel(`<h2>Unirse · ${LAN.kind === 'bt' ? 'Bluetooth' : 'Wi-Fi local'}</h2>
+  <div class=load><i></i><i></i><i></i><i></i></div>
+  <div class=r><small>${LAN.kind === 'bt' ? 'Buscando celulares cercanos… El anfitrión tiene que haber creado la partida.' : 'Buscando partidas en esta red Wi-Fi…'}</small></div>
+  <div id=lanl></div>
+  ${LAN.kind === 'wifi' ? `<div class="r mk"><input type=text id=lip placeholder="IP del anfitrión (ej. 192.168.0.10)" inputmode=decimal><button data-a=lip>${I.link} Conectar</button></div>` : ''}
+  <button data-a=lnback>${I.back} Volver</button>`);
+  lanList();
+  try{ NB.scan(LAN.kind); }catch(e){ localMenu('No se pudo buscar partidas'); }
+}
+function lanList(){
+  const el = $('#lanl'); if(!el) return;
+  const l = Object.values(LAN.found);
+  el.innerHTML = l.length ? l.map(f => `<div class=rm><span class=rn>${esc(f.info ? f.info.n : f.name || f.addr)}<br><span class=sm>${f.info ? lanName(f.info.md) + ' · ' : ''}${esc(f.addr)}</span></span>
+    <button class=s data-a=ljoin data-v="${esc(f.addr)}">Unirse</button></div>`).join('')
+    : '<div class=r><small>Todavía no apareció ninguna partida.</small></div>';
+}
+function lanJoin(addr){
+  try{ NB.stopScan(); }catch(e){}
+  lanStop();
+  LAN.joining = true;
+  panel(`<h2>Conectando</h2><div class=load><i></i><i></i><i></i><i></i></div><div class=r>${esc(addr)}</div><button data-a=lcancel>${I.x} Cancelar</button>`);
+  try{ NB.connect(LAN.kind, addr); }catch(e){ LAN.joining = false; localMenu('No se pudo conectar'); }
 }
 
 // ---------- PARTIDAS GUARDADAS ----------
@@ -3755,6 +3911,17 @@ const A = {
   dtop: () => duelTop(),
   drematch: () => { DU.asked = true; raw({ t: 'duel_again' }); duelResult(); },
   home: () => main(),
+  local: () => localMenu(),
+  lkind: v => { LAN.kind = v === 'bt' ? 'bt' : 'wifi'; localMenu(); },
+  lhostm: () => lanHostMenu(),
+  lmode: v => { LAN.md = v; lanHostMenu(); },
+  lmax: v => { LAN.max = +v; lanHostMenu(); },
+  lhost: () => lanHost(),
+  ljoinm: () => lanJoinMenu(),
+  ljoin: v => lanJoin(v),
+  lip: () => { const ip = ($('#lip').value || '').trim(); if(/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) lanJoin(ip); },
+  lnback: () => { try{ NB && NB.stopScan(); }catch(e){} if(net.lan || LAN.joining) lanStop(); localMenu(); },
+  lcancel: () => { lanStop(); localMenu(); },
   reload: () => freshReload(),
   login: () => authPanel('login'),
   atab: v => { const u = $('#au'); if(u) authUser = u.value.trim(); authPanel(v); },
@@ -3828,7 +3995,7 @@ const A = {
   conn: () => { V.srv = $('#su').value.trim(); save(); connect(V.srv); },
   join: v => { net.roomName = v; raw({ t: 'join', room: v, max: net.max, n: V.av.name }); },
   make: () => { const n = $('#nr').value.trim().slice(0, 17); if(n){ net.roomName = pref() + n; raw({ t: 'join', room: pref() + n, max: net.max, n: V.av.name }); } },
-  cancel: () => { if(net.abort) net.abort(); net.q = false; net.mode === 'duel' ? duelMenu() : online(); },
+  cancel: () => { const lan = net.lan; if(net.abort) net.abort(); net.q = false; lan ? (lanStop(), localMenu()) : net.mode === 'duel' ? duelMenu() : online(); },
   lback: () => { net.lob = false; if(!net.on) try{ net.ws.close(); }catch(e){} main(); }
 };
 
@@ -3870,13 +4037,15 @@ function applyTouch(){
   document.body.classList.toggle('touch', on);
   document.getElementById('w').classList.toggle('touch', on);
 }
-const tc = document.getElementById('tc'), tcRev = document.getElementById('tcRev'), tcRoll = document.getElementById('tcRoll'), tcWeap = document.getElementById('tcWeap');
+const tcMap = document.getElementById('tcMap'), tc = document.getElementById('tc'), tcRev = document.getElementById('tcRev'), tcRoll = document.getElementById('tcRoll'), tcWeap = document.getElementById('tcWeap');
 let tcShown = false;
 function tcSync(){
   const on = touchOn() && state === 'play' && !open();
   if(on !== tcShown){ tcShown = on; tc.classList.toggle('on', on); if(!on){ stick = aimStick = null; stickId = aimId = null; mdown = false; } }
   if(!on) return;
   tcRev.classList.toggle('on', !!p.rvTgt);
+  tcMap.classList.toggle('on', mode === 'camp' || mode === 'surv');
+  tcMap.classList.toggle('act', miniTouch);
   tcRoll.classList.toggle('cd', p.rlc > 0 || p.roll > 0);
   tcWeap.style.setProperty('--wc', WP[V.eq].col);
 }
@@ -3906,6 +4075,7 @@ function touchFS(){
 }
 tcRoll.innerHTML = I.retry + '<small>ROLL</small>';
 tcWeap.innerHTML = I.swap + '<small>ARMA</small>';
+tcMap.innerHTML = I.globe + '<small>MAPA</small>';
 document.getElementById('tcPause').innerHTML = '<b style="letter-spacing:.1em">II</b>';
 document.querySelectorAll('.tcb').forEach(b => {
   const k = b.dataset.k;
@@ -3916,6 +4086,7 @@ document.querySelectorAll('.tcb').forEach(b => {
     else if(k === 'rev') keys.e = true;
     else if(k === 'weap') nextWeapon();
     else if(k === 'pause'){ if(state === 'play') pauseMenu(); }
+    else if(k === 'map') miniTouch = !miniTouch;
   });
   const rel = () => {
     b.classList.remove('down');
