@@ -1077,6 +1077,40 @@ function drawProp(q){
     g.fillStyle = '#713f12'; g.fillRect(X + 2, Y + 8, 12, 1); g.fillRect(X + 7, Y + 3, 1, 12);
   }
 }
+// ---- banco de guardado: en la sala inicial de cada piso; quedarse quieto sentado guarda la partida
+const BENCH = { x: 4 * T, y: 2 * T + 12, sitT: .9 };   // centro del asiento (2 casillas, arriba a la izquierda)
+const benchHere = () => mode === 'dung' && dung.curRoom && dung.curRoom.type === 'start';
+const nearBench = () => benchHere() && !p.dead && Math.abs(p.x - BENCH.x) < 14 && Math.abs(p.y - BENCH.y) < 9;
+function benchTick(dt){
+  if(!nearBench() || enemies.length){ p.sit = 0; if(!nearBench()) p.benchDone = false; return; }
+  if(p.moving || p.roll > 0 || p.benchDone){ p.sit = 0; return; }
+  p.sit = (p.sit || 0) + dt;
+  if(p.sit >= BENCH.sitT){
+    p.benchDone = true; p.sit = 0;
+    const ok = saveGame(true);
+    banner(ok ? 'PARTIDA GUARDADA' : 'NO SE PUDO GUARDAR'); if(ok){ sFan(); burst(BENCH.x, BENCH.y - 8, '#f2b33d', 14); }
+  }
+}
+function drawBench(){
+  const R = tileR(BENCH.x - T, BENCH.y - 12), glow = nearBench() && !p.benchDone;
+  R(1, 14, 30, 3, 'rgba(0,0,0,.35)');
+  R(3, 10, 2, 6, '#3b2414'); R(27, 10, 2, 6, '#3b2414');            // patas
+  R(1, 7, 30, 4, '#8a5a2b'); R(1, 7, 30, 1, '#b07a3e');              // asiento
+  R(2, -1, 28, 3, '#7a4e24'); R(2, 3, 28, 2, '#6e4522');             // respaldo
+  R(3, 2, 2, 6, '#3b2414'); R(27, 2, 2, 6, '#3b2414');
+  if(glow){ g.fillStyle = 'rgba(242,179,61,' + (.25 + .15 * Math.sin(t * 5)) + ')'; g.fillRect(Math.round(BENCH.x - T - camx), Math.round(BENCH.y - 13 - camy), 32, 19); }
+}
+function drawBenchHud(){
+  if(!benchHere() || state !== 'play') return;
+  const X = BENCH.x - camx, Y = BENCH.y - camy + 14;   // abajo del banco (arriba está el HUD)
+  if(nearBench() && !p.benchDone){
+    if(enemies.length) return TX('NO SE PUEDE GUARDAR CON ENEMIGOS', X, Y, 3.2, '#ff8a96', 'center');
+    TX(p.sit > 0 ? 'GUARDANDO...' : 'QUEDATE QUIETO PARA GUARDAR', X, Y - 4, 3.2, '#f2b33d', 'center');
+    g.fillStyle = '#000'; g.fillRect(Math.round(X - 13), Math.round(Y), 26, 4);
+    g.fillStyle = '#f2b33d'; g.fillRect(Math.round(X - 12), Math.round(Y + 1), Math.round(24 * Math.min(1, (p.sit || 0) / BENCH.sitT)), 2);
+  } else if(!nearBench()) TX('BANCO', X, Y + 2, 3, 'rgba(242,179,61,.8)', 'center');
+}
+
 function drawGrave(x, y){
   const gx = Math.round(x - camx), gy = Math.round(y - camy);
   g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(gx - 6, gy - 1, 12, 3);
@@ -1882,6 +1916,7 @@ function update(dt){
         const tx_ = Math.floor(p.x / T), ty_ = Math.floor(p.y / T);
         for(const s_ of rr.spk) if(s_.x === tx_ && s_.y === ty_ && spkState(s_) === 2){ hurt(); break; }
       }
+      benchTick(dt);
       if(rr.type === 'fountain' && !rr.used && !p.dead && Math.hypot(p.x - rr.w * T / 2, p.y - rr.h * T / 2) < 20){
         rr.used = true; p.hp = p.maxHp || 5; burst(p.x, p.y - 8, '#7dd3fc', 18); banner('¡VIDA RESTAURADA!'); sCoin();
       }
@@ -2761,6 +2796,7 @@ function draw(){
 
   // Renderizar entidades ordenadas por Y
   for(const e of enemies) dr.push({ y: e.y, f: () => drawEnemy(e) });
+  if(benchHere()) dr.push({ y: BENCH.y + 2, f: drawBench });
   if(mode === 'dung' && dung.curRoom) for(const q of dung.curRoom.props) if(!q.dead) dr.push({ y: q.y * T + T, f: () => drawProp(q) });
   if(net.on) for(const id in net.rem){
     const r = net.rem[id];
@@ -2884,6 +2920,7 @@ function draw(){
   }
 
   drawReviveHud();
+  drawBenchHud();
   if(touchOn() && state === 'play' && !paused) drawSticks();
   if(state === 'play' && !paused){
     g.fillStyle = S.cross || '#fff';
@@ -3079,7 +3116,8 @@ function pauseMenu(msg){
   ${mode === 'dung' && dung.passives.length ? `<div class=r><small>RELIQUIAS ACTIVAS · ${dung.passives.length}</small></div><div class=relics>${dung.passives.map(i => `<span style="--c:${RELICS[i].col}">${RELICS[i].ic} ${RELICS[i].n}</span>`).join('')}</div>` : ''}
   <div class=vlist>
     <button class=s data-a=resume>${I.play} Continuar</button>
-    ${mode === 'duel' ? '' : `<button data-a=gsave>${I.save} Guardar partida <small>${net.on ? 'Multijugador' : 'Solitario'}</small></button>`}
+    ${mode === 'duel' ? '' : mode === 'dung' ? `<button disabled>${I.save} Guardar partida <small>En el banco al inicio del piso</small></button>`
+      : `<button data-a=gsave>${I.save} Guardar partida <small>${net.on ? 'Multijugador' : 'Solitario'}</small></button>`}
     ${mode === 'dung' ? '' : `<button data-a=shop>${I.cart} Tienda</button>`}
     <button data-a=set>${I.sliders} Ajustes</button>
     <button data-a=quit>${I.exit} Salir al menú</button>
@@ -3848,13 +3886,16 @@ function snapGame(){
   };
   return s;
 }
-function saveGame(){
-  if(state !== 'play' || mode === 'duel') return;
+// fromBench: guardado desde el banco de la mazmorra (sin abrir la pausa). En mazmorras es la única forma.
+function saveGame(fromBench){
+  if(state !== 'play' || mode === 'duel') return false;
+  if(mode === 'dung' && !fromBench) return false;
   const s = snapGame(), l = getSaves().filter(o => o.id !== s.id);
   l.unshift(s); curSave = s.id;
   const ok = putSaves(l.slice(0, SAVES_MAX));
   save();
-  pauseMenu(ok ? 'Partida guardada (' + (s.multi ? 'multijugador' : 'solitario') + ')' : 'No se pudo guardar la partida');
+  if(!fromBench) pauseMenu(ok ? 'Partida guardada (' + (s.multi ? 'multijugador' : 'solitario') + ')' : 'No se pudo guardar la partida');
+  return ok;
 }
 function applySave(s){
   if(s.mode === 'dung') beginDung(s.d.fl, s.d.sd, s.d.rk, null, s.d.rs);
@@ -3930,7 +3971,7 @@ const A = {
   logout: () => { AU = { token: null, name: null, stats: null }; saveAU(); cloudLast = ''; guestS = false; authPanel('login'); },
   sload: v => loadGame(+v),
   sdel: v => { const l = getSaves(); l.splice(+v, 1); putSaves(l); savesMenu(); },
-  gsave: () => saveGame(),
+  gsave: () => saveGame(false),
   online: () => modeSel(),
   rnd: () => {
     V.av.skin = SK[rnd(0, SK.length - 1)];
