@@ -2,8 +2,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pixel Shooter - Roguelike Dungeon Expansion</title>
 <meta name="description" content="Shooter roguelike estilo The Binding of Isaac con cooperativo online y mazmorras procedurales">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+/* fuentes incluidas en el repo (carpeta fonts/) para que el juego funcione sin internet */
+@font-face{font-family:'Inter';font-style:normal;font-weight:400 900;font-display:swap;src:url(fonts/inter.woff2) format('woff2')}
+@font-face{font-family:'Press Start 2P';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/press-start-2p.woff2) format('woff2')}
+</style>
 <style>
 /* =========================================================================
    INTERFAZ — tema oscuro sobrio: Inter para la UI, pixel solo en logo y juego
@@ -306,6 +309,12 @@ input[readonly]{color:var(--muted);cursor:default}
 .vw.out{opacity:.35;filter:grayscale(1)}
 .vw.out .nm{text-decoration:line-through}
 .vby{font-weight:700;font-size:.7em;filter:none}
+
+/* ---- app de Android: ocupa toda la pantalla */
+#w.app{max-width:calc(100vh*16/9);border-radius:0;box-shadow:none}
+#w.app #fs{display:none}
+#w.app #tcPause{top:1cqw}
+a.aguest{display:inline-block;margin-top:.6cqw;padding:.75cqw 1.4cqw;color:var(--acc2);font-weight:600;font-size:max(11px,1.1cqw);text-decoration:none}
 
 /* ---- modo optimización: sin animaciones ni filtros costosos */
 #w.lite #ui{backdrop-filter:none}
@@ -2131,6 +2140,10 @@ function onNet(d){
 }
 
 const DEFAULT_SERVER = 'wss://test-n4r0.onrender.com';
+// App de Android (la WebView agrega "PixelShooterApp" al user agent) y link de descarga de la APK
+const IS_APP = /PixelShooterApp/.test(navigator.userAgent);
+const APK_URL = 'https://github.com/lorennswaggerboi-lab/test/releases/latest/download/PixelShooter.apk';
+const apkLink = () => !IS_APP && /Android/i.test(navigator.userAgent) ? `<a class=aguest href="${APK_URL}">Descargar la app para Android</a>` : '';
 // Versión del protocolo online: tiene que coincidir con GAME_V del servidor (subir las dos juntas)
 const GAME_V = 2;
 // Recarga la página salteando la caché del navegador (GitHub Pages la guarda hasta 10 minutos)
@@ -2154,7 +2167,7 @@ function connect(url){
     if(net.q) raw({ t: 'duel_q', n: V.av.name, md: pvMode });
     else raw({ t: 'list' });
   };
-  w.onerror = () => { if(!ok) fail('Error de conexión. Revisá la URL o escudos del navegador.'); };
+  w.onerror = () => { if(!ok) fail(navigator.onLine === false ? 'No hay internet: el modo online necesita conexión. Los modos sin conexión se pueden jugar igual.' : 'Error de conexión. Revisá la URL o escudos del navegador.'); };
   w.onclose = ev => {
     if(!ok) fail('Conexión cerrada (' + ev.code + ').');
     else if(net.on){ net.on = false; main('Se perdió la conexión'); }
@@ -3331,7 +3344,7 @@ async function api(path, body){
     return d;
   } catch(e){
     if(e.status) throw e;
-    throw new Error(e.name === 'AbortError' ? 'El servidor no respondió. Probá de nuevo en un minuto.' : 'No se pudo conectar con el servidor. Revisá la dirección en "Servidor".');
+    throw new Error(e.name === 'AbortError' ? 'El servidor no respondió. Probá de nuevo en un minuto.' : navigator.onLine === false ? 'No hay internet. Podés entrar como invitado y jugar los modos sin conexión.' : 'No se pudo conectar con el servidor. Revisá la dirección en "Servidor".');
   } finally { clearTimeout(tm); }
 }
 
@@ -3375,7 +3388,8 @@ function authPanel(tab, msg, busy){
       <button class=s data-a=acont>${I.play} Continuar como ${esc(AU.name)}</button>
     </div>
     <button class=aguest data-a=logout>Usar otra cuenta</button>
-    <button class=aguest data-a=guest>Jugar como invitado</button>`);
+    <button class=aguest data-a=guest>Jugar como invitado</button>
+    ${apkLink()}`);
     return;
   }
   panel(`<div class=alogo><span class=l1>PIXEL</span><span class=l2>SHOOTER</span></div>
@@ -3389,6 +3403,7 @@ function authPanel(tab, msg, busy){
     <button class=s type=submit ${busy ? 'disabled' : ''}>${busy ? 'Conectando…' : reg ? 'Crear cuenta' : 'Entrar'}</button>
   </form>
   <button class=aguest data-a=guest>Jugar como invitado</button>
+  ${apkLink()}
   <details class=srv><summary>Servidor</summary><input type=text id=asrv value="${esc(V.srv || DEFAULT_SERVER)}"></details>`);
   setTimeout(() => { const i = $(authUser ? '#ap' : '#au'); if(i && !busy) i.focus(); }, 60);
 }
@@ -3884,6 +3899,7 @@ function nextWeapon(){
 // En el celular, el primer toque en partida pone pantalla completa y horizontal (si el navegador deja)
 let tcFS = false;
 function touchFS(){
+  if(IS_APP) return;   // la app ya ocupa toda la pantalla
   if(tcFS || state !== 'play' || isFS()) return;
   tcFS = true; toggleFS();
   try{ const r = screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape'); r && r.catch && r.catch(() => {}); }catch(e){}
@@ -4018,6 +4034,18 @@ mode = 'surv';
 genMap(3, 0, false);
 buildMini();
 p = { ar: 0, x: MW * T / 2, y: MH * T / 2, hp: 5, maxHp: 5, cd: 0, inv: 0, ang: 0, walk: 0, moving: false, kick: 0, dead: 0 };
+
+// Botón "atrás" del celular en la app: pausa la partida o vuelve a la pantalla anterior.
+// Devuelve 'exit' cuando no hay a dónde volver (la app se cierra).
+window.appBack = () => {
+  if(state === 'play' && !open()){ pauseMenu(); return 'ok'; }
+  if(state === 'play' && paused){ A.resume(); return 'ok'; }
+  if($('.mm') || $('#af') || $('[data-a=acont]')) return 'exit';
+  if(net.on || net.q){ A.quit(); return 'ok'; }
+  try{ ret(); }catch(e){ main(); }
+  return 'ok';
+};
+if(IS_APP) document.getElementById('w').classList.add('app');
 
 boot();
 requestAnimationFrame(loop);

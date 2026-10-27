@@ -1,0 +1,62 @@
+// App de Android del Pixel Shooter: una WebView que carga el juego (index.html + fonts/) incluido en la APK.
+// El modo offline funciona sin internet; el online se conecta al servidor de Render como la web.
+plugins {
+    id 'com.android.application'
+}
+
+// En GitHub Actions VERSION_CODE es el número de la ejecución, así cada APK nueva se instala encima de la anterior
+def versionCodeEnv = (System.getenv('VERSION_CODE') ?: '1') as int
+
+android {
+    namespace 'io.github.lorennswaggerboi.pixelshooter'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'io.github.lorennswaggerboi.pixelshooter'
+        minSdk 24
+        targetSdk 35
+        versionCode versionCodeEnv
+        versionName "1.${versionCodeEnv}"
+    }
+
+    // Firma fija para que las actualizaciones se instalen sobre la versión anterior.
+    // Es una clave de juego casero (está en el repo), no apta para publicar en Google Play.
+    signingConfigs {
+        release {
+            storeFile file('../pixelshooter.keystore')
+            storePassword 'pixelshooter'
+            keyAlias 'pixelshooter'
+            keyPassword 'pixelshooter'
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+        debug {
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main { assets.srcDirs += ["$buildDir/generated/web"] }
+    }
+}
+
+// Copia el juego de la raíz del repo a los assets de la app (assets/www/...), así no hay dos copias
+def copyWeb = tasks.register('copyWeb', Copy) {
+    from(rootProject.file('..')) { include 'index.html', 'fonts/**' }
+    into "$buildDir/generated/web/www"
+}
+preBuild.dependsOn copyWeb
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.12.1'
+}

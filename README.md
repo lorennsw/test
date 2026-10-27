@@ -6,6 +6,15 @@ Shooter pixel art para navegador: mazmorras procedurales, campaña, supervivenci
 - `server.js` — servidor para Render: salas online, Arena PvP y cuentas.
 - `store.js` — dónde se guardan las cuentas.
 
+## App de Android (APK)
+
+- Descarga directa de la última versión: https://github.com/lorennswaggerboi-lab/test/releases/latest/download/PixelShooter.apk
+- GitHub Actions (`.github/workflows/apk.yml`) la compila y publica sola cada vez que cambia el juego en `main`.
+- La app trae el juego adentro (`index.html` + `fonts/`): los modos sin conexión se juegan sin internet y el online usa el mismo servidor.
+- Código en `android/`: una WebView a pantalla completa y horizontal, con el botón "atrás" para pausar o volver.
+- Compilar a mano: `cd android && ./gradlew assembleRelease` (necesita JDK 17+ y el SDK de Android).
+- Está firmada con `android/pixelshooter.keystore` (clave de juego casero, incluida en el repo) para que cada versión nueva se instale encima de la anterior.
+
 ## Servidor (Render)
 
 ```
