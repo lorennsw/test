@@ -318,6 +318,9 @@ input[readonly]{color:var(--muted);cursor:default}
 #w.app{max-width:calc(100vh*16/9);border-radius:0;box-shadow:none}
 #w.app #fs{display:none}
 #w.app #tcPause{top:1cqw}
+a.apk{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:.6cqw;width:fit-content;margin:.8cqw auto 0;padding:.75cqw 1.4cqw;border:1px solid var(--acc2);border-radius:var(--r);color:var(--acc2);font-weight:700;font-size:max(11px,1.1cqw);text-decoration:none}
+a.apk .ico{width:1.2em;height:1.2em;margin:0;color:currentColor}
+a.apk.big{margin:0;display:inline-flex;background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
 a.aguest{display:inline-block;margin-top:.6cqw;padding:.75cqw 1.4cqw;color:var(--acc2);font-weight:600;font-size:max(11px,1.1cqw);text-decoration:none}
 
 /* ---- modo optimización: sin animaciones ni filtros costosos */
@@ -2185,7 +2188,20 @@ const DEFAULT_SERVER = 'wss://test-n4r0.onrender.com';
 // App de Android (la WebView agrega "PixelShooterApp" al user agent) y link de descarga de la APK
 const IS_APP = /PixelShooterApp/.test(navigator.userAgent);
 const APK_URL = 'https://github.com/lorennswaggerboi-lab/test/releases/latest/download/PixelShooter.apk';
-const apkLink = () => !IS_APP && /Android/i.test(navigator.userAgent) ? `<a class=aguest href="${APK_URL}">Descargar la app para Android</a>` : '';
+// Celular Android desde el navegador (también con "versión para computadora", que oculta "Android"); en iPhone el APK no sirve
+const ANDROID_WEB = !IS_APP && (/Android/i.test(navigator.userAgent) || (/Linux/i.test(navigator.userAgent) && navigator.maxTouchPoints > 0 && !/iPhone|iPad|CrOS/i.test(navigator.userAgent)));
+const apkLink = () => ANDROID_WEB ? `<a class=apk href="${APK_URL}" download>${I.download} Descargar la app para Android</a>` : '';
+let apkAsked = false;
+try{ apkAsked = localStorage.getItem('ps_noapk') === '1'; }catch(e){}
+// La primera vez que se entra desde el celular se ofrece la app antes del inicio de sesión
+function apkOffer(){
+  apkAsked = true;
+  panel(`<div class=alogo><span class=l1>PIXEL</span><span class=l2>SHOOTER</span></div>
+  <h2>Descargá la app</h2>
+  <div class=r>Jugá en pantalla completa, sin internet en los modos de un jugador y con amigos cerca por Wi-Fi o Bluetooth.</div>
+  <div class=actions><a class="apk big" href="${APK_URL}" download>${I.download} Descargar APK</a><button data-a=apkno>Seguir en el navegador</button></div>
+  <div class=r><small>Cuando termine la descarga, abrí el archivo. Si Android lo pide, permití instalar apps de esta fuente.</small></div>`);
+}
 // Versión del protocolo online: tiene que coincidir con GAME_V del servidor (subir las dos juntas)
 const GAME_V = 2;
 // Recarga la página salteando la caché del navegador (GitHub Pages la guarda hasta 10 minutos)
@@ -2996,6 +3012,7 @@ setInterval(() => {
 
 const SVG = d => `<svg class=ico viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
 const I = {
+  download: SVG('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>'),
   key: SVG('<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>'),
   globe: SVG('<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'),
   flag: SVG('<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>'),
@@ -3436,6 +3453,7 @@ function authExpired(msg){
 
 let authTab = 'login', authUser = '';
 function authPanel(tab, msg, busy){
+  if(ANDROID_WEB && !apkAsked) return apkOffer();
   if(tab) authTab = tab;
   const reg = authTab === 'register';
   state = 'menu'; ret = () => authPanel();
@@ -3967,6 +3985,7 @@ const A = {
   login: () => authPanel('login'),
   atab: v => { const u = $('#au'); if(u) authUser = u.value.trim(); authPanel(v); },
   guest: () => { guestS = true; main(); },
+  apkno: () => { try{ localStorage.setItem('ps_noapk', '1'); }catch(e){} authPanel(); },
   acont: () => main(),
   logout: () => { AU = { token: null, name: null, stats: null }; saveAU(); cloudLast = ''; guestS = false; authPanel('login'); },
   sload: v => loadGame(+v),
