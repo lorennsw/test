@@ -57,7 +57,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class LocalNet {
     static final int TCP_PORT = 47820, UDP_PORT = 47821;
     static final UUID BT_UUID = UUID.fromString("6f5c2a7e-3b1d-4c8e-9a40-5f2c8d1e7b33");
-    static final int BT_MAX_CLIENTS = 3;   // por Bluetooth, hasta 4 jugadores en total
+    static final int BT_MAX_CLIENTS = 7;   // por Bluetooth, hasta 8 jugadores en total (límite de 7 enlaces del Bluetooth)
     static final int REQ_PERMS = 7, REQ_DISCOVERABLE = 8;
 
     private final Activity act;
