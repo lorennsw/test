@@ -1,0 +1,45 @@
+# Compila la app de Android cada vez que cambia el juego y la publica como "release".
+# Link fijo para descargar la última versión desde el celular:
+#   https://github.com/lorennswaggerboi-lab/test/releases/latest/download/PixelShooter.apk
+name: APK de Android
+
+on:
+  push:
+    branches: [main]
+    paths: ['index.html', 'fonts/**', 'android/**', '.github/workflows/apk.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Compilar la APK
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk ../PixelShooter.apk
+
+      - name: Publicar
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: Pixel Shooter para Android (versión 1.${{ github.run_number }})
+          make_latest: true
+          files: PixelShooter.apk
+          body: |
+            Descargá **PixelShooter.apk** desde el celular y abrilo para instalar.
+            Si Android lo pide, permití "instalar apps de origen desconocido" para el navegador.
+            Las versiones nuevas se instalan encima de la anterior sin perder el progreso.
