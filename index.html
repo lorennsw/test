@@ -168,6 +168,15 @@ kbd{display:inline-block;min-width:1.6em;text-align:center;background:rgba(255,2
 .stats>div{background:var(--panel2);border:1px solid var(--line);padding:.8cqw 1.4cqw;min-width:8cqw;border-radius:var(--r);text-align:left}
 .stats small{display:block;margin-bottom:.2cqw;font-weight:600;letter-spacing:.08em;font-size:.72em}
 .stats b{font-size:1.5em;color:#fff;font-weight:700;font-variant-numeric:tabular-nums}
+.npcw{display:flex;align-items:center;gap:1.4cqw;max-width:62cqw;margin:0 auto 1cqw;text-align:left}
+.npcw canvas{width:7cqw;height:8.5cqw;image-rendering:pixelated;flex:none;background:var(--panel2);border:1px solid var(--line2);border-radius:.6cqw}
+.say{flex:1;background:var(--panel2);border:1px solid var(--line2);border-radius:.6cqw;padding:1cqw 1.4cqw;font-size:1.05em;line-height:1.4}
+.endw{margin:0 auto .8cqw;width:min(44cqw,100%);border:2px solid var(--line2);border-radius:.6cqw;overflow:hidden}
+.endw canvas{display:block;width:100%;image-rendering:pixelated}
+.epi p{margin:.2cqw auto;max-width:60cqw;font-size:.92em;opacity:0;animation:epi 1s forwards}
+@keyframes epi{to{opacity:1}}
+.endf{position:fixed;inset:0;background:#fff;pointer-events:none;animation:endf 1.6s forwards;z-index:5}
+@keyframes endf{to{opacity:0;visibility:hidden}}
 .relics{display:flex;flex-wrap:wrap;gap:.4cqw;justify-content:center;margin:0 0 1.4cqw}
 .relics span{display:inline-flex;align-items:center;gap:.4cqw;padding:.25cqw .7cqw;background:var(--panel2);border:1px solid var(--line2);border-left:3px solid var(--c);border-radius:.4cqw;font-size:.85em}
 .glitch{margin:0 0 .4cqw;font-size:max(22px,3.4cqw);font-weight:900;letter-spacing:.08em;color:var(--bad)}
@@ -885,6 +894,12 @@ function genDungeon(floor, sd){
     r.item = { t: 'wp', i: floorWp(floor, ar) };
     r.obs = []; r.props = []; r.spk = []; r.eps = []; r.ep = []; r.waves = 0;
   }
+  // sala tranquila con el personaje de la historia de este piso
+  if(armCand.length > 1){
+    const r = armCand.splice(Math.floor(ar() * armCand.length), 1)[0];
+    r.type = 'npc'; r.npc = (floor - 1) % NPCS.length; r.cleared = true; r.rug = true;
+    r.obs = []; r.props = []; r.spk = []; r.eps = []; r.ep = []; r.waves = 0;
+  }
 
   dung = {
     active: true, floor, seed: sd, rooms, curRoomKey: '0,0',
@@ -1063,6 +1078,7 @@ function enterRoom(k, first){
     banner(r.type === 'boss' ? '¡SALA DEL JEFE!' : r.type === 'challenge' ? '¡DESAFÍO: ' + r.waves + ' OLEADAS!' : 'SALA DE COMBATE');
     sDoorLock();
   } else if(r.type === 'fountain') banner('FUENTE CURATIVA');
+  else if(r.type === 'npc') banner('ALGUIEN TE ESPERA');
 
   if(r.type === 'treasure' && r.item && !r.itemTaken){
     dung.pedestals.push({ id: 'it', x: (r.w / 2) * T, y: (r.h / 2) * T, item: r.item });
@@ -1130,6 +1146,7 @@ function roomCleared(r, rel, hd, cn){
   if(hd) hearts.push({ x: r.w * T / 2 + 18, y: r.h * T / 2 });
   if(r.type === 'boss'){
     dung.trapdoor = { x: (r.w / 2) * T, y: (r.h / 2) * T };
+    if(dung.floor >= 5) setTimeout(() => banner('¡LA SALIDA SE ABRIÓ!'), 1200);
     V.bestDung = Math.max(V.bestDung || 1, dung.floor + 1);
     save();
   }
@@ -1234,6 +1251,154 @@ function drawStall(){
 function drawStallHud(){
   if(!benchHere() || state !== 'play') return;
   TX('TIENDA', STALL.x - camx, STALL.y - camy + 16, 3, 'rgba(56,214,107,.85)', 'center');
+}
+
+// ---- personajes de la historia: uno por piso, en una sala tranquila. Al acercarte te hablan,
+// y al terminar la charla te dejan un regalo (una sola vez por piso).
+const NPCS = [
+  { n: 'Bartolo, el prisionero', av: { skin: '#e0b48a', hair: '#cfcfcf', shirt: '#7a6a55', pn: '#4a3f33', hs: 3, os: 1 }, gift: 'heal2', l: [
+    '¿Otro más que cayó por la trampilla? Je... yo llegué igual, hace ya ni sé cuántos inviernos.',
+    'Esta mazmorra es la prisión del Soberano del Inframundo. El que entra queda atado a ella.',
+    'Dicen que en el fondo, junto a su trono, está la única salida. Cinco pisos, pibe. Cinco.',
+    'Yo ya no tengo fuerzas para pelear. Tomá, curate un poco... y si llegás arriba, mirá el sol por mí.'] },
+  { n: 'Lía, la alquimista', av: { skin: '#f2c18d', hair: '#3ecf8e', shirt: '#e8ecf3', pn: '#3a3a5c', hs: 1, os: 2 }, gift: 'coins', l: [
+    '¡No toques esos frascos! ...Perdón. Los slimes salieron de acá, ¿sabés? De mis experimentos.',
+    'El Soberano me obligó a crear monstruos para cuidar su trono. Por eso cada piso son más fuertes.',
+    'Encontré algo en mis notas: su poder sale de las almas atrapadas acá abajo. Como la mía.',
+    'Si lo vencés, las almas quedan libres y la maldición se rompe. Llevate estas monedas, a mí ya no me sirven.'] },
+  { n: 'Gorm, el herrero', av: { skin: '#8d5524', hair: '#1b1b1b', shirt: '#b03a2e', pn: '#2b2b2b', hs: 2, os: 3 }, gift: 'armor', l: [
+    'Martillo y fuego, es todo lo que me queda. Yo forjé las cadenas de este lugar.',
+    'Las forjé sin saber para qué eran. Para encerrar gente como vos. Como yo.',
+    'El Soberano no es invencible: cuando se enfurece ataca más rápido, pero se descuida. Nunca te quedes quieto.',
+    'Tomá esta placa. Que te cubra mejor de lo que me cubrió a mí.'] },
+  { n: 'Sir Aldric, el caballero', av: { skin: '#cfe3ff', hair: '#9fb7d8', shirt: '#7d8fa8', pn: '#55657d', hs: 0, os: 0 }, ghost: 1, gift: 'full', l: [
+    'No te asustes, viajero. Fui caballero del reino de arriba... antes de cruzar aquella puerta.',
+    'Llegué hasta el trono con mi escuadrón. Ninguno volvió. Yo tampoco, como ves.',
+    'El Soberano se alimenta del miedo. Cuanto más dudás, más fuerte se vuelve.',
+    'Terminá lo que yo empecé. Que mi espada no haya caído en vano.'] },
+  { n: 'Mara, la niña de las velas', av: { skin: '#f6dcc4', hair: '#2a1a12', shirt: '#f1f1f1', pn: '#f1f1f1', hs: 1, os: 0 }, ghost: 1, gift: 'full', l: [
+    'Shh... él escucha todo desde su trono.',
+    'Yo vivía arriba, en el pueblo. Me acuerdo del pasto y del olor a pan... ¿todavía existe?',
+    'Cuando caiga el Soberano se va a abrir la escalera de luz. Subí y no mires atrás.',
+    'Prometeme que vas a salir. Por todos los que no pudimos.'] }
+];
+const npcPos = r => ({ x: r.w * T / 2, y: r.h * T / 2 - 4 });
+const npcHere = () => mode === 'dung' && dung.curRoom && dung.curRoom.type === 'npc' && state === 'play';
+let npcTalk = null;   // { r, i: línea actual }
+function npcTick(){
+  if(!npcHere()) return;
+  const r = dung.curRoom, q = npcPos(r), near = !p.dead && Math.hypot(p.x - q.x, p.y - q.y) < 22;
+  if(!near){ r.near = false; return; }
+  if(r.near || paused) return;
+  r.near = true; paused = true; ret = A.resume; npcTalk = { r, i: 0 }; npcMenu();
+}
+function npcMenu(){
+  const T_ = npcTalk; if(!T_) return;
+  const N = NPCS[T_.r.npc] || NPCS[0], last = T_.i >= N.l.length - 1;
+  ret = A.resume;
+  panel(`<h2>${esc(N.n)}</h2>
+  <div class=npcw><canvas id=npcc width=28 height=34></canvas><div class=say>${esc(N.l[T_.i])}</div></div>
+  <div class=r><small>${T_.i + 1} / ${N.l.length}</small></div>
+  <div class=actions>${last ? `<button class=s data-a=npcx>${I.check} ${T_.r.used ? 'Chau' : 'Gracias'}</button>` : `<button class=s data-a=npcn>${I.play} Seguir</button><button data-a=npcx>${I.x} Cerrar</button>`}</div>`);
+  const cv = $('#npcc'), x = cv.getContext('2d');
+  if(N.ghost) x.globalAlpha = .75;
+  drawChar(x, 14, 30, { ang: Math.PI / 2, walk: 0, moving: false, w: -1 }, Object.assign({ ec: '#111111', acc: 0 }, N.av));
+}
+// el regalo se da al terminar la charla la primera vez
+function npcGift(r){
+  const N = NPCS[r.npc] || NPCS[0];
+  if(r.used) return;
+  r.used = true;
+  if(N.gift === 'heal2'){ p.hp = Math.min(p.maxHp || 5, p.hp + 2); banner('+2 CORAZONES'); }
+  else if(N.gift === 'coins'){ V.coins += 25; banner('+25 MONEDAS'); sCoin(); }
+  else if(N.gift === 'armor'){ p.ar = (p.ar || 0) + 1; banner('+1 ARMADURA'); }
+  else { p.hp = p.maxHp || 5; banner('¡VIDA RESTAURADA!'); }
+  sFan(); burst(p.x, p.y - 8, '#f2b33d', 12);
+}
+function drawNpc(){
+  const r = dung.curRoom, N = NPCS[r.npc] || NPCS[0], q = npcPos(r);
+  if(N.ghost){ g.globalAlpha = .6 + .15 * Math.sin(t * 2); }
+  drawChar(g, Math.round(q.x - camx), Math.round(q.y - camy + (N.ghost ? Math.sin(t * 2) * 1.5 : 0)), { ang: Math.atan2(p.y - q.y, p.x - q.x), walk: 0, moving: false, w: -1 }, Object.assign({ ec: '#111111', acc: 0 }, N.av));
+  g.globalAlpha = 1;
+}
+function drawNpcHud(){
+  if(!npcHere()) return;
+  const r = dung.curRoom, N = NPCS[r.npc] || NPCS[0], q = npcPos(r), X = q.x - camx, Y = q.y - camy;
+  TX(N.n.split(',')[0].toUpperCase(), X, Y - 28, 3, '#e9d5ff', 'center');
+  if(!r.used) TX('!', X, Y - 34 + Math.sin(t * 6) * 1.5, 5, '#f2b33d', 'center');
+}
+
+// ---- final: al vencer al Soberano se abre la escalera de luz; al subir, escapás
+let END = null;
+function endingMenu(){
+  ret = endingMenu;
+  const E = END || { coins: 0, bonus: 150, kills: 0, mates: [] };
+  panel(`<div class=endf></div>
+  <h1 class=glitch style="color:var(--ok)">¡Escapaste!</h1>
+  <div class=endw><canvas id=endc width=200 height=100></canvas></div>
+  <div class=epi>
+    <p style="animation-delay:.6s">Con el Soberano derrotado, la maldición se rompió y la escalera de luz te llevó a la superficie.</p>
+    <p style="animation-delay:1.8s">Las almas atrapadas en la mazmorra por fin descansan. Sentís el sol en la cara: sos libre.</p>
+  </div>
+  <div class=stats>
+    <div><small>PISOS</small><b>5</b></div>
+    <div><small>BAJAS</small><b>${E.kills}</b></div>
+    <div><small>MONEDAS GANADAS</small><b>+${E.coins + E.bonus}</b></div>
+  </div>
+  <div class=win>${I.trophy} Conquistador de mazmorras<small>Te llevás las ${E.coins} monedas de la partida + ${E.bonus} de premio</small></div>
+  <div class=vlist>
+    ${lobbyBtn('s')}
+    <button class=s data-a=quit>${I.exit} Volver al menú</button>
+  </div>`);
+  const cv = $('#endc'); if(!cv) return;
+  const x = cv.getContext('2d');
+  const loop = () => { if(!cv.isConnected) return; drawEnding(x, E); requestAnimationFrame(loop); };
+  loop();
+}
+// la "foto": amanecer, montañas, la entrada de la mazmorra atrás y vos (con tus amigos) afuera, libres
+function drawEnding(x, E){
+  const W_ = 200, H_ = 100, tt = performance.now() / 1000;
+  const sky = x.createLinearGradient(0, 0, 0, 70);
+  sky.addColorStop(0, '#3b5bb5'); sky.addColorStop(.55, '#e98a6a'); sky.addColorStop(1, '#ffd38a');
+  x.fillStyle = sky; x.fillRect(0, 0, W_, H_);
+  // sol con brillo
+  x.fillStyle = 'rgba(255,240,180,.25)'; x.beginPath(); x.arc(130, 58, 22, 0, 6.28); x.fill();
+  x.fillStyle = '#fff1b8'; x.beginPath(); x.arc(130, 58, 13, 0, 6.28); x.fill();
+  // nubes que se mueven
+  x.fillStyle = 'rgba(255,255,255,.75)';
+  for(const [cx0, cy, w] of [[20, 14, 26], [95, 22, 34], [160, 10, 22]]){
+    const cx = ((cx0 + tt * 4) % (W_ + 40)) - 20;
+    x.fillRect(Math.round(cx), cy, w, 4); x.fillRect(Math.round(cx) + 5, cy - 3, w - 12, 3);
+  }
+  // pájaros
+  x.fillStyle = '#2b2440';
+  for(let i = 0; i < 3; i++){
+    const bx = Math.round((40 + i * 22 + tt * 10) % (W_ + 20)) - 10, by = Math.round(30 + i * 5 + Math.sin(tt * 3 + i) * 2), f = Math.sin(tt * 10 + i) > 0 ? 1 : 0;
+    x.fillRect(bx - 2, by - f, 2, 1); x.fillRect(bx + 1, by - f, 2, 1); x.fillRect(bx, by, 1, 1);
+  }
+  // montañas lejanas y colinas
+  const hill = (col, base, amp, fr, ph) => { x.fillStyle = col; for(let i = 0; i < W_; i++){ const h = Math.round(base - Math.sin(i * fr + ph) * amp - Math.sin(i * fr * 2.3 + ph) * amp * .4); x.fillRect(i, h, 1, H_ - h); } };
+  hill('#7a5a8c', 60, 9, .045, 1); hill('#4f7a4a', 70, 5, .03, 2); hill('#3f9b4a', 78, 3, .05, 0);
+  // acantilado con la entrada de la mazmorra
+  x.fillStyle = '#5b5368'; x.fillRect(0, 44, 46, 56); x.fillStyle = '#6e6680'; x.fillRect(0, 44, 46, 3);
+  x.fillStyle = '#463f52'; for(const [a, b] of [[6, 52], [30, 60], [14, 80], [36, 86]]) x.fillRect(a, b, 6, 2);
+  x.fillStyle = '#8a8296'; x.fillRect(12, 62, 22, 3); x.fillRect(12, 62, 3, 24); x.fillRect(31, 62, 3, 24);   // marco de piedra
+  x.fillStyle = '#120d1a'; x.fillRect(15, 65, 16, 21);
+  x.fillStyle = 'rgba(255,230,150,' + (.35 + .15 * Math.sin(tt * 2)) + ')'; x.fillRect(17, 67, 12, 19);   // la luz de la escalera
+  x.fillStyle = '#6b6577'; for(let i = 0; i < 3; i++) x.fillRect(13 - i * 2, 86 + i * 3, 20 + i * 4, 3);   // escalones
+  // pasto y flores
+  x.fillStyle = '#2f8a3e'; x.fillRect(0, 92, W_, 8);
+  for(let i = 0; i < W_; i += 3){ x.fillStyle = (i * 7) % 5 ? '#3fae4f' : '#58c766'; x.fillRect(i, 90 + ((i * 13) % 3), 1, 3); }
+  for(const [fx, fc] of [[60, '#ff9aa2'], [84, '#ffe66d'], [150, '#ffffff'], [176, '#ff9aa2'], [118, '#c084fc']]){ x.fillStyle = fc; x.fillRect(fx, 89, 2, 2); x.fillStyle = '#2f8a3e'; x.fillRect(fx, 91, 1, 2); }
+  // vos (y tus amigos) afuera, al doble de tamaño para que se vea bien
+  const crew = [V.av].concat(E.mates || []).slice(0, 4);
+  x.save(); x.scale(2, 2);
+  crew.forEach((av, i) => {
+    const X = 46 + i * 11 - (crew.length - 1) * 5, Y = 48 + (i % 2);
+    drawChar(x, X, Y, { ang: Math.PI / 2 + (i % 2 ? .5 : -.5), walk: 0, moving: false, w: -1 }, Object.assign({ hs: 0, ec: '#111111', os: 0, pn: '#3a3a5c' }, av));
+  });
+  x.restore();
+  x.fillStyle = 'rgba(255,214,140,.12)'; x.fillRect(0, 0, W_, H_);   // luz cálida
 }
 
 // ---- banco de guardado: en la sala inicial de cada piso; quedarse quieto sentado guarda la partida
@@ -1345,7 +1510,16 @@ function newFloor(fl, sdv){
   banner('PISO ' + fl + ': ' + dung.floorTheme.n.toUpperCase());
 }
 // Al pasarse la mazmorra se borra la partida guardada: ya no hay a dónde volver
-const winDung = () => { state = 'clear'; dropSave(); clearMenu(); };
+// Al escapar te llevás las monedas que juntaste en la partida más 150 de premio (una sola vez)
+const winDung = () => {
+  if(state === 'clear') return;
+  state = 'clear'; dropSave();
+  END = { coins: V.coins, bonus: 150, kills, mates: Object.values(net.rem).filter(r => r.av).map(r => r.av) };
+  if(DB) DB.coins += END.coins + END.bonus; else V.coins += END.bonus;
+  V.bestKills = Math.max(V.bestKills || 0, kills);
+  save(); sFan();
+  clearMenu();
+};
 const dungOver = () => { state = 'over'; V.bestKills = Math.max(V.bestKills || 0, kills); save(); over(); };
 function beginDung(fl, sdv, rk, cl, rs){
   net.wait = false;
@@ -2239,7 +2413,7 @@ function update(dt){
         const tx_ = Math.floor(p.x / T), ty_ = Math.floor(p.y / T);
         for(const s_ of rr.spk) if(s_.x === tx_ && s_.y === ty_ && spkState(s_) === 2){ hurt(); break; }
       }
-      benchTick(dt); stallTick();
+      benchTick(dt); stallTick(); npcTick();
       if(rr.type === 'fountain' && !rr.used && !p.dead && Math.hypot(p.x - rr.w * T / 2, p.y - rr.h * T / 2) < 20){
         rr.used = true; p.hp = p.maxHp || 5; burst(p.x, p.y - 8, '#7dd3fc', 18); banner('¡VIDA RESTAURADA!'); sCoin();
       }
@@ -2669,6 +2843,7 @@ function drawChar(cx, X, Y, st, av){
   }
   // ---- arma (si miras hacia arriba va detras de la cabeza)
   const gun = () => {
+    if(st.w === -1) return;   // personajes sin arma (los de la historia y el final)
     const hx = Math.round(X + cs * 3), hy = Math.round(Y + by - 3 + sn * 3);
     drawWeapon(cx, hx, hy, st.w | 0, ang, kk);
     cx.fillStyle = skin; cx.fillRect(hx - 1, hy - 1, 2, 2);   // la mano sobre la empuñadura
@@ -2972,7 +3147,7 @@ function drawDungeonRoom(){
   // Puertas
   const midX = Math.floor(r.w / 2) * T;
   const midY = Math.floor(r.h / 2) * T;
-  const typeCol = type => type === 'boss' ? '#ef4444' : type === 'treasure' ? '#ffd23f' : type === 'shop' ? '#38d66b' : type === 'fountain' ? '#38bdf8' : type === 'challenge' ? '#f97316' : '#7df9ff';
+  const typeCol = type => type === 'boss' ? '#ef4444' : type === 'treasure' ? '#ffd23f' : type === 'shop' ? '#38d66b' : type === 'fountain' ? '#38bdf8' : type === 'challenge' ? '#f97316' : type === 'npc' ? '#e9d5ff' : '#7df9ff';
   const drawDoorFrame = (x, y, isHoriz, open, type) => {
     const col = typeCol(type);
     g.fillStyle = '#070914';
@@ -3049,7 +3224,13 @@ function drawDungeonRoom(){
   }
 
   // Trampilla al siguiente piso
-  if(dung.trapdoor){
+  if(dung.trapdoor && dung.floor >= 5){
+    const tx = Math.round(dung.trapdoor.x - camx), ty = Math.round(dung.trapdoor.y - camy), k = .5 + .5 * Math.sin(t * 3);
+    g.fillStyle = 'rgba(255,230,150,' + (.18 + .12 * k) + ')'; g.fillRect(tx - 14, ty - 60, 28, 66);
+    g.fillStyle = 'rgba(255,245,200,' + (.3 + .2 * k) + ')'; g.fillRect(tx - 8, ty - 60, 16, 66);
+    for(let i = 0; i < 4; i++){ g.fillStyle = i % 2 ? '#e8d9a8' : '#f6ecc8'; g.fillRect(tx - 9 + i, ty + 4 - i * 4, 18 - i * 2, 4); }
+    for(let i = 0; i < 5; i++){ const yy = ty - ((t * 30 + i * 13) % 60); g.fillStyle = '#fff6cf'; g.fillRect(tx - 7 + ((i * 5) % 14), Math.round(yy), 1, 1); }
+  } else if(dung.trapdoor){
     const tx = dung.trapdoor.x - camx, ty = dung.trapdoor.y - camy;
     g.fillStyle = '#0f172a'; g.fillRect(tx - 9, ty - 9, 18, 18);
     g.fillStyle = '#38bdf8'; g.fillRect(tx - 7, ty - 7, 14, 14);
@@ -3093,7 +3274,7 @@ function drawDungeonMinimap(){
 
     if(r.visited){
       const isCur = (r === curR);
-      hg.fillStyle = isCur ? '#ffd23f' : r.type === 'boss' ? '#ef4444' : r.type === 'treasure' ? '#a855f7' : r.type === 'shop' ? '#38d66b' : r.type === 'fountain' ? '#38bdf8' : r.type === 'challenge' ? '#f97316' : '#475569';
+      hg.fillStyle = isCur ? '#ffd23f' : r.type === 'boss' ? '#ef4444' : r.type === 'treasure' ? '#a855f7' : r.type === 'shop' ? '#38d66b' : r.type === 'fountain' ? '#38bdf8' : r.type === 'challenge' ? '#f97316' : r.type === 'npc' ? '#c4b5fd' : '#475569';
       hg.fillRect(mx * hs, my * hs, size * hs, size * hs);
 
       if(isCur){
@@ -3229,6 +3410,7 @@ function draw(){
   // Renderizar entidades ordenadas por Y
   for(const e of enemies) dr.push({ y: e.y, f: () => drawEnemy(e) });
   if(benchHere()){ dr.push({ y: BENCH.y + 2, f: drawBench }); dr.push({ y: STALL.y + 2, f: drawStall }); }
+  if(npcHere()) dr.push({ y: npcPos(dung.curRoom).y, f: drawNpc });
   if(mode === 'dung' && dung.curRoom) for(const q of dung.curRoom.props) if(!q.dead) dr.push({ y: q.y * T + T, f: () => drawProp(q) });
   if(net.on) for(const id in net.rem){
     const r = net.rem[id];
@@ -3352,7 +3534,7 @@ function draw(){
   }
 
   drawReviveHud();
-  drawBenchHud(); drawStallHud();
+  drawBenchHud(); drawStallHud(); drawNpcHud();
   if(touchOn() && state === 'play' && !paused) drawSticks();
   if(state === 'play' && !paused){
     g.fillStyle = S.cross || '#fff';
@@ -3577,18 +3759,7 @@ function over(){
   </div>`);
 }
 
-function clearMenu(){
-  ret = clearMenu;
-  panel(`<h2>Victoria</h2>
-  <div class=r>Derrotaste al Soberano del Inframundo y conquistaste la mazmorra.</div>
-  <div class=win>${I.trophy} Conquistador de mazmorras<small>Bonus: +150 monedas</small></div>
-  <div class=vlist>
-    ${lobbyBtn('s')}
-    <button class=s data-a=quit>${I.exit} Volver al menú</button>
-  </div>`);
-  if(DB) DB.coins += 150; else V.coins += 150;
-  save();
-}
+const clearMenu = () => endingMenu();
 
 const CROSS = ['#ffffff', '#ff3b3b', '#38ff6b', '#7df9ff', '#ffe66d', '#ff4dff', '#ff9d3d', '#000000'];
 function settings(){
@@ -4436,6 +4607,8 @@ const A = {
   },
   np2: () => players(net.mode),
   loads: () => savesMenu(),
+  npcn: () => { if(npcTalk){ npcTalk.i++; npcMenu(); } },
+  npcx: () => { const T_ = npcTalk; if(T_ && T_.i >= (NPCS[T_.r.npc] || NPCS[0]).l.length - 1) npcGift(T_.r); npcTalk = null; A.resume(); },
   lobby: () => { if(net.on && net.lan) raw({ t: 'lobby', md: lanCurMd() }); },
   lbmd: v => { if(LOB && net.host && v !== LOB.md) raw({ t: 'lob_md', md: v }); },
   lbtm: v => { if(LOB) raw({ t: 'lob_tm', tm: +v }); },
