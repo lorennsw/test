@@ -180,11 +180,12 @@
       if ('pub' in c) r.pub = !!c.pub;
       if (r.rival === 'pub') r.pub = true;
       if ('max' in c && c.max) r.cmax = Math.max(1, Math.min(TOP_P, c.max | 0));
+      if ('dif' in c) r.dif = Math.max(0, Math.min(2, c.dif | 0));   // dificultad de la mazmorra (para mostrarla)
     }
     // en la sala entran: en PvP los que pide el modo; en cooperativo los que eligió el anfitrión
     const lobbyMax = r => { const pv = PV[MODES[r.lob.md]]; r.max = Math.max(r.size, pv ? pv.max : r.cmax || TOP_P); };
     const lobbyInfo = r => duelBroadcast(r, { t: 'lob', md: r.lob.md, need: lobbyNeed(r.lob.md),
-      cfg: r.party ? { title: r.title || '', rival: r.rival || 'in', pub: !!r.pub, max: r.cmax || TOP_P } : undefined,
+      cfg: r.party ? { title: r.title || '', rival: r.rival || 'in', pub: !!r.pub, max: r.cmax || TOP_P, dif: r.dif | 0 } : undefined,
       p: [...r].map(x => [x.id, nameOf(x), r.lob.rd.has(x.id) ? 1 : 0, x.host ? 1 : 0, r.lob.tm.has(x.id) ? r.lob.tm.get(x.id) : -1]) });
     // por equipos: cada uno elige el suyo (mitad y mitad) y se puede cambiar mientras haya lugar
     const teamOk = r => [0, 1].every(t => [...r].filter(x => r.lob.tm.get(x.id) === t).length === teamSize(r.lob.md));
@@ -231,8 +232,8 @@
       if (q.length >= 3 && wait > 8000 || q.length >= 2 && wait > 20000) queueMatch('ffa', Math.min(8, q.length));
     }, 1000);
 
-    return {
-      rooms,
+    const hub = {
+      rooms, list,
       open(ws) { ws.id = nextId++; },
       message(ws, raw) {
         let m;
@@ -245,6 +246,7 @@
         if (m.t === 'join') { if (!ws.room) joinRoom(ws, String(m.room || 'D|Sala 1').slice(0, 30), m.max, m.cfg); return; }
         if (m.t === 'duel_q') return queueDuel(ws, m.md in queues ? m.md : '1v1');
         if (m.t === 'duel_qx') return dropQ(ws);
+        if (m.t === 'leave') return leave(ws);
         const r = rooms[ws.room];
         if (!r) return;
         if ((lobby || r.party) && m.t === 'lobby') return lobbyOpen(r, m.md);
@@ -274,7 +276,11 @@
         m.from = ws.id;
         r.forEach(o => { if (m.to ? o.id === m.to : o !== ws) send(o, m); });
       },
-      close(ws) {
+      close(ws) { leave(ws); }
+    };
+    // sale de la sala: al cerrar la conexión o, más rápido, cuando avisa con "leave" antes de cerrarla
+    // (cerrar una conexión puede tardar bastante en el servidor gratis)
+    function leave(ws) {
         dropQ(ws);
         const r = rooms[ws.room];
         if (!r) return;
@@ -284,8 +290,9 @@
         if (r.lob && r.size) { r.lob.rd.delete(ws.id); r.lob.tm.delete(ws.id); lobbyCheck(r); }
         else if (r.duel && r.size) duelLeft(r, ws);   // abandono en PvP
         if (!r.size) delete rooms[ws.room];
-      }
-    };
+        ws.room = null;
+    }
+    return hub;
   }
 
   const api = { createRooms, DEFAULT_STATS };

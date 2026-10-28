@@ -93,6 +93,8 @@ const GAME_V = 6;
       await store.updateUser(name, { data });
       json(res, 200, { ok: true });
     },
+    // salas públicas (las que crean los jugadores), para mostrarlas sin conectarse por WebSocket
+    'GET /api/rooms': (req, res) => json(res, 200, hub.list().filter(r => r[0].startsWith('P|'))),
     'GET /api/top': async (req, res) => {
       json(res, 200, (await store.top(10)).map(u => [u.name, u.stats.rating, u.stats.wins, u.stats.losses]));
     },
