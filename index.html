@@ -1246,11 +1246,7 @@ function shopGlyph(it, X, Y){
 // (en la mazmorra se empieza sin nada: monedas y armas son solo de la run)
 const STALL = { x: (RW - 4) * T, y: 2 * T + 12 };
 const nearStall = () => benchHere() && !p.dead && Math.abs(p.x - STALL.x) < 15 && Math.abs(p.y - STALL.y) < 10;
-function stallTick(){
-  if(!nearStall()){ p.stallDone = false; return; }
-  if(p.stallDone || paused || state !== 'play') return;
-  p.stallDone = true; paused = true; ret = A.resume; shop(0);
-}
+function stallOpen(){ if(!nearStall() || paused) return false; paused = true; ret = A.resume; shop(0); return true; }
 function drawStall(){
   const R = tileR(STALL.x - T, STALL.y - 12), glow = nearStall();
   R(0, 15, 32, 3, 'rgba(0,0,0,.35)');
@@ -1267,7 +1263,8 @@ function drawStall(){
 }
 function drawStallHud(){
   if(!benchHere() || state !== 'play') return;
-  TX('TIENDA', STALL.x - camx, STALL.y - camy + 16, 3, 'rgba(56,214,107,.85)', 'center');
+  const near = nearStall() && !paused;
+  TX(near ? (touchOn() ? 'TOCÁ TIENDA' : '[E] TIENDA') : 'TIENDA', STALL.x - camx, STALL.y - camy + 16, near ? 3.2 : 3, near ? '#38d66b' : 'rgba(56,214,107,.85)', 'center');
 }
 
 // ---- personajes de la historia: uno por piso, en una sala tranquila. Al acercarte te hablan,
@@ -1314,6 +1311,15 @@ const npcHere = () => mode === 'dung' && dung.curRoom && dung.curRoom.type === '
 let npcTalk = null;   // { k: sala, r, i: línea actual, rd: { línea: ids que ya tocaron } }
 // cerca del personaje se habla con la E (o con el botón HABLAR en el celular)
 const npcNear = () => npcHere() && !p.dead && !paused && Math.hypot(p.x - npcPos(dung.curRoom).x, p.y - npcPos(dung.curRoom).y) < 26;
+// acción del lugar donde estás (E o el botón del celular): hablar, tienda, sentarse o levantarse
+function ctxAct(){
+  if(state !== 'play' || paused) return null;
+  if(npcNear()) return { n: 'Hablar', f: npcOpen };
+  if(p.seated) return { n: 'Levantarse', f: benchStand };
+  if(nearStall()) return { n: 'Tienda', f: stallOpen };
+  if(nearBench() && !enemies.length) return { n: 'Sentarse', f: benchSit };
+  return null;
+}
 function npcOpen(){
   if(!npcNear()) return false;
   npcStart(dung.curRoomKey);
@@ -1465,18 +1471,27 @@ function drawEnding(x, E){
 const BENCH = { x: 4 * T, y: 2 * T + 12, sitT: .9 };   // centro del asiento (2 casillas, arriba a la izquierda)
 const benchHere = () => mode === 'dung' && dung.curRoom && dung.curRoom.type === 'start';
 const nearBench = () => benchHere() && !p.dead && Math.abs(p.x - BENCH.x) < 14 && Math.abs(p.y - BENCH.y) < 9;
+// con E (o el botón del celular) te sentás en el banco y al ratito se guarda; moviéndote te levantás
+function benchSit(){
+  if(!nearBench() || enemies.length || p.seated || paused) return false;
+  p.seated = true; p.sitT = 0; p.benchDone = false; p.roll = 0;
+  return true;
+}
+function benchStand(){ if(!p.seated) return; p.seated = false; p.y = BENCH.y + 14; }
 function benchTick(dt){
-  if(!nearBench() || enemies.length){ p.sit = 0; if(!nearBench()) p.benchDone = false; return; }
-  if(p.moving || p.roll > 0 || p.benchDone){ p.sit = 0; return; }
-  p.sit = (p.sit || 0) + dt;
-  if(p.sit >= BENCH.sitT){
-    p.benchDone = true; p.sit = 0;
+  if(!p.seated) return;
+  if(p.dead || !benchHere()){ p.seated = false; return; }
+  p.x = BENCH.x; p.y = BENCH.y + 3; p.moving = false;
+  if(p.benchDone) return;
+  p.sitT = (p.sitT || 0) + dt;
+  if(p.sitT >= BENCH.sitT){
+    p.benchDone = true;
     const ok = saveGame(true);
     banner(ok ? 'PARTIDA GUARDADA' : 'NO SE PUDO GUARDAR'); if(ok){ sFan(); burst(BENCH.x, BENCH.y - 8, '#f2b33d', 14); }
   }
 }
 function drawBench(){
-  const R = tileR(BENCH.x - T, BENCH.y - 12), glow = nearBench() && !p.benchDone;
+  const R = tileR(BENCH.x - T, BENCH.y - 12), glow = nearBench() && !p.seated;
   R(1, 14, 30, 3, 'rgba(0,0,0,.35)');
   R(3, 10, 2, 6, '#3b2414'); R(27, 10, 2, 6, '#3b2414');            // patas
   R(1, 7, 30, 4, '#8a5a2b'); R(1, 7, 30, 1, '#b07a3e');              // asiento
@@ -1487,12 +1502,16 @@ function drawBench(){
 function drawBenchHud(){
   if(!benchHere() || state !== 'play') return;
   const X = BENCH.x - camx, Y = BENCH.y - camy + 14;   // abajo del banco (arriba está el HUD)
-  if(nearBench() && !p.benchDone){
+  if(p.seated){
+    TX(p.benchDone ? 'PARTIDA GUARDADA' : 'GUARDANDO...', X, Y - 4, 3.2, '#f2b33d', 'center');
+    if(!p.benchDone){
+      g.fillStyle = '#000'; g.fillRect(Math.round(X - 13), Math.round(Y), 26, 4);
+      g.fillStyle = '#f2b33d'; g.fillRect(Math.round(X - 12), Math.round(Y + 1), Math.round(24 * Math.min(1, (p.sitT || 0) / BENCH.sitT)), 2);
+    } else TX('MOVETE PARA LEVANTARTE', X, Y + 2, 2.8, '#e8ebf3', 'center');
+  } else if(nearBench()){
     if(enemies.length) return TX('NO SE PUEDE GUARDAR CON ENEMIGOS', X, Y, 3.2, '#ff8a96', 'center');
-    TX(p.sit > 0 ? 'GUARDANDO...' : 'QUEDATE QUIETO PARA GUARDAR', X, Y - 4, 3.2, '#f2b33d', 'center');
-    g.fillStyle = '#000'; g.fillRect(Math.round(X - 13), Math.round(Y), 26, 4);
-    g.fillStyle = '#f2b33d'; g.fillRect(Math.round(X - 12), Math.round(Y + 1), Math.round(24 * Math.min(1, (p.sit || 0) / BENCH.sitT)), 2);
-  } else if(!nearBench()) TX('BANCO', X, Y + 2, 3, 'rgba(242,179,61,.8)', 'center');
+    TX(touchOn() ? 'TOCÁ SENTARSE' : '[E] SENTARSE', X, Y, 3.2, '#f2b33d', 'center');
+  } else TX('BANCO', X, Y + 2, 3, 'rgba(242,179,61,.8)', 'center');
 }
 
 function drawGrave(x, y){
@@ -2400,6 +2419,7 @@ function update(dt){
 
   const fz = mode === 'duel' && DU.fz > 0;
   if(fz){ DU.fz -= dt; dx = dy = 0; }
+  if(p.seated){ if(Math.hypot(dx, dy) > .3 || keys[' ']) benchStand(); else dx = dy = 0; }
   const l = Math.hypot(dx, dy);
   p.moving = l > .1 && !p.dead && !paused;
   let spMod = 75;
@@ -2434,7 +2454,7 @@ function update(dt){
   if(p.dead > 0){
     p.dead -= dt;
     if(p.dead <= 0){ p.dead = 0; if(mode === 'duel'){ const sp = pvSpawnPoint(); p.x = sp.x; p.y = sp.y; p.hp = p.maxHp; p.inv = 1.2; p.lastHit = 0; } else { p.hp = 5; p.inv = 3; safeSpot(); } }
-  } else if(!paused && !fz && !(p.roll > 0) && mdown && p.cd <= 0) shoot();
+  } else if(!paused && !fz && !(p.roll > 0) && !p.seated && mdown && p.cd <= 0) shoot();
 
   // Revivir compañeros caídos: mantené E cerca de su cuerpo
   if(net.on && (mode === 'dung' || mode === 'camp') && !p.dead){
@@ -2476,7 +2496,7 @@ function update(dt){
         const tx_ = Math.floor(p.x / T), ty_ = Math.floor(p.y / T);
         for(const s_ of rr.spk) if(s_.x === tx_ && s_.y === ty_ && spkState(s_) === 2){ hurt(); break; }
       }
-      benchTick(dt); stallTick();
+      benchTick(dt);
       if(rr.type === 'fountain' && !rr.used && !p.dead && Math.hypot(p.x - rr.w * T / 2, p.y - rr.h * T / 2) < 20){
         rr.used = true; p.hp = p.maxHp || 5; burst(p.x, p.y - 8, '#7dd3fc', 18); banner('¡VIDA RESTAURADA!'); sCoin();
       }
@@ -2618,7 +2638,7 @@ function update(dt){
     net.pt = (net.pt || 0) - dt;
     if(net.pt <= 0){
       net.pt = .066;
-      snd({ t: 'p', x: p.x, y: p.y, a: p.ang, n: V.av.name, av: V.av, ar: V.arm, dd: p.dead > 1000 || (mode === 'duel' && p.dead > 0) ? 1 : 0, rk: dung.curRoomKey, hp: p.hp, w: V.eq });
+      snd({ t: 'p', x: p.x, y: p.y, a: p.ang, n: V.av.name, av: V.av, ar: V.arm, dd: p.dead > 1000 || (mode === 'duel' && p.dead > 0) ? 1 : 0, rk: dung.curRoomKey, hp: p.hp, w: V.eq, st: p.seated ? 1 : 0 });
     }
     if(net.host){
       net.et = (net.et || 0) - dt;
@@ -2644,7 +2664,7 @@ function update(dt){
 function onNet(d){
   if(d.t === 'p'){
     const r = net.rem[d.from] || (net.rem[d.from] = { x: d.x, y: d.y, walk: 0, moving: false, kick: 0 });
-    r.tx = d.x; r.ty = d.y; r.ang = d.a; r.av = d.av; r.name = d.n; r.arm = d.ar; r.dd = d.dd; r.lt = t; r.rk = d.rk; r.hp = d.hp; r.w = d.w;
+    r.tx = d.x; r.ty = d.y; r.ang = d.a; r.av = d.av; r.name = d.n; r.arm = d.ar; r.dd = d.dd; r.lt = t; r.rk = d.rk; r.hp = d.hp; r.w = d.w; r.sit = d.st ? 1 : 0;
   }
   else if(d.t === 'rl'){ const r = net.rem[d.from]; if(r){ r.roll = ROLL_T; r.rsg = d.s < 0 ? -1 : 1; } }
   else if(d.t === 's') bullets.push({ x: d.x, y: d.y, vx: d.vx, vy: d.vy, l: d.l, d: 0, rm: 1, col: d.col, own: d.from });
@@ -2854,11 +2874,13 @@ function drawRolling(X, Y, st, av, k, sg){
 }
 function drawChar(cx, X, Y, st, av){
   const Q = (dx, dy, w, h, col) => { cx.fillStyle = col; cx.fillRect(Math.round(X + dx), Math.round(Y + dy), w, h); };
-  const tt = typeof t === 'number' ? t : 0, mv = !!st.moving, ang = st.ang || 0, sn = Math.sin(ang), cs = Math.cos(ang);
+  const tt = typeof t === 'number' ? t : 0, mv = !!st.moving && !st.sit, ang = st.sit ? Math.PI / 2 : st.ang || 0, sn = Math.sin(ang), cs = Math.cos(ang);
   const back = sn < -.35, front = sn > .35, side = !back && !front, fx = cs > 0 ? 1 : -1;
   const ph = st.walk || 0, step = mv ? Math.sin(ph) : 0, kk = st.kick || 0;
   const bob = mv ? Math.round(Math.abs(Math.sin(ph)) * 1.4) : Math.round((Math.sin(tt * 3) + 1) * .45);
-  const by = -4 - bob, hh = by - 13;
+  // sentado (en el banco) el cuerpo baja y no lleva el arma; con arma, los dos brazos van a la empuñadura
+  const sit = !!st.sit, hold = st.w !== -1 && !sit;
+  const by = (sit ? -1 : -4) - bob, hh = by - 13;
   const skin = av.skin || '#f2c18d', hair = av.hair || '#5a3a22', shirt = av.shirt || '#3b82f6', pants = av.pn || '#3a3a5c', eyec = av.ec || '#111111';
   const hs = av.hs | 0, os = av.os | 0, acc = av.acc | 0, OL = '#14101e';
   const eb = shd(hair, -.25), mouth = shd(skin, -.45), hl = shd(hair, .3), stub = shd(skin, -.3), boot = shd(pants, -.55);
@@ -2869,10 +2891,11 @@ function drawChar(cx, X, Y, st, av){
   // ---- piezas con contorno oscuro (piernas, cuerpo, cabeza)
   if(!side){
     lA = step > .3 ? -1 : 0; lB = step < -.3 ? -1 : 0;
-    P1.push([-3, -4 + lA, 3, 4, pants], [0, -4 + lB, 3, 4, pants]);
+    if(sit) P1.push([-3, -2, 3, 2, pants], [0, -2, 3, 2, pants]);
+    else P1.push([-3, -4 + lA, 3, 4, pants], [0, -4 + lB, 3, 4, pants]);
     if(hs === 1) P1.push([-5, hh + 2, 1, 8, hair], [4, hh + 2, 1, 8, hair]);
     P1.push([-4, by - 6, 8, 6, shirt]);
-    P1.push([-5, by - 5 + (mv ? Math.round(-step) : 0), 1, 4, shd(shirt, -.2)], [4, by - 5 + (mv ? Math.round(step) : 0), 1, 4, shd(shirt, -.2)]);
+    if(!hold) P1.push([-5, by - 5 + (mv ? Math.round(-step) : 0), 1, 4, shd(shirt, -.2)], [4, by - 5 + (mv ? Math.round(step) : 0), 1, 4, shd(shirt, -.2)]);
     P2.push([-4, hh, 8, 7, skin]);
   } else {
     a1 = Math.round(step * 2);
@@ -2902,8 +2925,8 @@ function drawChar(cx, X, Y, st, av){
   Q(bx, by - 1, bw, 1, '#4b2e14'); if(front) Q(-1, by - 1, 2, 1, '#ffd23f');
   if(!side){
     Q(3, by - 5, 1, 4, shd(shirt, -.18));
-    Q(-5, by - 1 + (mv ? Math.round(-step) : 0), 1, 1, skin); Q(4, by - 1 + (mv ? Math.round(step) : 0), 1, 1, skin);
-  } else Q(-1, by - 5, 2, 3, shd(shirt, -.2));
+    if(!hold){ Q(-5, by - 1 + (mv ? Math.round(-step) : 0), 1, 1, skin); Q(4, by - 1 + (mv ? Math.round(step) : 0), 1, 1, skin); }
+  } else if(!hold) Q(-1, by - 5, 2, 3, shd(shirt, -.2));
   if(am){
     Q(bx, by - 6, bw, 6, am.col);
     if(side) Q(-2, by - 7, 3, 3, am.col); else { Q(-5, by - 7, 2, 3, am.col); Q(3, by - 7, 2, 3, am.col); }
@@ -2911,8 +2934,14 @@ function drawChar(cx, X, Y, st, av){
   }
   // ---- arma (si miras hacia arriba va detras de la cabeza)
   const gun = () => {
-    if(st.w === -1) return;   // personajes sin arma (los de la historia y el final)
+    if(!hold) return;   // sin arma (los de la historia, el final) o sentado
     const hx = Math.round(X + cs * 3), hy = Math.round(Y + by - 3 + sn * 3);
+    // brazos: de cada hombro hasta la empuñadura (de costado se ve uno solo)
+    const sleeve = am ? shd(am.col, -.15) : shd(shirt, -.2);
+    for(const sx of side ? [fx > 0 ? 0 : -1] : [-4, 3]){
+      const ax = X + sx, ay = Y + by - 5, n = Math.max(1, Math.ceil(Math.hypot(hx - ax, hy - ay)));
+      for(let i = 0; i <= n; i++) Q(sx + (hx - ax) * i / n, by - 5 + (hy - ay) * i / n, 2, 2, i > n - 2 ? skin : sleeve);
+    }
     drawWeapon(cx, hx, hy, st.w | 0, ang, kk);
     cx.fillStyle = skin; cx.fillRect(hx - 1, hy - 1, 2, 2);   // la mano sobre la empuñadura
   };
@@ -3539,8 +3568,8 @@ function draw(){
 
   if(state !== 'menu' && !p.dead && !(p.inv > 0 && Math.floor(t * 20) % 2)){
     dr.push({ y: p.y, f: () => p.roll > 0
-      ? drawRolling(Math.round(p.x - camx), Math.round(p.y - camy), { ...p, arm: V.arm, w: V.eq }, V.av, 1 - p.roll / ROLL_T, p.rsg)
-      : drawChar(g, Math.round(p.x - camx), Math.round(p.y - camy), { ...p, arm: V.arm, w: V.eq }, V.av) });
+      ? drawRolling(Math.round(p.x - camx), Math.round(p.y - camy), { ...p, arm: V.arm, w: V.eq, sit: p.seated }, V.av, 1 - p.roll / ROLL_T, p.rsg)
+      : drawChar(g, Math.round(p.x - camx), Math.round(p.y - camy), { ...p, arm: V.arm, w: V.eq, sit: p.seated }, V.av) });
   }
 
   dr.sort((a, b) => a.y - b.y).forEach(d => d.f());
@@ -5090,7 +5119,9 @@ function tcSync(){
   if(on !== tcShown){ tcShown = on; tc.classList.toggle('on', on); if(!on){ stick = aimStick = null; stickId = aimId = null; mdown = false; } }
   if(!on) return;
   tcRev.classList.toggle('on', !!p.rvTgt);
-  document.getElementById('tcTalk').classList.toggle('on', npcNear());
+  const ca = ctxAct(), tt_ = document.getElementById('tcTalk');
+  tt_.classList.toggle('on', !!ca);
+  if(ca && tt_.textContent !== ca.n) tt_.textContent = ca.n;
   tcMap.classList.toggle('on', mode === 'camp' || mode === 'surv');
   tcMap.classList.toggle('act', miniTouch);
   tcRoll.classList.toggle('cd', p.rlc > 0 || p.roll > 0);
@@ -5132,7 +5163,7 @@ document.querySelectorAll('.tcb').forEach(b => {
     if(k === 'roll') keys[' '] = true;
     else if(k === 'rev') keys.e = true;
     else if(k === 'weap') nextWeapon();
-    else if(k === 'talk') npcOpen();
+    else if(k === 'talk'){ const c = ctxAct(); if(c) c.f(); }
     else if(k === 'pause'){ if(state === 'play') pauseMenu(); }
     else if(k === 'map') miniTouch = !miniTouch;
   });
@@ -5154,7 +5185,7 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase(); keys[k] = true;
   const pl = state === 'play' && !open();
   if(pl && k === 'm') mini = !mini;
-  if(pl && k === 'e' && npcOpen()) keys.e = false;
+  if(pl && k === 'e'){ const c = ctxAct(); if(c){ c.f(); keys.e = false; } }
   if(k === 'f' && !(e.target && e.target.tagName === 'INPUT')) toggleFS();
   if(k === ' ' && pl) e.preventDefault();
   if(k === 'escape' && state === 'play'){ paused ? A.resume() : pauseMenu(); }
