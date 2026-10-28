@@ -2195,7 +2195,8 @@ function pathAng(e, tg){
   if(bx === x && by === y) return null;
   return Math.atan2(by * T + 8 - e.y, bx * T + 8 - e.x);
 }
-// se da cuenta del jugador: grita "!", se lanza un momento más rápido y avisa a los que están cerca
+// se da cuenta del jugador: grita "!", se frena un instante por la sorpresa y avisa a los que están cerca
+// (después te persigue a su velocidad normal; antes arrancaba con un pique más rápido que era injusto)
 function wake(e, rush){
   if(e.aw) return;
   e.aw = 1; e.ex = .7; e.rush = rush; e.at = Math.max(e.at, .6);
@@ -2209,7 +2210,7 @@ function aiMove(e, dt, sm, tg){
   const a = Math.atan2(dy, dx);
   if(e.rush > 0) e.rush -= dt;
   if(e.ex > 0) e.ex -= dt;
-  const sp = d.sp * dt * sm * (e.el ? 1.15 : 1) * (1 + Math.sin(t * 6 + e.ph) * .4) * (e.rush > 0 ? 2.3 : 1);
+  const sp = d.sp * dt * sm * (e.el ? 1.15 : 1) * (1 + Math.sin(t * 6 + e.ph) * .4) * (e.rush > 0 ? .15 : 1);
   const rr = d.r > 8 ? 6 : 4;
 
   // en la mazmorra, si no te ve directo (hay algo en el medio), sigue el camino que rodea los obstáculos
@@ -2292,9 +2293,16 @@ function aiMove(e, dt, sm, tg){
     e.at -= dt * CDM;
     if(e.at <= 0 && dist < 200){ for(let i = -1; i <= 1; i++) shootE(e.x, e.y - 6, a + i * .3, 80, 3, '#e2e8f0'); e.at = 3; }
   } else if(d.bomb){
-    // Kamikaze corre hacia el jugador y explota
-    go(a, sp * 1.5);
-    if(dist < 18){ shock(e.x, e.y, 40); e.dead = true; if(tg === p) hurt(); }
+    // Kamikaze: corre hacia vos (un poco más lento que vos) y al llegar cerca se frena y titila
+    // como una mecha antes de explotar, así hay tiempo de alejarse o de rodar
+    if(e.fuse > 0){
+      e.fuse -= dt; e.tl = 1;
+      if(e.fuse <= 0){ shock(e.x, e.y, 40); burst(e.x, e.y - 6, '#ff9d3d', 16); e.dead = true; }
+    } else {
+      // velocidad pareja (sin el vaivén de los demás) y apenas menor que la tuya en todos los pisos
+      go(a, d.sp * dt * Math.min(sm, 1.1) * (e.rush > 0 ? .15 : 1));
+      if(dist < 26) e.fuse = .75;
+    }
   } else if(d.ranged){
     // Esqueleto tirador
     if(dist > 110) go(a, sp);
