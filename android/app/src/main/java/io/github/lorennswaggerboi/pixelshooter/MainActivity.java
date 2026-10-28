@@ -61,6 +61,10 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setAllowFileAccess(false);
+        // el juego no se puede agrandar con dos dedos (se descuadraban los menús)
+        s.setSupportZoom(false);
+        s.setBuiltInZoomControls(false);
+        s.setDisplayZoomControls(false);
         s.setUserAgentString(s.getUserAgentString() + " PixelShooterApp");
 
         // partidas locales sin internet (Wi-Fi o Bluetooth): el juego lo usa como window.PSNative

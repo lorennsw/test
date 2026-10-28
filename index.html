@@ -1,5 +1,5 @@
 <!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Pixel Shooter - Roguelike Dungeon Expansion</title>
 <meta name="description" content="Shooter roguelike estilo The Binding of Isaac con cooperativo online y mazmorras procedurales">
 <style>
@@ -33,6 +33,7 @@
   --ui:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --px:'Press Start 2P',monospace;
 }
+html,body{touch-action:pan-x pan-y}
 html,body{height:100%;margin:0;background:var(--bg);font-family:var(--ui);color:var(--text);overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-font-smoothing:antialiased}
 body{display:flex;align-items:center;justify-content:center}
 #w{position:relative;width:100%;max-width:calc((100vh - 20px)*16/9);--ex:0px;container-type:inline-size;box-shadow:0 0 0 1px var(--line),0 2cqw 6cqw rgba(0,0,0,.6);border-radius:6px;overflow:hidden}
@@ -4490,6 +4491,9 @@ document.querySelectorAll('.tcb').forEach(b => {
   b.addEventListener('contextmenu', e => e.preventDefault());
 });
 addEventListener('resize', applyTouch);
+// algunos navegadores ignoran user-scalable=no: se frena a mano el zoom con dos dedos (los toques le siguen llegando al juego)
+addEventListener('touchmove', e => { if(e.touches.length > 1) e.preventDefault(); }, { passive: false });
+addEventListener('gesturestart', e => e.preventDefault());
 
 // ---------- EVENTOS Y CONTROLES ----------
 addEventListener('keydown', e => {
