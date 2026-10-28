@@ -120,6 +120,15 @@ kbd{display:inline-block;min-width:1.6em;text-align:center;background:rgba(255,2
 .badge-ver{display:inline-block;white-space:nowrap;color:var(--muted);font-size:max(9px,.9cqw);font-weight:600;letter-spacing:.12em;padding:.45cqw .9cqw;border:1px solid var(--line2);border-radius:2cqw}
 .cols{display:grid;grid-template-columns:42cqw 24cqw 1fr;gap:1.6cqw;margin:1.8cqw 0 1.4cqw;flex:1;min-height:0;align-items:stretch}
 .nav{display:flex;flex-direction:column;gap:.7cqw;min-height:0}
+.nhome,.nplay{flex:1;display:flex;flex-direction:column;gap:.7cqw;min-height:0;animation:pin .18s ease-out}
+.nav.play>.nhome,.nav:not(.play)>.nplay{display:none}
+.playb{flex:3;display:flex;align-items:center;justify-content:flex-start;gap:1.6cqw;width:100%;margin:0;padding:1cqw 2.4cqw;text-align:left;background:linear-gradient(120deg,#f6c453,var(--acc) 55%,#d99a1f);border-color:#ffd27a;color:var(--acc-ink);box-shadow:0 .6cqw 2cqw rgba(242,179,61,.25)}
+.playb:hover{filter:brightness(1.06);background:linear-gradient(120deg,#f6c453,var(--acc) 55%,#d99a1f);border-color:#fff3c4}
+.playb>.ico{width:4.6cqw;height:4.6cqw;color:var(--acc-ink)}
+.playb span{display:flex;flex-direction:column}
+.playb b{font-size:max(20px,3.4cqw);font-weight:900;letter-spacing:.04em;line-height:1}
+.playb small{margin-top:.5cqw;font-size:max(10px,1cqw);font-weight:600;color:rgba(29,20,5,.75)}
+.mb.back{flex:.7}.mb.back::after{display:none}
 .nrow{flex:1;display:flex;gap:.7cqw;min-height:0}.nrow .mb{flex:1}
 .hero-mode{position:relative;flex:1.6;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(120deg,rgba(242,179,61,.16),rgba(242,179,61,.03) 60%),var(--panel);border:1px solid rgba(242,179,61,.45);padding:1cqw 1.6cqw;cursor:pointer;border-radius:var(--r);transition:border-color .15s,background .15s,transform .08s}
 .hero-mode:hover{border-color:var(--acc);background:linear-gradient(120deg,rgba(242,179,61,.24),rgba(242,179,61,.05) 60%),var(--panel)}
@@ -3948,6 +3957,7 @@ const I = {
 };
 const spl = t => [...t].map((c, i) => `<span style="--i:${i}">${c}</span>`).join('');
 
+let menuPlay = false;   // menú principal mostrando los modos (después de tocar Jugar)
 function main(msg){
   dungIso(false); net.wait = false; dung.passives = [];
   if(mode === 'dung'){ mode = 'surv'; genMap(3, 0, false); buildMini(); }
@@ -3965,25 +3975,30 @@ function main(msg){
     </div>
     ${msg ? `<div class="msg bad" style="margin:1cqw 0 0">${esc(msg)}</div>` : ''}
     <div class=cols>
-      <div class=nav>
-        <!-- MODO MAZMORRAS DESTACADO -->
-        <div class=hero-mode data-a=dung>
-          <b>${I.key} Modo Mazmorras</b>
-          <small>Estilo Isaac: muchas habitaciones, cámara fija, reliquias acumulables, trampillas y jefes temibles.</small>
-          <div class=hero-tags>
-            <span>1-8 jugadores</span><span>Roguelike</span><span>Reliquias</span>
+      <div class="nav${menuPlay ? ' play' : ''}">
+        <!-- inicio: Jugar y lo demás -->
+        <div class=nhome>
+          <button class=playb data-a=play>${I.play}<span><b>Jugar</b><small>Mazmorras, Arena PvP, Campaña y Supervivencia · solo o con amigos</small></span></button>
+          <div class=nrow>
+            <button class=mb data-a=shop>${I.cart}<span><b>Tienda</b><small>Armas y equipo</small></span></button>
+            <button class=mb data-a=loads>${I.save}<span><b>Cargar</b><small>Partidas guardadas</small></span></button>
+            <button class=mb data-a=set>${I.sliders}<span><b>Ajustes</b><small>Audio, video, controles</small></span></button>
           </div>
         </div>
-
-        <button class="mb s" data-a=online>${I.globe}<span><b>Cooperativo online</b><small>Salas públicas y privadas</small></span></button>
-        <button class=mb data-a=duel>${I.target}<span><b>Arena PvP</b><small>1v1, 2v2, 3v3, 4v4 y todos contra todos · ranking</small></span></button>
-        <button class=mb data-a=camp>${I.flag}<span><b>Campaña clásica</b><small>Niveles y misiones · 1-8 jugadores</small></span></button>
-        <button class=mb data-a=surv>${I.swords}<span><b>Supervivencia</b><small>Oleadas sin fin · 1-8 jugadores</small></span></button>
-        <div class=nrow>
-          ${NB ? `<button class=mb data-a=local>${I.link}<span><b>Local</b><small>Sin internet</small></span></button>` : ''}
-          <button class=mb data-a=shop>${I.cart}<span><b>Tienda</b><small>Armas y equipo</small></span></button>
-          <button class=mb data-a=loads>${I.save}<span><b>Cargar</b><small>Partidas guardadas</small></span></button>
-          <button class=mb data-a=set>${I.sliders}<span><b>Ajustes</b><small>Audio, video, controles</small></span></button>
+        <!-- al tocar Jugar: los modos (el online se elige en cada uno con la cantidad de jugadores) -->
+        <div class=nplay>
+          <div class=hero-mode data-a=dung>
+            <b>${I.key} Modo Mazmorras</b>
+            <small>Estilo Isaac: muchas habitaciones, cámara fija, reliquias acumulables, trampillas y jefes temibles.</small>
+            <div class=hero-tags>
+              <span>1-8 jugadores</span><span>Roguelike</span><span>3 dificultades</span>
+            </div>
+          </div>
+          <button class=mb data-a=duel>${I.target}<span><b>Arena PvP</b><small>1v1, 2v2, 3v3, 4v4 y todos contra todos · ranking</small></span></button>
+          <button class=mb data-a=camp>${I.flag}<span><b>Campaña clásica</b><small>Niveles y misiones · 1-8 jugadores</small></span></button>
+          <button class=mb data-a=surv>${I.swords}<span><b>Supervivencia</b><small>Oleadas sin fin · 1-8 jugadores</small></span></button>
+          ${NB ? `<button class=mb data-a=local>${I.link}<span><b>Partida local</b><small>Wi-Fi o Bluetooth, sin internet</small></span></button>` : ''}
+          <button class="mb back" data-a=playx>${I.back}<span><b>Atrás</b></span></button>
         </div>
       </div>
 
@@ -4011,7 +4026,7 @@ function main(msg){
         <div><span>Revivir</span><kbd>Mantener</kbd></div>
         <div><span>Pausa</span><kbd>II</kbd></div>` : `<div><span>Mover</span><kbd>WASD</kbd></div>
         <div><span>Disparar</span><kbd>Click</kbd></div>
-        <div><span>Cambiar arma</span><kbd>1-8</kbd></div>
+        <div><span>Cambiar arma</span><kbd>1-0</kbd></div>
         <div><span>Roll</span><kbd>Espacio</kbd></div>
         <div><span>Tienda</span><kbd>B</kbd></div>
         <div><span>Minimapa</span><kbd>M</kbd></div>
@@ -4269,17 +4284,6 @@ function players(md, onlineOnly){
   <div class=r>¿Cuántos jugadores?</div>
   <div class=pcount>${ns.map(n => `<button class="${n === 1 ? 's' : ''}" data-a=np data-v=${n}>${n}<small>${n === 1 ? 'SOLITARIO' : 'ONLINE'}</small></button>`).join('')}</div>
   <div class=r><small>Con 2 o más se crea una sala online cooperativa para esa cantidad de jugadores.</small></div>
-  <button data-a=back>${I.back} Volver</button>`);
-}
-
-function modeSel(){
-  panel(`<h2>Cooperativo online</h2>
-  <div class=r>Elegí el modo para jugar con amigos</div>
-  <div class=duo>
-    <button class="big s" data-a=om data-v=dung>${I.key}<b>Mazmorras</b><small>Exploren habitaciones estilo Isaac y luchen juntos contra los jefes.</small></button>
-    <button class=big data-a=om data-v=camp>${I.flag}<b>Campaña</b><small>Niveles continuos con puertas y misiones.</small></button>
-    <button class=big data-a=om data-v=surv>${I.swords}<b>Supervivencia</b><small>Rondas de 5 minutos con ranking de bajas y votación de mapas.</small></button>
-  </div>
   <button data-a=back>${I.back} Volver</button>`);
 }
 
@@ -5196,7 +5200,8 @@ const A = {
   sload: v => loadGame(+v),
   sdel: v => { const l = getSaves(); l.splice(+v, 1); putSaves(l); savesMenu(); },
   gsave: () => saveGame(false),
-  online: () => modeSel(),
+  play: () => { menuPlay = true; const n = $('.nav'); if(n) n.classList.add('play'); },
+  playx: () => { menuPlay = false; const n = $('.nav'); if(n) n.classList.remove('play'); },
   rnd: () => {
     V.av.skin = SK[rnd(0, SK.length - 1)];
     V.av.hair = HR[rnd(0, HR.length - 1)];
@@ -5226,7 +5231,7 @@ const A = {
     if(net.host) vote.votes[net.id] = +v; else snd({ t: 'vt', i: +v });
     updVote();
   },
-  om: v => players(v, true),
+
   dstart: () => {
     if(!net.on || !net.host || !net.wait) return;
     const L = net.load; net.load = null;
