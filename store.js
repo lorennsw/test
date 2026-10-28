@@ -26,6 +26,7 @@ function cleanData(d) {
     coins: int(d.coins, 0, 0, 1e7), owned: nums(d.owned, 16), eq: int(d.eq, 0, 0, 15),
     arm: int(d.arm, -1, -1, 15), armo: nums(d.armo, 16), pet: int(d.pet, -1, -1, 15), peto: nums(d.peto, 16),
     bestDung: int(d.bestDung, 1, 1, 999), bestKills: int(d.bestKills, 0, 0, 1e7),
+    gems: int(d.gems, 0, 0, 1e6), acco: nums(d.acco, 21),
     av: { skin: col(av.skin), hair: col(av.hair), shirt: col(av.shirt), ec: col(av.ec), pn: col(av.pn),
       hs: int(av.hs, 0, 0, 20), os: int(av.os, 0, 0, 20), acc: int(av.acc, 0, 0, 20) }
   };
