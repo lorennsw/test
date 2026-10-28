@@ -449,6 +449,87 @@ const WP = [
   { n: 'Daga Sombría', d: 3, cd: .20, s: 330, pel: 2, sp: .10, pr: 550, col: '#c084fc', prc: true }
 ];
 
+// Dibujo de cada arma en píxeles (mismo orden que WP). h: columna y fila de la mano (empuñadura).
+// Filas de arriba a abajo con el cañón hacia la derecha; c = color del arma, C = ese color más claro.
+const WSPR = [
+  { h: [2, 3], r: [   // Pistola
+    'kkkkkkkk.',
+    'kllllllCk',
+    'kmmmmmmmk',
+    'kgggkkkk.',
+    '.kgk.....',
+    '.kk......'] },
+  { h: [4, 3], r: [   // Subfusil
+    '...kkkkkkkk..',
+    'kkklllllllkkk',
+    'kdkmmmmmmmmCc',
+    '.kkkgkdkkkkk.',
+    '....kgkdk....',
+    '....kk.kdk...',
+    '........kk...'] },
+  { h: [6, 3], r: [   // Escopeta
+    '......kkkkkkkkk.',
+    'kkkkkkmmmmmmmmmc',
+    'kWWWWkddddddddkc',
+    'kwwkkgkkWWWWWk..',
+    'kk..kgk.kkkkk...',
+    '....kk..........'] },
+  { h: [6, 4], r: [   // Rifle
+    '......kkkkkk......',
+    '.....kdlldddk.....',
+    '......kkkkkk......',
+    'kkkkkkmmmmmmmmmmmc',
+    'kWWWWkgkddddddkkk.',
+    'kwwk.kgk.kkkkk....',
+    'kk...kk...........'] },
+  { h: [4, 4], r: [   // Cañón láser
+    '...kkkkkkkkk..',
+    '..kdddddddddk.',
+    '.kmmCCCCCCmmkk',
+    'kkmcccccccmmCc',
+    'kdkkgkddddddkk',
+    '...kgk.kkkkk..',
+    '...kk.........'] },
+  { h: [7, 3], r: [   // Lanzallamas
+    '.......kkkkkkkk.',
+    'kkkkkkkmmmmmmllk',
+    'kdddddkdddddddCc',
+    '.kCccckkgkkkkkk.',
+    '.kccckk.kgk.....',
+    '..kkkk..kk......'] },
+  { h: [3, 3], r: [   // Arco Tesla
+    '......k.k.k.',
+    '...kkkCkCkCk',
+    'kkkmmmmmmmmc',
+    'kddkkddddkkC',
+    '.kgk.kkkk...',
+    '.kk.........'] },
+  { h: [2, 2], r: [   // Daga Sombría
+    '.kk.........',
+    'kmmk.kkkkkk.',
+    'kWWkkCCCCCCk',
+    'kmmk.kccccck',
+    '.kk...kkkk..'] }
+];
+const WPAL = { k: '#16141f', d: '#3b3f4d', m: '#6b7285', l: '#aeb6c8', w: '#6e4522', W: '#a0673a', g: '#2a2733' };
+// Dibuja el arma girada hacia ang con la mano en (X, Y). Cada píxel se muestrea 4 veces para que
+// al girar no queden agujeros y el pixel art se mantenga nítido. Mirando a la izquierda se espeja (no queda al revés).
+function drawWeapon(cx, X, Y, wi, ang, kick){
+  const S = WSPR[wi] || WSPR[0], c = (WP[wi] || WP[0]).col, cl = shd(c, .45);
+  const cs = Math.cos(ang), sn = Math.sin(ang), fy = cs < 0 ? -1 : 1, k = kick || 0;
+  for(let j = 0; j < S.r.length; j++){
+    const row = S.r[j];
+    for(let i = 0; i < row.length; i++){
+      const ch = row[i]; if(ch === '.') continue;
+      cx.fillStyle = ch === 'c' ? c : ch === 'C' ? cl : WPAL[ch];
+      for(const ox of [.25, .75]) for(const oy of [.25, .75]){
+        const lx = i + ox - S.h[0] - k, ly = (j + oy - S.h[1]) * fy;
+        cx.fillRect(Math.floor(X + lx * cs - ly * sn), Math.floor(Y + lx * sn + ly * cs), 1, 1);
+      }
+    }
+  }
+}
+
 // ---------- RELIQUIAS / HABILIDADES PASIVAS (ESTILO TBOI) ----------
 const RELICS = [
   { id: 'boots', n: 'Alas de Hermes', d: '+30% velocidad de movimiento', ic: '👟', col: '#7df9ff', sp: 1.3 },
@@ -1102,6 +1183,51 @@ function drawProp(q){
     g.fillStyle = '#713f12'; g.fillRect(X + 2, Y + 8, 12, 1); g.fillRect(X + 7, Y + 3, 1, 12);
   }
 }
+// dibujo de lo que vende la sala de tienda del piso (corazón, armadura o reliquia)
+function shopGlyph(it, X, Y){
+  const Q = (a, b, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(X + a), Math.round(Y + b), w, h); };
+  if(it.t === 'heart'){
+    Q(-4, -3, 3, 2, '#14101e'); Q(1, -3, 3, 2, '#14101e'); Q(-5, -2, 10, 3, '#14101e'); Q(-4, 1, 8, 2, '#14101e'); Q(-2, 3, 4, 1, '#14101e');
+    Q(-4, -2, 3, 2, '#e43b44'); Q(1, -2, 3, 2, '#e43b44'); Q(-4, 0, 8, 1, '#e43b44'); Q(-3, 1, 6, 1, '#e43b44'); Q(-2, 2, 4, 1, '#c22a35'); Q(-1, 3, 2, 1, '#c22a35');
+    Q(-3, -2, 1, 1, '#ff9aa2');
+  } else if(it.t === 'armor'){
+    Q(-5, -4, 10, 8, '#14101e'); Q(-3, 4, 6, 1, '#14101e');
+    Q(-4, -3, 8, 6, '#9aa6b8'); Q(-2, 3, 4, 1, '#7a8698'); Q(-4, -3, 8, 1, '#d5dde8'); Q(-1, -2, 2, 5, '#56c8e0');
+  } else {
+    const r = RELICS[it.i] || RELICS[0];
+    g.fillStyle = r.col; g.beginPath(); g.arc(X, Y, 5, 0, 6.28); g.fill();
+    Q(-2, -3, 2, 2, 'rgba(255,255,255,.7)');
+  }
+}
+
+// ---- tienda de la sala inicial de cada piso: la misma tienda de siempre, pero con lo de esta partida
+// (en la mazmorra se empieza sin nada: monedas y armas son solo de la run)
+const STALL = { x: (RW - 4) * T, y: 2 * T + 12 };
+const nearStall = () => benchHere() && !p.dead && Math.abs(p.x - STALL.x) < 15 && Math.abs(p.y - STALL.y) < 10;
+function stallTick(){
+  if(!nearStall()){ p.stallDone = false; return; }
+  if(p.stallDone || paused || state !== 'play') return;
+  p.stallDone = true; paused = true; ret = A.resume; shop(0);
+}
+function drawStall(){
+  const R = tileR(STALL.x - T, STALL.y - 12), glow = nearStall();
+  R(0, 15, 32, 3, 'rgba(0,0,0,.35)');
+  R(2, -6, 2, 14, '#3b2414'); R(28, -6, 2, 14, '#3b2414');                   // postes
+  for(let i = 0; i < 8; i++) R(i * 4, -10, 4, 5, i % 2 ? '#f1e7d0' : '#c0392b'); // toldo a rayas
+  R(0, -5, 32, 1, '#7a1f16');
+  for(let i = 0; i < 8; i++) R(i * 4 + 1, -5, 2, 1, i % 2 ? '#d9cdb3' : '#962d22');
+  R(1, 6, 30, 9, '#6e4522'); R(1, 6, 30, 2, '#a0673a'); R(1, 14, 30, 1, '#3b2414'); // mostrador
+  R(5, 9, 6, 3, '#4a2e17'); R(21, 9, 6, 3, '#4a2e17');
+  R(6, 2, 8, 3, '#555a66'); R(6, 2, 8, 1, '#8c93a3'); R(5, 4, 3, 3, '#3a2a1a'); R(13, 2, 2, 1, '#ffe66d'); // arma en el mostrador
+  R(19, 1, 4, 5, '#e43b44'); R(20, 0, 2, 1, '#b8bcc8'); R(20, 2, 1, 2, '#ff9aa2');  // poción
+  R(25, 3, 4, 3, '#f2b33d'); R(26, 2, 2, 1, '#ffd96b');                            // monedas
+  if(glow){ g.fillStyle = 'rgba(56,214,107,' + (.18 + .12 * Math.sin(t * 5)) + ')'; g.fillRect(Math.round(STALL.x - T - camx), Math.round(STALL.y - 22 - camy), 32, 37); }
+}
+function drawStallHud(){
+  if(!benchHere() || state !== 'play') return;
+  TX('TIENDA', STALL.x - camx, STALL.y - camy + 16, 3, 'rgba(56,214,107,.85)', 'center');
+}
+
 // ---- banco de guardado: en la sala inicial de cada piso; quedarse quieto sentado guarda la partida
 const BENCH = { x: 4 * T, y: 2 * T + 12, sitT: .9 };   // centro del asiento (2 casillas, arriba a la izquierda)
 const benchHere = () => mode === 'dung' && dung.curRoom && dung.curRoom.type === 'start';
@@ -2101,7 +2227,7 @@ function update(dt){
         const tx_ = Math.floor(p.x / T), ty_ = Math.floor(p.y / T);
         for(const s_ of rr.spk) if(s_.x === tx_ && s_.y === ty_ && spkState(s_) === 2){ hurt(); break; }
       }
-      benchTick(dt);
+      benchTick(dt); stallTick();
       if(rr.type === 'fountain' && !rr.used && !p.dead && Math.hypot(p.x - rr.w * T / 2, p.y - rr.h * T / 2) < 20){
         rr.used = true; p.hp = p.maxHp || 5; burst(p.x, p.y - 8, '#7dd3fc', 18); banner('¡VIDA RESTAURADA!'); sCoin();
       }
@@ -2482,7 +2608,7 @@ function drawChar(cx, X, Y, st, av){
   const skin = av.skin || '#f2c18d', hair = av.hair || '#5a3a22', shirt = av.shirt || '#3b82f6', pants = av.pn || '#3a3a5c', eyec = av.ec || '#111111';
   const hs = av.hs | 0, os = av.os | 0, acc = av.acc | 0, OL = '#14101e';
   const eb = shd(hair, -.25), mouth = shd(skin, -.45), hl = shd(hair, .3), stub = shd(skin, -.3), boot = shd(pants, -.55);
-  const am = ARM[st.arm], wc = (WP[st.w | 0] || WP[0]).col;
+  const am = ARM[st.arm];
   const bw = side ? 6 : 8, bx = side ? -3 : -4, xx = side ? -3 : -4, ww = side ? 7 : 8;
   const P1 = [], P2 = [];
   let lA = 0, lB = 0, a1 = 0;
@@ -2531,8 +2657,9 @@ function drawChar(cx, X, Y, st, av){
   }
   // ---- arma (si miras hacia arriba va detras de la cabeza)
   const gun = () => {
-    Q(cs * 3 - 1, by - 3 + sn * 3 - 1, 2, 2, skin);
-    for(let i = 4 - kk; i < 9 - kk; i++) Q(cs * i - 1, by - 3 + sn * i - 1, 2, 2, i > 7 - kk ? wc : (i > 5 - kk ? '#aab' : '#555'));
+    const hx = Math.round(X + cs * 3), hy = Math.round(Y + by - 3 + sn * 3);
+    drawWeapon(cx, hx, hy, st.w | 0, ang, kk);
+    cx.fillStyle = skin; cx.fillRect(hx - 1, hy - 1, 2, 2);   // la mano sobre la empuñadura
   };
   if(back) gun();
   for(const [a, b, w, h, c] of P2) Q(a, b, w, h, c);
@@ -2900,11 +3027,12 @@ function drawDungeonRoom(){
       const rel = RELICS[ped.item.i];
       g.fillStyle = rel.col;
       g.beginPath(); g.arc(px, py - 14 + bob, 5, 0, 6.28); g.fill();
-      TX(rel.ic, (px - 6) + camx, (py - 10 + bob) + camy, 4, '#fff');
+      TX(rel.ic, px - 6, py - 10 + bob, 4, '#fff');
     } else if(ped.item && ped.item.t === 'wp'){
-      icon(g, 'w', ped.item.i, px - 6, py - 18 + bob);
+      icon(g, 'w', ped.item.i, px - 12, py - 26 + bob);
     } else if(ped.shop){
-      TX('$' + ped.shop.pr, px + camx, py - 18 + camy, 3.5, '#ffd23f', 'center');
+      shopGlyph(ped.shop, px, py - 12 + bob);
+      TX('$' + ped.shop.pr, px, py - 22, 3.5, '#ffd23f', 'center');
     }
   }
 
@@ -3088,7 +3216,7 @@ function draw(){
 
   // Renderizar entidades ordenadas por Y
   for(const e of enemies) dr.push({ y: e.y, f: () => drawEnemy(e) });
-  if(benchHere()) dr.push({ y: BENCH.y + 2, f: drawBench });
+  if(benchHere()){ dr.push({ y: BENCH.y + 2, f: drawBench }); dr.push({ y: STALL.y + 2, f: drawStall }); }
   if(mode === 'dung' && dung.curRoom) for(const q of dung.curRoom.props) if(!q.dead) dr.push({ y: q.y * T + T, f: () => drawProp(q) });
   if(net.on) for(const id in net.rem){
     const r = net.rem[id];
@@ -3212,7 +3340,7 @@ function draw(){
   }
 
   drawReviveHud();
-  drawBenchHud();
+  drawBenchHud(); drawStallHud();
   if(touchOn() && state === 'play' && !paused) drawSticks();
   if(state === 'play' && !paused){
     g.fillStyle = S.cross || '#fff';
@@ -3502,20 +3630,28 @@ function shop(tb){
     </div>`;
   };
 
-  panel(`<h2>Tienda y armería</h2>
+  const dg = mode === 'dung' && state === 'play';
+  panel(`<h2>${dg ? 'Tienda del piso' : 'Tienda y armería'}</h2>
+  ${dg ? '<div class=r><small>En la mazmorra empezás sin nada: lo que compres acá es solo para esta partida.</small></div>' : ''}
   <div class=coins>${V.coins}</div>
   <div class=tabs>${tabs}</div>
   <div class=grid>${items.map(card).join('')}</div>
-  <button class=s data-a=back>${I.back} Volver</button>`);
+  <button class=s data-a=back>${dg ? I.play + " Seguir jugando" : I.back + " Volver"}</button>`);
   document.querySelectorAll('.ic').forEach(cv => icon(cv.getContext('2d'), cv.dataset.k, +cv.dataset.i, 0, 0));
 }
 
 function icon(x, k, i, ox, oy){
   const Q = (a, b, w, h, c) => { x.fillStyle = c; x.fillRect(a + (ox || 0), b + (oy || 0), w, h); };
   if(k === 'w'){
-    const w = WP[i] || WP[0];
-    Q(3, 11, 18, 5, '#666'); Q(3, 15, 6, 7, '#555'); Q(17, 10, 5, 3, w.col); Q(5, 9, 8, 2, '#888');
-    if(w.pel > 1){ Q(19, 8, 3, 1, w.col); Q(19, 14, 3, 1, w.col); }
+    // centrada; en los cuadros de los menús el canvas se achica al tamaño del arma para que se vea grande y nítida
+    const S = WSPR[i] || WSPR[0], w = Math.max(...S.r.map(r => r.length));
+    let n = 24, m = 24;
+    if(x !== g){
+      const cv = x.canvas; n = w + 2; m = S.r.length + 2; ox = oy = 0;
+      if(cv.classList.contains('ic')){ m = 10; cv.width = n; cv.height = m; cv.style.width = n * .3 + 'cqw'; cv.style.height = m * .3 + 'cqw'; }   // tienda: mismo tamaño de píxel y alto en todas
+      else { cv.width = cv.height = n = m = Math.max(n, m); }
+    }
+    drawWeapon(x, (ox || 0) + Math.floor((n - w) / 2) + S.h[0], (oy || 0) + Math.floor((m - S.r.length) / 2) + S.h[1], i, 0);
   } else if(k === 'a'){
     const a = ARM[i];
     Q(6, 6, 12, 14, a.col); Q(2, 5, 5, 5, a.col); Q(17, 5, 5, 5, a.col);
@@ -4371,7 +4507,11 @@ const A = {
   un: v => { if(v == 'a') V.arm = -1; if(v == 'p') V.pet = -1; save(); shop(); },
   buyi: (v, k) => {
     const L = k == 'w' ? WP : k == 'a' ? ARM : PETS, o = k == 'w' ? V.owned : k == 'a' ? V.armo : V.peto, i = +v;
-    if(V.coins >= L[i].pr){ V.coins -= L[i].pr; o.push(i); A.eqi(v, k); }
+    if(V.coins >= L[i].pr){
+      V.coins -= L[i].pr; o.push(i);
+      if(k == 'a' && state === 'play') p.ar = Math.max(p.ar || 0, ARM[i].a);   // jugando, la armadura nueva protege enseguida
+      A.eqi(v, k);
+    }
   },
   avatar, shop, set: settings, back: () => ret(),
   next: () => start('camp', lvl + 1),
