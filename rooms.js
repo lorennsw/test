@@ -6,6 +6,7 @@
 // Cada "ws" es cualquier objeto con send(texto) y readyState (1 = abierto).
 // Sin store (partida local) no hay ranking: el PvP no cambia el Elo.
 // lobby (solo partida local): al terminar se puede volver a la sala, cambiar de modo y empezar cuando todos están listos.
+// Las salas "P|código" (salas online con amigos) funcionan igual: arrancan en la sala y el nombre no cambia.
 (function (root) {
   const MAX = 4;                                        // jugadores por sala si el cliente no elige
   const MIN_P = 2, TOP_P = 8;                           // límites para la cantidad elegida
@@ -20,7 +21,7 @@
     const rooms = {};
     let nextId = 1, duelN = 1;
     const send = (ws, o) => ws.readyState === 1 && ws.send(JSON.stringify(o));
-    const list = () => [...new Set([...DEFAULT_ROOMS, ...Object.keys(rooms).filter(n => !n.includes('|#'))])]
+    const list = () => [...new Set([...DEFAULT_ROOMS, ...Object.keys(rooms).filter(n => !n.includes('|#') && !n.startsWith('P|'))])]
       .map(n => [n, rooms[n] ? rooms[n].size : 0, rooms[n] ? rooms[n].max : MAX]);
     const nameOf = ws => ws.user || ws.nick || 'Jugador';
     const getUser = name => store ? store.getUser(name) : null;
@@ -34,14 +35,16 @@
     function joinRoom(ws, name, max) {
       const pv = pvOf(name);
       // el que crea la sala elige cuántos jugadores entran (las salas PvP tienen tamaño fijo)
-      const r = rooms[name] || Object.assign(new Set(), { max: pv ? pv.max : Math.max(MIN_P, Math.min(TOP_P, max | 0 || MAX)) });
+      const party = name.startsWith('P|');
+      const r = rooms[name] || Object.assign(new Set(), { max: party ? TOP_P : pv ? pv.max : Math.max(MIN_P, Math.min(TOP_P, max | 0 || MAX)) });
+      if (party && !rooms[name]) { r.party = true; r.lob = { md: 'dung', rd: new Set(), tm: new Map() }; }   // sala con amigos: empieza en la sala
       if (r.size >= r.max || (r.duel && r.duel.live)) return send(ws, { t: 'full' });
       if (pv && !r.duel) { r.pv = pv; r.duel = { live: false }; }
       rooms[name] = r;
       ws.room = name;
       ws.host = r.size === 0;                         // el primero es el anfitrión (maneja los enemigos)
       r.add(ws);
-      send(ws, { t: 'welcome', id: ws.id, host: ws.host, max: r.max, lob: r.lob ? 1 : 0 });
+      send(ws, { t: 'welcome', id: ws.id, host: ws.host, max: r.max, lob: r.lob ? 1 : 0, md: r.md || undefined });
       if (r.lob) return lobbyInfo(r);
       if (pv) {
         if (pv.md !== 'ffa' && r.size === r.max) duelStart(r);
@@ -178,8 +181,9 @@
     function lobbyCheck(r) {
       const l = r.lob, [a, b] = lobbyNeed(l.md);
       if (r.size < a || r.size > b || [...r].some(x => !l.rd.has(x.id)) || (teamSize(l.md) && !teamOk(r))) return lobbyInfo(r);
-      const old = [...r][0].room, name = MODES[l.md] + old.slice(2), pv = pvOf(name);
-      delete rooms[old]; rooms[name] = r; r.forEach(x => { x.room = name; });
+      const old = [...r][0].room, name = r.party ? old : MODES[l.md] + old.slice(2), pv = PV[MODES[l.md]];
+      if (name !== old) { delete rooms[old]; rooms[name] = r; r.forEach(x => { x.room = name; }); }
+      r.md = l.md;
       r.lob = null; r.tm = teamSize(l.md) ? l.tm : null; r.pv = pv || null; r.duel = pv ? { live: false } : null; r.max = pv ? pv.max : TOP_P;
       duelBroadcast(r, { t: 'lob_go', md: l.md, room: name, max: r.max });
       if (pv) duelStart(r);
@@ -225,11 +229,11 @@
         if (m.t === 'duel_qx') return dropQ(ws);
         const r = rooms[ws.room];
         if (!r) return;
-        if (lobby && m.t === 'lobby') return lobbyOpen(r, m.md);
+        if ((lobby || r.party) && m.t === 'lobby') return lobbyOpen(r, m.md);
         if (r.lob && m.t === 'lob_md') { if (ws.host && MODES[m.md]) { r.lob.md = m.md; r.lob.rd.clear(); lobbyInfo(r); } return; }
         if (r.lob && m.t === 'lob_tm') {
           const t = m.tm ? 1 : 0;
-          if (r.lob.tm.get(ws.id) === t) r.lob.tm.delete(ws.id);   // tocar el propio equipo lo deja libre (para intercambiar)
+          if (r.lob.tm.get(ws.id) === t) { if (!m.x) return; r.lob.tm.delete(ws.id); }   // salir del equipo (para intercambiar) solo si se pide: así un mensaje repetido no te saca
           else if ([...r].filter(x => r.lob.tm.get(x.id) === t).length < (teamSize(r.lob.md) || 2)) r.lob.tm.set(ws.id, t);
           else return;
           r.lob.rd.delete(ws.id);
