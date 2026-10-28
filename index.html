@@ -1210,7 +1210,8 @@ function newFloor(fl, sdv){
   if(p.dead > 1000){ p.dead = 0; p.hp = 2; p.inv = 3; }
   banner('PISO ' + fl + ': ' + dung.floorTheme.n.toUpperCase());
 }
-const winDung = () => { state = 'clear'; clearMenu(); };
+// Al pasarse la mazmorra se borra la partida guardada: ya no hay a dónde volver
+const winDung = () => { state = 'clear'; dropSave(); clearMenu(); };
 const dungOver = () => { state = 'over'; V.bestKills = Math.max(V.bestKills || 0, kills); save(); over(); };
 function beginDung(fl, sdv, rk, cl, rs){
   net.wait = false;
@@ -2085,7 +2086,7 @@ function update(dt){
   // Todos caídos: fin de la partida (mazmorras) o reinicio del nivel (campaña)
   if(net.on && net.host && p.dead > 1000 && Object.values(net.rem).every(r => r.dd)){
     if(mode === 'dung'){ snd({ t: 'd_over' }); dungOver(); return; }
-    if(mode === 'camp'){ snd({ t: 'rs' }); start('camp', lvl); return; }
+    if(mode === 'camp'){ snd({ t: 'rs' }); const s = mySave(); s ? applySave(s) : start('camp', 1); return; }
   }
 
   // Comprobaciones de Mazmorras
@@ -3414,7 +3415,7 @@ function pauseMenu(msg){
 }
 
 function over(){
-  ret = over; const nr = kills > (V.bestKills || 0);
+  ret = over; const nr = kills > (V.bestKills || 0), sv = net.on ? null : mySave();
   if(nr){ V.bestKills = kills; save(); }
   panel(`<h1 class=glitch>Game Over</h1>
   ${nr ? '<div class=nr>NUEVO RÉCORD</div>' : '<div class=r><small>Suerte la próxima</small></div>'}
@@ -3424,7 +3425,8 @@ function over(){
     <div><small>MONEDAS</small><b>${V.coins}</b></div>
   </div>
   <div class=vlist>
-    ${net.on ? '' : `<button class=s data-a=retry>${I.retry} Reintentar</button>`}
+    ${net.on ? '' : sv ? `<button class=s data-a=retry>${I.save} Volver al guardado <small>${saveDesc(sv)}</small></button>`
+      : `<button class=s data-a=retry>${I.retry} Empezar de nuevo <small>No guardaste la partida</small></button>`}
     ${mode === 'dung' ? '' : `<button data-a=shop>${I.cart} Tienda</button>`}
     <button data-a=quit>${I.exit} Menú principal</button>
   </div>`);
@@ -4145,6 +4147,8 @@ const SAVES_MAX = 6;
 let curSave = null;   // id de la ranura de la partida actual (para sobrescribirla al volver a guardar)
 const getSaves = () => { try{ return JSON.parse(localStorage.getItem('ps_saves') || '[]'); }catch(e){ return []; } };
 const putSaves = l => { try{ localStorage.setItem('ps_saves', JSON.stringify(l)); return true; }catch(e){ return false; } };
+const mySave = () => curSave ? getSaves().find(o => o.id === curSave) || null : null;
+const dropSave = () => { if(curSave){ putSaves(getSaves().filter(o => o.id !== curSave)); curSave = null; } };
 
 function dungRS(){
   const rs = {};
@@ -4316,7 +4320,8 @@ const A = {
   },
   avatar, shop, set: settings, back: () => ret(),
   next: () => start('camp', lvl + 1),
-  retry: () => start(mode, lvl),
+  // al morir solo se vuelve a donde se guardó; sin guardado se empieza desde el principio
+  retry: () => { const s = mySave(); s ? applySave(s) : start(mode, 1, mapIdx); },
   resume: () => { paused = false; close(); },
   quit: () => {
     if(net.on){ net.on = false; try{ net.ws.close(); }catch(e){} }
