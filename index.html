@@ -1037,10 +1037,10 @@ function dungTile(px, py){
   const isDoorH = (tx === Math.floor(r.w / 2) || tx === Math.floor(r.w / 2) - 1);
   const isDoorV = (ty === Math.floor(r.h / 2));
 
-  if(ty === 0 && r.doors.n && isDoorH) return roomOpen(r) ? 0 : 1;
-  if(ty === r.h - 1 && r.doors.s && isDoorH) return roomOpen(r) ? 0 : 1;
-  if(tx === 0 && r.doors.w && isDoorV) return roomOpen(r) ? 0 : 1;
-  if(tx === r.w - 1 && r.doors.e && isDoorV) return roomOpen(r) ? 0 : 1;
+  if(ty === 0 && r.doors.n && isDoorH) return doorOpen(r, `${r.x},${r.y - 1}`) ? 0 : 1;
+  if(ty === r.h - 1 && r.doors.s && isDoorH) return doorOpen(r, `${r.x},${r.y + 1}`) ? 0 : 1;
+  if(tx === 0 && r.doors.w && isDoorV) return doorOpen(r, `${r.x - 1},${r.y}`) ? 0 : 1;
+  if(tx === r.w - 1 && r.doors.e && isDoorV) return doorOpen(r, `${r.x + 1},${r.y}`) ? 0 : 1;
 
   if(tx === 0 || ty === 0 || tx >= r.w - 1 || ty >= r.h - 1) return 1;
   // Obstáculos y objetos destructibles
@@ -1103,6 +1103,10 @@ function enterRoom(k, first){
 
 // las puertas se abren con la sala despejada; la del personaje, además, cuando terminan de hablar con él
 const roomOpen = r => r.cleared && !(r.type === 'npc' && !r.talk);
+// la llave del jefe la da el personaje del piso al terminar la charla; sin ella la puerta del jefe tiene cerradura
+const hasKey = () => { const nr = npcRoom(); return !nr || !!nr.talk; };
+const bossLock = k => !!(dung.rooms[k] && dung.rooms[k].type === 'boss' && !hasKey());
+const doorOpen = (r, k) => roomOpen(r) && !bossLock(k);
 function checkDungDoors(){
   const r = dung.curRoom;
   if(!r || !roomOpen(r) || p.dead) return;
@@ -1128,6 +1132,7 @@ function checkDungDoors(){
     if(nr){ px = 2 * T; py = (nr.h / 2) * T; dir = 'e'; }
   }
 
+  if(nextK && bossLock(nextK)) return;
   if(nextK && dung.rooms[nextK]){
     if(net.on) snd({ t: 'd_room', k: nextK, px, py, dir });   // todos los jugadores pasan a la misma sala
     dung.transT = 0.22;
@@ -1272,34 +1277,35 @@ const NPCS = [
     '¿Otro más que cayó por la trampilla? Je... yo llegué igual, hace ya ni sé cuántos inviernos.',
     'Esta mazmorra es la prisión del Soberano del Inframundo. El que entra queda atado a ella.',
     'Dicen que en el fondo, junto a su trono, está la única salida. Cinco pisos, pibe. Cinco.',
-    'Yo ya no tengo fuerzas para pelear. Tomá, curate un poco... y si llegás arriba, mirá el sol por mí.'] },
+    'Yo ya no tengo fuerzas para pelear. Tomá esta llave: abre la puerta del jefe del piso. Y curate un poco... si llegás arriba, mirá el sol por mí.'] },
   { n: 'Lía, la alquimista', av: { skin: '#f2c18d', hair: '#3ecf8e', shirt: '#e8ecf3', pn: '#3a3a5c', hs: 1, os: 2 }, gift: 'coins', l: [
     '¡No toques esos frascos! ...Perdón. Los slimes salieron de acá, ¿sabés? De mis experimentos.',
     'El Soberano me obligó a crear monstruos para cuidar su trono. Por eso cada piso son más fuertes.',
     'Encontré algo en mis notas: su poder sale de las almas atrapadas acá abajo. Como la mía.',
-    'Si lo vencés, las almas quedan libres y la maldición se rompe. Llevate estas monedas, a mí ya no me sirven.'] },
+    'Si lo vencés, las almas quedan libres y la maldición se rompe. Llevate estas monedas y esta llave: abre la puerta del guardián de este piso.'] },
   { n: 'Gorm, el herrero', av: { skin: '#8d5524', hair: '#1b1b1b', shirt: '#b03a2e', pn: '#2b2b2b', hs: 2, os: 3 }, gift: 'armor', l: [
     'Martillo y fuego, es todo lo que me queda. Yo forjé las cadenas de este lugar.',
     'Las forjé sin saber para qué eran. Para encerrar gente como vos. Como yo.',
     'El Soberano no es invencible: cuando se enfurece ataca más rápido, pero se descuida. Nunca te quedes quieto.',
-    'Tomá esta placa. Que te cubra mejor de lo que me cubrió a mí.'] },
+    'Tomá esta placa, y la llave que forjé para la puerta del jefe. Que te cubra mejor de lo que me cubrió a mí.'] },
   { n: 'Sir Aldric, el caballero', av: { skin: '#cfe3ff', hair: '#9fb7d8', shirt: '#7d8fa8', pn: '#55657d', hs: 0, os: 0 }, ghost: 1, gift: 'full', l: [
     'No te asustes, viajero. Fui caballero del reino de arriba... antes de cruzar aquella puerta.',
     'Llegué hasta el trono con mi escuadrón. Ninguno volvió. Yo tampoco, como ves.',
     'El Soberano se alimenta del miedo. Cuanto más dudás, más fuerte se vuelve.',
-    'Terminá lo que yo empecé. Que mi espada no haya caído en vano.'] },
+    'Esta llave era de mi capitán: abre la puerta del jefe. Terminá lo que yo empecé, que mi espada no haya caído en vano.'] },
   { n: 'Mara, la niña de las velas', av: { skin: '#f6dcc4', hair: '#2a1a12', shirt: '#f1f1f1', pn: '#f1f1f1', hs: 1, os: 0 }, ghost: 1, gift: 'full', l: [
     'Shh... él escucha todo desde su trono.',
     'Yo vivía arriba, en el pueblo. Me acuerdo del pasto y del olor a pan... ¿todavía existe?',
     'Cuando caiga el Soberano se va a abrir la escalera de luz. Subí y no mires atrás.',
-    'Prometeme que vas a salir. Por todos los que no pudimos.'] }
+    'Tomá, esta llave abre la puerta del trono. Prometeme que vas a salir. Por todos los que no pudimos.'] }
 ];
 const npcRoom = () => Object.values(dung.rooms).find(r => r.type === 'npc') || null;
 // terminar la charla abre la trampilla del piso para todo el grupo
 function npcDone(r){
   if(r.talk) return;
   r.talk = true;
-  if(dung.curRoom === r){ sDoorUnlock(); banner('¡PUERTAS ABIERTAS!'); }
+  if(dung.curRoom === r) sDoorUnlock();
+  banner('¡TENÉS LA LLAVE DEL JEFE!');
   if(net.on) snd({ t: 'd_talk', k: Object.keys(dung.rooms).find(k => dung.rooms[k] === r) });
 }
 const npcPos = r => ({ x: r.w * T / 2, y: r.h * T / 2 - 4 });
@@ -1364,6 +1370,15 @@ function drawNpc(){
   if(N.ghost){ g.globalAlpha = .6 + .15 * Math.sin(t * 2); }
   drawChar(g, Math.round(q.x - camx), Math.round(q.y - camy + (N.ghost ? Math.sin(t * 2) * 1.5 : 0)), { ang: Math.atan2(p.y - q.y, p.x - q.x), walk: 0, moving: false, w: -1 }, Object.assign({ ec: '#111111', acc: 0 }, N.av));
   g.globalAlpha = 1;
+}
+function drawLockHud(){
+  const r = dung.curRoom; if(mode !== 'dung' || !r || state !== 'play' || !roomOpen(r)) return;
+  for(const [d, k, x, y] of [['n', `${r.x},${r.y - 1}`, r.w * T / 2, 8], ['s', `${r.x},${r.y + 1}`, r.w * T / 2, r.h * T - 8], ['w', `${r.x - 1},${r.y}`, 8, r.h * T / 2], ['e', `${r.x + 1},${r.y}`, r.w * T - 8, r.h * T / 2]]){
+    if(!r.doors[d] || !bossLock(k) || Math.hypot(p.x - x, p.y - y) > 40) continue;
+    const nr = npcRoom(), who = nr ? NPCS[nr.npc].n.split(',')[0].toUpperCase() : '';
+    TX('CERRADO CON LLAVE', x - camx, y - camy + (d === 'n' ? 20 : d === 's' ? -14 : -12), 3.4, '#f2b33d', 'center');
+    TX('LA LLAVE LA TIENE ' + who, x - camx, y - camy + (d === 'n' ? 26 : d === 's' ? -8 : -6), 2.8, '#e8ebf3', 'center');
+  }
 }
 function drawNpcHud(){
   if(!npcHere()) return;
@@ -2679,7 +2694,7 @@ function onNet(d){
   else if(d.t === 'd_pd' && mode === 'dung' && dung.curRoomKey === d.k){
     const q = dung.curRoom.props[d.i]; if(q && !q.dead) propFx(q, false, d.o);
   }
-  else if(d.t === 'd_talk' && mode === 'dung' && dung.rooms[d.k]){ if(dung.rooms[d.k] === dung.curRoom && !dung.curRoom.talk) sDoorUnlock(); dung.rooms[d.k].talk = true; }
+  else if(d.t === 'd_talk' && mode === 'dung' && dung.rooms[d.k]){ if(!dung.rooms[d.k].talk){ if(dung.rooms[d.k] === dung.curRoom) sDoorUnlock(); banner('¡TENÉS LA LLAVE DEL JEFE!'); } dung.rooms[d.k].talk = true; }
   else if(d.t === 'n_open' && mode === 'dung') npcStart(d.k);
   else if(d.t === 'n_rd' && mode === 'dung' && npcTalk && npcTalk.k === d.k){ npcRd(d.i).add(d.from); if(d.i === npcTalk.i) npcCheck(); }
   else if(d.t === 'd_next' && net.host && mode === 'dung'){ if(!dung.descending){ dung.descending = true; descend(); } }
@@ -3201,8 +3216,21 @@ function drawDungeonRoom(){
   const midX = Math.floor(r.w / 2) * T;
   const midY = Math.floor(r.h / 2) * T;
   const typeCol = type => type === 'boss' ? '#ef4444' : type === 'treasure' ? '#ffd23f' : type === 'shop' ? '#38d66b' : type === 'fountain' ? '#38bdf8' : type === 'challenge' ? '#f97316' : type === 'npc' ? '#e9d5ff' : '#7df9ff';
-  const drawDoorFrame = (x, y, isHoriz, open, type) => {
+  const drawDoorFrame = (x, y, isHoriz, open, type, lock) => {
     const col = typeCol(type);
+    if(lock){   // puerta del jefe cerrada con llave: madera reforzada y un candado dorado
+      const X = x - camx, Y = y - camy, w = isHoriz ? 32 : 16, h = isHoriz ? 16 : 32, cx = X + w / 2, cy = Y + h / 2;
+      g.fillStyle = '#070914'; g.fillRect(X, Y, w, h);
+      g.fillStyle = '#5b3a1e'; g.fillRect(X + 2, Y + 2, w - 4, h - 4);
+      g.fillStyle = '#7a4e24'; for(let i = 0; i < 3; i++) isHoriz ? g.fillRect(X + 3 + i * 9, Y + 3, 7, h - 6) : g.fillRect(X + 3, Y + 3 + i * 9, w - 6, 7);
+      g.fillStyle = '#3a2412'; isHoriz ? g.fillRect(X + 2, cy - 1, w - 4, 2) : g.fillRect(cx - 1, Y + 2, 2, h - 4);
+      g.fillStyle = '#14101e'; g.fillRect(cx - 5, cy - 4, 10, 9);
+      g.fillStyle = '#c99a2e'; g.fillRect(cx - 3, cy - 8, 6, 2); g.fillRect(cx - 4, cy - 7, 2, 4); g.fillRect(cx + 2, cy - 7, 2, 4);   // arco del candado
+      g.fillStyle = '#f2b33d'; g.fillRect(cx - 4, cy - 3, 8, 7);
+      g.fillStyle = '#ffe08a'; g.fillRect(cx - 4, cy - 3, 8, 1);
+      g.fillStyle = '#14101e'; g.fillRect(cx - 1, cy - 1, 2, 2); g.fillRect(cx - .5, cy + 1, 1, 2);    // cerradura
+      return;
+    }
     g.fillStyle = '#070914';
     g.fillRect(x - camx, y - camy, isHoriz ? 32 : 16, isHoriz ? 16 : 32);
     if(open){
@@ -3220,10 +3248,10 @@ function drawDungeonRoom(){
       }
     }
   };
-  if(r.doors.n) drawDoorFrame(midX - 16, 0, true, roomOpen(r), dung.rooms[`${r.x},${r.y - 1}`]?.type);
-  if(r.doors.s) drawDoorFrame(midX - 16, rh - 16, true, roomOpen(r), dung.rooms[`${r.x},${r.y + 1}`]?.type);
-  if(r.doors.w) drawDoorFrame(0, midY - 16, false, roomOpen(r), dung.rooms[`${r.x - 1},${r.y}`]?.type);
-  if(r.doors.e) drawDoorFrame(rw - 16, midY - 16, false, roomOpen(r), dung.rooms[`${r.x + 1},${r.y}`]?.type);
+  if(r.doors.n) drawDoorFrame(midX - 16, 0, true, roomOpen(r), dung.rooms[`${r.x},${r.y - 1}`]?.type, roomOpen(r) && bossLock(`${r.x},${r.y - 1}`));
+  if(r.doors.s) drawDoorFrame(midX - 16, rh - 16, true, roomOpen(r), dung.rooms[`${r.x},${r.y + 1}`]?.type, roomOpen(r) && bossLock(`${r.x},${r.y + 1}`));
+  if(r.doors.w) drawDoorFrame(0, midY - 16, false, roomOpen(r), dung.rooms[`${r.x - 1},${r.y}`]?.type, roomOpen(r) && bossLock(`${r.x - 1},${r.y}`));
+  if(r.doors.e) drawDoorFrame(rw - 16, midY - 16, false, roomOpen(r), dung.rooms[`${r.x + 1},${r.y}`]?.type, roomOpen(r) && bossLock(`${r.x + 1},${r.y}`));
 
   // Pinchos
   for(const s_ of r.spk){
@@ -3535,6 +3563,7 @@ function draw(){
   for(let i = 0; i < maxHearts; i++) pxIcon(HEART, 4 + i * 9, 4, i < p.hp ? '#ef4b5a' : '#3a1d27', i < p.hp ? '#ff9aa4' : null);
   for(let i = 0; i < (p.ar || 0); i++) pxIcon(SHIELD, 4 + (maxHearts + i) * 9, 4, '#56c8e0', '#c4f1fb');
   if(mode !== 'duel'){ pxIcon(COIN, 4, 13, '#f2b33d', '#ffe9a8'); TX(V.coins, 12, 18.5, 4.2, '#fff'); }
+  if(mode === 'dung' && npcRoom() && hasKey()) pxIcon(KEY, 36, 14, '#f2b33d', '#ffe9a8');   // llave del jefe
   // recarga del roll
   g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(4, 22, 20, 2);
   g.fillStyle = p.rlc > 0 ? '#56c8e0' : '#3ecf8e'; g.fillRect(4, 22, Math.round(20 * Math.min(1, 1 - Math.max(0, p.rlc) / ROLL_CD)), 2);
@@ -3593,7 +3622,7 @@ function draw(){
   }
 
   drawReviveHud();
-  drawBenchHud(); drawStallHud(); drawNpcHud();
+  drawBenchHud(); drawStallHud(); drawNpcHud(); drawLockHud();
   if(touchOn() && state === 'play' && !paused) drawSticks();
   if(state === 'play' && !paused){
     g.fillStyle = S.cross || '#fff';
@@ -3606,6 +3635,7 @@ function draw(){
 const HEART = ['.XX.XX.', 'XoXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'];
 const SHIELD = ['XXXXXXX', 'XoXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'];
 const COIN = ['.XXX.', 'XoXXX', 'XXXXX', 'XXXXX', '.XXX.'];
+const KEY = ['.XX.....', 'Xo.XXXXX', 'X..X.X.X', '.XX.....'];
 function pxIcon(pat, x, y, col, hl){
   for(let r = 0; r < pat.length; r++) for(let q = 0; q < pat[r].length; q++){
     const ch = pat[r][q]; if(ch === '.') continue;
