@@ -4757,7 +4757,7 @@ function botMake(name, i){
     ws.onopen = () => ws.send(join);
     ws.onmessage = ev => { try{ botMsg(b, JSON.parse(ev.data)); }catch(e){} };
     b.out = t => ws.readyState === 1 && ws.send(t);
-    b.close = () => { try{ ws.close(); }catch(e){} };
+    b.close = () => { try{ if(ws.readyState === 1) ws.send('{"t":"leave"}'); ws.close(); }catch(e){} };   // avisa antes, así sale de la sala al instante
   }
   BOT.list.push(b);
   return b;
@@ -5385,7 +5385,7 @@ const A = {
   facc: async v => { try{ await api('/api/friends/accept', { name: v }); await friendsPoll(); friendsMenu('Ahora son amigos', true); }catch(e){ friendsMenu(e.message); } },
   frem: async v => { try{ await api('/api/friends/remove', { name: v }); await friendsPoll(); friendsMenu(); }catch(e){ friendsMenu(e.message); } },
   finv: async v => { try{ await api('/api/friends/invite', { name: v, room: net.roomName, md: LOB ? LOB.md : '' }); friendsMenu('Invitación enviada a ' + v, true); }catch(e){ friendsMenu(e.message); } },
-  invj: () => { const iv = invNow; document.getElementById('invt').classList.remove('on'); if(!iv) return; if(net.on){ botStop(); net.on = false; try{ net.ws.close(); }catch(e){} } partyJoin(iv.room.slice(2)); },
+  invj: () => { const iv = invNow; document.getElementById('invt').classList.remove('on'); if(!iv) return; if(net.on){ botStop(); net.on = false; raw({ t: 'leave' }); try{ net.ws.close(); }catch(e){} } partyJoin(iv.room.slice(2)); },
   finvj: v => { const iv = frInv(v); if(!iv) return; delete FR.inv[v.toLowerCase()]; invNow = iv; A.invj(); },
   invx: () => document.getElementById('invt').classList.remove('on'),
   dif: v => { V.dif = Math.max(0, Math.min(2, +v)); save(); players(net.mode); },
@@ -5497,7 +5497,7 @@ const A = {
   resume: () => { paused = false; close(); },
   quit: () => {
     botStop();
-    if(net.on){ net.on = false; try{ net.ws.close(); }catch(e){} }
+    if(net.on){ net.on = false; raw({ t: 'leave' }); try{ net.ws.close(); }catch(e){} }
     net.party = false; LOB = null;
     save(); main();
   },

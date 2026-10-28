@@ -231,7 +231,7 @@
       if (q.length >= 3 && wait > 8000 || q.length >= 2 && wait > 20000) queueMatch('ffa', Math.min(8, q.length));
     }, 1000);
 
-    return {
+    const hub = {
       rooms,
       open(ws) { ws.id = nextId++; },
       message(ws, raw) {
@@ -245,6 +245,7 @@
         if (m.t === 'join') { if (!ws.room) joinRoom(ws, String(m.room || 'D|Sala 1').slice(0, 30), m.max, m.cfg); return; }
         if (m.t === 'duel_q') return queueDuel(ws, m.md in queues ? m.md : '1v1');
         if (m.t === 'duel_qx') return dropQ(ws);
+        if (m.t === 'leave') return leave(ws);
         const r = rooms[ws.room];
         if (!r) return;
         if ((lobby || r.party) && m.t === 'lobby') return lobbyOpen(r, m.md);
@@ -274,7 +275,11 @@
         m.from = ws.id;
         r.forEach(o => { if (m.to ? o.id === m.to : o !== ws) send(o, m); });
       },
-      close(ws) {
+      close(ws) { leave(ws); }
+    };
+    // sale de la sala: al cerrar la conexión o, más rápido, cuando avisa con "leave" antes de cerrarla
+    // (cerrar una conexión puede tardar bastante en el servidor gratis)
+    function leave(ws) {
         dropQ(ws);
         const r = rooms[ws.room];
         if (!r) return;
@@ -284,8 +289,9 @@
         if (r.lob && r.size) { r.lob.rd.delete(ws.id); r.lob.tm.delete(ws.id); lobbyCheck(r); }
         else if (r.duel && r.size) duelLeft(r, ws);   // abandono en PvP
         if (!r.size) delete rooms[ws.room];
-      }
-    };
+        ws.room = null;
+    }
+    return hub;
   }
 
   const api = { createRooms, DEFAULT_STATS };
