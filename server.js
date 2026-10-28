@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 8080;
 const NAME_RE = /^[A-Za-z0-9_]{3,12}$/;
 // Versión del protocolo: subirla junto con GAME_V del juego cada vez que cambian los mensajes.
 // Un juego viejo (por ejemplo, guardado en la caché del navegador) no puede entrar a salas nuevas.
-const GAME_V = 2;
+const GAME_V = 3;
 
 (async () => {
   const store = await createStore();

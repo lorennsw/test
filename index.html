@@ -504,7 +504,8 @@ const dPool = fl => {
 };
 
 const BOSS = [5, 6, 7, 8];
-const D_BOSSES = [16, 17, 18, 19, 20];
+// Jefes posibles en cada piso (se sortea uno con la semilla): mezcla los de supervivencia con los propios de la mazmorra
+const D_BOSSES = [[5, 6, 16], [7, 8, 17], [6, 7, 18], [5, 8, 19], [7, 8, 20]];
 const MAPS = [
   { n: 'Pradera', pi: 0, sd: 3 },
   { n: 'Desierto', pi: 1, sd: 11 },
@@ -897,7 +898,8 @@ function setupRoomInterior(r, th, fl, pr){
     return { x: cx, y: cy };
   };
   if(r.type === 'boss'){
-    r.eps = [[{ k: D_BOSSES[(fl - 1) % D_BOSSES.length], rx: r.w / 2, ry: r.h / 2, isBoss: true }]];
+    const bp = D_BOSSES[(fl - 1) % D_BOSSES.length];
+    r.eps = [[{ k: bp[Math.floor(pr() * bp.length) % bp.length], rx: r.w / 2, ry: r.h / 2, isBoss: true }]];
     r.waves = 1;
   } else {
     const pool = dPool(fl + (r.type === 'challenge' ? 1 : 0));
@@ -1628,7 +1630,10 @@ function dmg(e, d, own){
     if(net.on && mode === 'surv') net.sc[own] = (net.sc[own] || 0) + 1;
     sKill(); burst(e.x, e.y - q.cy, '#ffffff', 10);
     const n = rnd(q.c[0], q.c[1]) * (e.el ? 2 : 1);
-    if(q.boss){ boss = null; sFan(); if(mode === 'camp') bd = true; }
+    if(q.boss){
+      boss = null; sFan(); if(mode === 'camp') bd = true;
+      enemies.forEach(m => { if(m.sm === e.id && !m.dead){ m.dead = true; burst(m.x, m.y - EN[m.k].cy, '#ffffff', 6); } });
+    }
     if(own === myId()) coinFx(e.x, e.y, n);
     else snd({ t: 'c', to: own, n, k: e.k, x: e.x, y: e.y });
     if(Math.random() < (e.el ? .35 : .14)){ hearts.push({ x: e.x, y: e.y }); if(net.on) snd({ t: 'hr', x: e.x, y: e.y }); }
@@ -1676,6 +1681,96 @@ function shock(x, y, m){
   snd({ t: 'sw', x, y, m });
 }
 
+// ---------- JEFES
+// Cada jefe alterna sus ataques (con aviso: parpadea antes). Con menos de la mitad de vida se enfurece:
+// ataca más seguido, más rápido y con más balas.
+const BOSS_AT = {
+  5: ['jump', 'fan', 'summon', 'jump', 'ring'],                    // Rey Slime
+  6: ['blink', 'spiral', 'fan', 'blink', 'summon', 'aim'],         // Hechicero
+  7: ['stomp', 'rocks', 'charge', 'stomp', 'ring'],                // Titán
+  8: ['fan2', 'summon', 'ring', 'charge', 'aim'],                  // Rey Calavera
+  16: ['ring', 'aim', 'charge', 'spiral', 'blink'],                // Rey Ojo del Abismo
+  17: ['jump', 'fan', 'summon', 'ring', 'stomp'],                  // Reina Ácida
+  18: ['stomp', 'charge', 'rocks', 'ring', 'fan2'],                // Coloso de Magma
+  19: ['blink', 'charge', 'fan2', 'charge', 'spiral', 'aim'],      // Caballero del Vacío
+  20: ['spiral', 'summon', 'stomp', 'blink', 'ring', 'charge', 'rocks', 'fan2']   // Soberano del Inframundo
+};
+const BOSS_COL = { 5: '#c084fc', 6: '#e879f9', 7: '#fb923c', 8: '#e2e8f0', 16: '#c084fc', 17: '#4ade80', 18: '#ff6a2a', 19: '#818cf8', 20: '#ff4d6d' };
+const BOSS_MIN = { 5: 0, 6: 1, 8: 12, 17: 0, 20: 11 };   // a quién invoca
+function bossAI(e, dt, sp, tg, a, dist, go, CDM){
+  const k = e.k, d = EN[k], rage = e.hp < e.mx / 2, R = rage ? 1.4 : 1, col = BOSS_COL[k] || '#ff4d6d';
+  if(rage && !e.rg){
+    e.rg = 1; e.at = Math.min(e.at, .5);
+    shock(e.x, e.y, 70); burst(e.x, e.y - d.cy, col, 26);
+    banner('¡' + d.n.toUpperCase() + ' SE ENFURECE!');
+  }
+  const Y = e.y - d.cy * .6;
+  const ring = (n, v, off) => { for(let i = 0; i < n; i++) shootE(e.x, Y, off + i / n * 6.283, v, 3, col); };
+  const fan = (n, spr, v, an) => { for(let i = 0; i < n; i++) shootE(e.x, Y, an + (i - (n - 1) / 2) * spr, v, 3, col); };
+
+  if(e.st === 0){
+    // entre ataques: el hechicero y el ojo mantienen distancia; el resto se acerca
+    if(k === 6 || k === 16){ if(dist < 80) go(a + Math.PI, sp); else if(dist > 140) go(a, sp); else go(a + 1.57, sp * .7); }
+    else go(a, sp * (rage ? 1.25 : 1));
+    e.at -= dt * CDM * R;
+    if(e.at <= 0){
+      const L = BOSS_AT[k] || ['ring', 'fan'];
+      e.pi = ((e.pi || 0) + 1) % L.length; e.atk = L[e.pi];
+      e.st = 1; e.tm = 0; e.tl = 1;
+    }
+    return;
+  }
+  const w = e.atk;
+  if(e.st === 1){
+    if(e.tm < (w === 'stomp' || w === 'jump' ? .65 : w === 'charge' ? .55 : .4) / R) return;
+    e.st = 2; e.tm = 0; e.tl = 0; e.n = 0; e.ca = a; e.sx = e.x; e.sy = e.y; e.jx = tg.x; e.jy = tg.y;
+  }
+  let done = true;
+  if(w === 'ring') ring(rage ? 22 : 15, 72, t);
+  else if(w === 'fan') fan(rage ? 9 : 7, .17, 100, a);
+  else if(w === 'fan2'){
+    done = false;
+    if(e.tm >= e.n * .32){ fan(rage ? 7 : 5, .2, 105, a + (e.n % 2 ? .1 : -.1)); e.n++; }
+    if(e.n >= (rage ? 4 : 3)) done = true;
+  } else if(w === 'aim'){
+    done = false;
+    if(e.tm >= e.n * .11){ shootE(e.x, Y, a + (Math.random() - .5) * .12, 160, 3, col); e.n++; }
+    if(e.n >= (rage ? 12 : 7)) done = true;
+  } else if(w === 'spiral'){
+    done = false;
+    if(e.tm >= e.n * .06){ const q = rage ? 4 : 3; for(let i = 0; i < q; i++) shootE(e.x, Y, e.n * .33 + i / q * 6.283, 78, 3, col); e.n++; }
+    if(e.n >= 26) done = true;
+  } else if(w === 'rocks'){
+    for(let i = 0; i < (rage ? 7 : 5); i++) shootE(e.x, e.y - d.cy, a + (Math.random() - .5) * .7, 70 + Math.random() * 50, 5, '#a8a29e');
+  } else if(w === 'summon'){
+    const mine = enemies.filter(q => q.sm === e.id && !q.dead).length;
+    if(mine < (rage ? 6 : 4) && enemies.length < 24){
+      for(let i = 0; i < (rage ? 3 : 2); i++){ const q = mk(BOSS_MIN[k] ?? 1, e.x + rnd(-22, 22), e.y + rnd(-14, 14), { noElite: true }); q.sm = e.id; }
+      burst(e.x, e.y - d.cy, col, 14);
+    } else fan(rage ? 9 : 7, .17, 100, a);
+  } else if(w === 'stomp'){
+    shock(e.x, e.y, rage ? 100 : 80); ring(rage ? 16 : 11, 62, Math.random());
+  } else if(w === 'charge'){
+    done = false;
+    go(e.ca, (rage ? 240 : 200) * dt);
+    if(e.tm >= .6){ done = true; if(k === 7 || k === 18 || k === 20) shock(e.x, e.y, 55); }
+  } else if(w === 'jump'){
+    done = false;
+    const q = Math.min(1, e.tm / .6);
+    e.x = e.sx + (e.jx - e.sx) * q; e.y = e.sy + (e.jy - e.sy) * q;
+    e.z = Math.sin(q * Math.PI) * 36;
+    if(q >= 1){ e.z = 0; shock(e.x, e.y, 80); ring(rage ? 16 : 10, 66, 0); done = true; }
+  } else if(w === 'blink'){
+    // desaparece y reaparece cerca del jugador, y dispara apenas llega
+    for(let i = 0; i < 16; i++){
+      const an = Math.random() * 6.283, r = 85 + Math.random() * 45, X = tg.x + Math.cos(an) * r, Y2 = tg.y + Math.sin(an) * r;
+      if(!hit4(X, Y2, d.r > 8 ? 6 : 4)){ burst(e.x, e.y - d.cy, col, 16); e.x = X; e.y = Y2; burst(e.x, e.y - d.cy, col, 16); break; }
+    }
+    fan(rage ? 7 : 5, .22, 95, Math.atan2(tg.y - e.y, tg.x - e.x));
+  }
+  if(done){ e.st = 0; e.z = 0; e.at = (rage ? 1.1 : 1.7) + Math.random() * .6; }
+}
+
 function aiMove(e, dt, sm, tg){
   const d = EN[e.k], k = e.k, CDM = mode === 'dung' ? 1.3 : 1;
   if(e.born > 0){ e.born -= dt; return; }
@@ -1688,6 +1783,7 @@ function aiMove(e, dt, sm, tg){
     else move(e, Math.cos(an) * s, Math.sin(an) * s, d.r > 8 ? 6 : 4);
   };
   e.tm += dt;
+  if(d.boss) return bossAI(e, dt, sp, tg, a, dist, go, CDM);
 
   // Nuevos comportamientos (Esqueleto, Ojo, Kamikaze, Jefes)
   if(d.charger){
@@ -1739,30 +1835,6 @@ function aiMove(e, dt, sm, tg){
       for(let i = -1; i <= 1; i++) shootE(e.x, e.y - 6, a + i * .25, 90, 3, '#c084fc');
       e.at = 2.4;
     }
-  } else if(d.dBoss === 1){
-    // Rey Ojo del Abismo: Anillos radiales y embestidas
-    go(a, sp * .8);
-    e.at -= dt * CDM;
-    if(e.at <= 0){
-      for(let i = 0; i < 10; i++) shootE(e.x, e.y - 8, i / 10 * 6.283 + t, 75, 3, '#c084fc');
-      e.at = 2.2;
-    }
-  } else if(d.dBoss === 2){
-    // Reina Ácida: Bombas de veneno y ondas sónicas
-    go(a, sp * .7);
-    e.at -= dt * CDM;
-    if(e.at <= 0){
-      for(let i = -2; i <= 2; i++) shootE(e.x, e.y - 8, a + i * .22, 85, 3, '#38d66b');
-      shock(e.x, e.y, 50); e.at = 2.8;
-    }
-  } else if(d.dBoss >= 3){
-    // Coloso de Magma / Caballero del Vacío / Soberano
-    go(a, sp * (dist > 50 ? 1.1 : .6));
-    e.at -= dt * CDM;
-    if(e.at <= 0){
-      for(let i = 0; i < 12; i++) shootE(e.x, e.y - 10, i / 12 * 6.283 + t * 2, 90, 3, '#ff4d6d');
-      shock(e.x, e.y, 65); e.at = 2.3;
-    }
   } else if(k === 10) go(a + Math.sin(t * 3 + e.ph) * .9, sp);
   else if(k === 11){
     if(dist > 95) go(a, sp);
@@ -1770,15 +1842,6 @@ function aiMove(e, dt, sm, tg){
     else go(a + 1.57, sp * .6);
     e.at -= dt * CDM;
     if(e.at <= 0 && dist < 200){ shootE(e.x, e.y - 8, a, 85, 3, '#ff7a00'); e.at = 2.2; }
-  } else if(k === 5){
-    if(e.st === 0){ go(a, sp); e.at -= dt * CDM; if(e.at <= 0 && dist < 230){ e.st = 1; e.tm = 0; e.tl = 1; e.jx = tg.x; e.jy = tg.y; } }
-    else if(e.st === 1){ if(e.tm >= .6){ e.st = 2; e.tm = 0; e.tl = 0; e.sx = e.x; e.sy = e.y; } }
-    else {
-      const pr_ = Math.min(1, e.tm / .55);
-      e.x = e.sx + (e.jx - e.sx) * pr_; e.y = e.sy + (e.jy - e.sy) * pr_;
-      e.z = Math.sin(pr_ * Math.PI) * 34;
-      if(pr_ >= 1){ e.z = 0; e.st = 0; e.at = 3.5; shock(e.x, e.y, 75); }
-    }
   } else go(a, sp);
 }
 
@@ -2088,7 +2151,7 @@ function update(dt){
         net.et = .1; lsb = board();
         snd({
           t: 'e', k: kills, lv: lvl, mp: mapIdx, rt: Math.round(rt), bd: bd ? 1 : 0, ls: lsb, rk: mode === 'dung' ? dung.curRoomKey : 0,
-          l: enemies.map(e => [e.id, e.k, Math.round(e.x), Math.round(e.y), e.hp, e.mx, e.el || 0, e.born > 0 ? 1 : 0])
+          l: enemies.map(e => [e.id, e.k, Math.round(e.x), Math.round(e.y), e.hp, e.mx, e.el || 0, e.born > 0 ? 1 : 0, Math.round(e.z || 0), e.tl ? 1 : 0])
         });
       }
     }
@@ -2118,11 +2181,11 @@ function onNet(d){
     if(mode === 'surv' && d.mp != null && d.mp !== mapIdx){ start('surv', 1, d.mp); return; }
     kills = d.k; rt = d.rt; bd = !!d.bd; lsb = d.ls || [];
     const old = new Map(enemies.map(e => [e.id, e]));
-    enemies = d.l.map(([id, k, x, y, hp, mx, el, bo]) => {
+    enemies = d.l.map(([id, k, x, y, hp, mx, el, bo, z, tl]) => {
       let e = old.get(id);
       if(!e) e = { id, k, x, y, ph: Math.random() * 6, fl: 0, hb: 0 };
       else if(hp < e.hp){ e.fl = .12; e.hb = 1.6; }
-      e.k = k; e.tx = x; e.tz = y; e.hp = hp; e.mx = mx; e.el = el || 0; e.born = bo ? 1 : 0; return e;
+      e.k = k; e.tx = x; e.tz = y; e.hp = hp; e.mx = mx; e.el = el || 0; e.born = bo ? 1 : 0; e.z = z || 0; e.tl = tl || 0; return e;
     });
     boss = enemies.find(e => EN[e.k].boss) || null;
   }
@@ -2222,7 +2285,7 @@ function apkOffer(){
   <div class=r><small>Cuando termine la descarga, abrí el archivo. Si Android lo pide, permití instalar apps de esta fuente.</small></div>`);
 }
 // Versión del protocolo online: tiene que coincidir con GAME_V del servidor (subir las dos juntas)
-const GAME_V = 2;
+const GAME_V = 3;
 // Recarga la página salteando la caché del navegador (GitHub Pages la guarda hasta 10 minutos)
 const freshReload = () => location.replace(location.pathname + '?v=' + Date.now() + location.hash);
 // quien tenía guardado el servidor viejo (sin cuentas) pasa al nuevo
@@ -2439,15 +2502,54 @@ function drawEnemy(e){
   g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(gx - Math.round(d.r * .9), gy - 1, Math.round(d.r * 1.8), 3);
   if(e.born > 0) g.globalAlpha = .4 + .25 * Math.sin(t * 22);
   if(e.el){ g.fillStyle = 'rgba(255,40,60,' + (.16 + .08 * Math.sin(t * 6)) + ')'; g.beginPath(); g.arc(gx, gy - d.cy, d.r + 5, 0, 6.283); g.fill(); }
+  // jefe enfurecido (menos de la mitad de vida): aura roja
+  if(d.boss && e.hp < e.mx / 2){ g.fillStyle = 'rgba(255,40,40,' + (.12 + .1 * Math.sin(t * 9)) + ')'; g.beginPath(); g.arc(gx, gy - d.cy, d.r + 8, 0, 6.283); g.fill(); }
 
-  if(k === 0 || k === 5){
-    const sz = k === 5 ? 3 : 1, bc = k === 5 ? '#8a3fd1' : '#38b764', w = 10 * sz, h = (7 + s) * sz;
+  // figuras que se repiten en varios enemigos, a escala z
+  const Z = z => (dx, dy, w, h, col) => Q(dx * z, dy * z, w * z, h * z, col);
+  const golem = (z, c) => {   // Gólem / Titán / Coloso
+    const q = Z(z), l = Math.round(s), gl = Math.sin(t * 5) > 0 ? c.g : c.g2;
+    q(-10, -6 + (l > 0 ? 0 : -1), 7, 6, cl(c.d)); q(3, -6 + (l > 0 ? -1 : 0), 7, 6, cl(c.d));
+    q(-12, -22, 24, 17, cl(c.b)); q(-12, -22, 24, 3, cl(c.l));
+    q(-6, -17, 1, 6, gl); q(-6, -12, 4, 1, gl); q(5, -20, 1, 5, gl); q(5, -16, 3, 1, gl); q(-2, -15, 4, 4, gl);
+    q(-18, -21 + l, 6, 14, cl(c.d)); q(12, -21 - l, 6, 14, cl(c.d));
+    q(-19, -9 + l, 8, 6, cl(c.f)); q(11, -9 - l, 8, 6, cl(c.f));
+    q(-6, -29, 12, 8, cl(c.l)); q(-4, -26, 3, 2, gl); q(1, -26, 3, 2, gl);
+    return -33 * z;
+  };
+  const knight = (z, c) => {   // Caballero Negro / Caballero del Vacío
+    const q = Z(z), l = Math.round(s);
+    q(-6, -16, 12, 8, cl(c.h)); q(-4, -14, 8, 2, c.e);
+    q(-7, -8, 14, 7, cl(c.b)); q(-9, -8, 3, 6, cl(c.s)); q(6, -8, 3, 6, cl(c.s));
+    q(-4, -1 + (l > 0 ? 0 : -1), 3, 2, c.f); q(1, -1 + (l > 0 ? -1 : 0), 3, 2, c.f);
+    q(-1, -19, 2, 3, c.e);
+    return -22 * z;
+  };
+  const demon = (z, c) => {   // Diablillo / Soberano del Inframundo
+    const q = Z(z), l = Math.round(s), fw = Math.round(Math.sin(t * 12 + e.ph) * 1.5);
+    q(-12, -17 + fw, 6, 7, c.w); q(6, -17 + fw, 6, 7, c.w); q(-13, -18 + fw, 3, 2, c.w); q(10, -18 + fw, 3, 2, c.w);
+    q(-5, -12, 10, 9, cl(c.b)); q(-4, -18, 8, 7, cl(c.b));
+    q(-5, -21, 2, 3, c.h); q(3, -21, 2, 3, c.h); q(-6, -22, 1, 2, c.h); q(5, -22, 1, 2, c.h);
+    q(-3, -16, 2, 2, '#fde047'); q(1, -16, 2, 2, '#fde047'); q(-2, -13, 4, 1, '#111');
+    q(-4, -3 + (l > 0 ? 0 : -1), 3, 3, cl(c.d)); q(1, -3 + (l > 0 ? -1 : 0), 3, 3, cl(c.d));
+    q(5, -6, 4, 1, cl(c.b)); q(8, -8, 1, 3, cl(c.b));
+    return -24 * z;
+  };
+
+  if(k === 0 || k === 5 || k === 17){
+    const sz = k === 0 ? 1 : 3, bc = k === 5 ? '#8a3fd1' : k === 17 ? '#16a34a' : '#38b764', w = 10 * sz, h = (7 + s) * sz;
     top = -h - 4;
     Q(-w / 2, -h, w, h, cl(bc)); Q(-w / 2 + 1, -h - 1, w - 2, 1, cl(bc));
     Q(-w / 2 + 1, -h + 1, 2, 2, f ? '#ff3030' : '#ffffff66');
     Q(-3 * sz, -h / 2 - 1, 2 * sz, 2 * sz, '#111'); Q(sz, -h / 2 - 1, 2 * sz, 2 * sz, '#111');
-    if(k === 5){
-      Q(-w / 2 + 3, -h - 5, w - 6, 4, '#ffe66d'); Q(-w / 2 + 3, -h - 7, 3, 2, '#ffe66d'); Q(w / 2 - 6, -h - 7, 3, 2, '#ffe66d');
+    if(k === 5 || k === 17){
+      const cr = k === 17 ? '#f472b6' : '#ffe66d';
+      Q(-w / 2 + 3, -h - 5, w - 6, 4, cr); Q(-w / 2 + 3, -h - 7, 3, 2, cr); Q(w / 2 - 6, -h - 7, 3, 2, cr); Q(-1, -h - 8, 3, 3, cr);
+      top = -h - 12;
+    }
+    if(k === 17){   // gotas de ácido
+      const dr = Math.floor(t * 4 + e.ph) % 3;
+      Q(-w / 2 + 4, -h / 2 + dr * 3, 2, 3, '#a3e635'); Q(w / 2 - 6, -h / 3 + ((dr + 1) % 3) * 3, 2, 3, '#a3e635');
     }
   } else if(k === 1){
     const wy = s * 3;
@@ -2473,12 +2575,10 @@ function drawEnemy(e){
     const b = Math.sin(t * 16) > 0 ? '#ff2a2a' : '#f97316';
     Q(-4, -10, 8, 8, cl(b)); Q(-1, -13, 2, 3, '#78350f'); Q(-2, -8, 1, 2, '#111'); Q(1, -8, 1, 2, '#111');
     top = -14;
-  } else if(k === 15){
-    const l = Math.round(s);
-    Q(-6, -16, 12, 8, cl('#1f2937')); Q(-4, -14, 8, 2, '#ef4444');
-    Q(-7, -8, 14, 7, cl('#374151')); Q(-9, -8, 3, 6, cl('#4b5563')); Q(6, -8, 3, 6, cl('#4b5563'));
-    Q(-4, -1 + (l > 0 ? 0 : -1), 3, 2, '#111827'); Q(1, -1 + (l > 0 ? -1 : 0), 3, 2, '#111827');
-    Q(-1, -19, 2, 3, '#ef4444'); top = -22;
+  } else if(k === 15 || k === 19){
+    if(k === 19){ g.fillStyle = 'rgba(129,140,248,' + (.1 + .06 * Math.sin(t * 6)) + ')'; g.beginPath(); g.arc(gx, y - 22, 24, 0, 6.283); g.fill(); }
+    top = k === 19 ? knight(2.1, { h: '#1e1b4b', e: '#a78bfa', b: '#312e81', s: '#4338ca', f: '#0f0a2e' })
+      : knight(1, { h: '#1f2937', e: '#ef4444', b: '#374151', s: '#4b5563', f: '#111827' });
   } else if(k === 21){
     const l = Math.round(s);
     Q(-7, -12, 14, 9, cl('#7c2d12')); Q(-5, -16, 10, 6, cl('#9a3412')); Q(-8, -18, 3, 4, '#f5f5f4'); Q(5, -18, 3, 4, '#f5f5f4');
@@ -2498,12 +2598,64 @@ function drawEnemy(e){
     Q(-4, -8, 8, 6, cl('#1e1b4b')); Q(-2, -10, 4, 3, cl('#312e81')); Q(-2, -9, 1, 1, '#ef4444'); Q(1, -9, 1, 1, '#ef4444');
     for(let i = 0; i < 4; i++){ Q(-8 - (i % 2), -7 + i * 2 + (l > 0 ? 0 : 1), 4, 1, '#312e81'); Q(4 + (i % 2), -7 + i * 2 + (l > 0 ? 1 : 0), 4, 1, '#312e81'); }
     top = -13;
-  } else if(k >= 17 && k <= 20){
-    // Gran Jefe de Mazmorra
-    const sz = 2.4, b = s * 1.5;
-    Q(-8 * sz, -16 * sz + b, 16 * sz, 15 * sz, cl('#451a03'));
-    Q(-6 * sz, -14 * sz + b, 4 * sz, 4 * sz, '#ef4444'); Q(2 * sz, -14 * sz + b, 4 * sz, 4 * sz, '#ef4444');
-    top = -24 * sz;
+  } else if(k === 4 || k === 7 || k === 18){
+    top = k === 4 ? golem(.5, { b: '#6b7280', l: '#9ca3af', d: '#4b5563', f: '#374151', g: '#34d399', g2: '#10b981' })
+      : k === 7 ? golem(1, { b: '#78716c', l: '#a8a29e', d: '#57534e', f: '#44403c', g: '#fbbf24', g2: '#f97316' })
+      : golem(1.2, { b: '#292524', l: '#44403c', d: '#1c1917', f: '#0c0a09', g: '#ff6a2a', g2: '#fde047' });
+  } else if(k === 11 || k === 20){
+    top = k === 20 ? demon(2.3, { b: '#991b1b', d: '#450a0a', h: '#fef3c7', w: '#1c1917' }) : demon(1, { b: '#dc2626', d: '#7f1d1d', h: '#fde68a', w: '#7f1d1d' });
+    if(k === 20){ Q(-10, top - 4, 20, 4, '#facc15'); Q(-10, top - 8, 3, 4, '#facc15'); Q(-1, top - 9, 3, 5, '#facc15'); Q(7, top - 8, 3, 4, '#facc15'); top -= 10; }
+  } else if(k === 6){
+    // Hechicero: túnica, sombrero puntiagudo y báculo con un orbe
+    const o = Math.round(s * 1.5), orb = Math.sin(t * 6) > 0 ? '#f0abfc' : '#e879f9';
+    Q(-7, -14 + o, 14, 12, cl('#4c1d95')); Q(-8, -4 + o, 16, 3, cl('#3b0764')); Q(-1, -14 + o, 2, 13, cl('#7c3aed'));
+    Q(-10, -12 + o, 3, 6, cl('#4c1d95')); Q(7, -12 + o, 3, 6, cl('#4c1d95'));
+    Q(-4, -19 + o, 8, 5, '#1e1b2e'); Q(-3, -17 + o, 2, 1, '#f0abfc'); Q(1, -17 + o, 2, 1, '#f0abfc');
+    Q(-7, -21 + o, 14, 2, cl('#4c1d95')); Q(-4, -25 + o, 8, 4, cl('#5b21b6')); Q(-2, -29 + o, 5, 4, cl('#6d28d9')); Q(1, -31 + o, 3, 2, cl('#7c3aed'));
+    Q(-4, -22 + o, 8, 1, '#facc15');
+    Q(10, -26 + o, 2, 24, '#78350f'); Q(9, -30 + o, 4, 4, orb); Q(8, -29 + o, 6, 2, orb);
+    top = -36;
+  } else if(k === 8){
+    // Rey Calavera: calavera con corona y capa
+    const l = Math.round(s);
+    Q(-9, -16, 18, 14, cl('#1e293b')); Q(-10, -3, 20, 3, cl('#0f172a')); Q(-9, -16, 18, 2, cl('#7f1d1d'));
+    Q(-4, -13, 8, 1, '#e2e8f0'); Q(-4, -10, 8, 1, '#e2e8f0'); Q(-4, -7, 8, 1, '#e2e8f0'); Q(-1, -14, 2, 10, '#e2e8f0');
+    Q(-13, -12 + l, 3, 4, '#e2e8f0'); Q(10, -12 - l, 3, 4, '#e2e8f0');
+    Q(-6, -26, 12, 10, cl('#f1f5f9')); Q(-4, -17, 8, 2, cl('#e2e8f0'));
+    Q(-4, -23, 3, 3, '#111'); Q(1, -23, 3, 3, '#111'); Q(-3, -22, 1, 1, '#ef4444'); Q(2, -22, 1, 1, '#ef4444');
+    Q(-1, -19, 2, 1, '#111'); Q(-3, -17, 1, 1, '#111'); Q(0, -17, 1, 1, '#111'); Q(2, -17, 1, 1, '#111');
+    Q(-6, -29, 12, 3, '#facc15'); Q(-6, -32, 2, 3, '#facc15'); Q(-1, -33, 2, 4, '#facc15'); Q(4, -32, 2, 3, '#facc15'); Q(-1, -28, 2, 1, '#ef4444');
+    top = -37;
+  } else if(k === 2){
+    // Hongo
+    const l = Math.round(s);
+    Q(-3, -6, 6, 6, cl('#f5e6c8')); Q(-2, -4, 1, 1, '#111'); Q(1, -4, 1, 1, '#111');
+    Q(-7, -11 + l, 14, 5, cl('#dc2626')); Q(-5, -13 + l, 10, 2, cl('#dc2626'));
+    Q(-5, -11 + l, 2, 2, '#fff'); Q(2, -12 + l, 2, 2, '#fff'); Q(-1, -9 + l, 2, 1, '#fff');
+    top = -17;
+  } else if(k === 3){
+    // Fantasma
+    const o = Math.round(s * 2), wv = Math.floor(t * 6) % 2;
+    g.globalAlpha = Math.min(g.globalAlpha, .8);
+    Q(-5, -15 + o, 10, 10, cl('#e2e8f0')); Q(-4, -16 + o, 8, 1, cl('#e2e8f0'));
+    for(let i = 0; i < 3; i++) Q(-5 + i * 4, -5 + o + ((i + wv) % 2), 2, 2, cl('#e2e8f0'));
+    Q(-3, -12 + o, 2, 3, '#1e293b'); Q(1, -12 + o, 2, 3, '#1e293b'); Q(-1, -8 + o, 2, 1, '#1e293b');
+    top = -20;
+  } else if(k === 9){
+    // Calabaza
+    const l = Math.round(s);
+    Q(-7, -10 + l, 14, 9, cl('#ea580c')); Q(-6, -11 + l, 12, 1, cl('#f97316')); Q(-1, -10 + l, 2, 9, cl('#c2410c'));
+    Q(-1, -14 + l, 2, 3, '#166534'); Q(1, -13 + l, 3, 1, '#22c55e');
+    Q(-5, -8 + l, 2, 2, '#fde047'); Q(3, -8 + l, 2, 2, '#fde047'); Q(-4, -5 + l, 8, 1, '#fde047'); Q(-2, -4 + l, 1, 1, '#fde047'); Q(1, -4 + l, 1, 1, '#fde047');
+    top = -17;
+  } else if(k === 10){
+    // Cangrejo
+    const cw = Math.sin(t * 10 + e.ph) > 0 ? 1 : 0, l = Math.round(s);
+    Q(-6, -7, 12, 5, cl('#dc2626')); Q(-5, -8, 10, 1, cl('#ef4444'));
+    Q(-3, -11, 1, 3, '#7f1d1d'); Q(2, -11, 1, 3, '#7f1d1d'); Q(-4, -12, 2, 2, '#fff'); Q(2, -12, 2, 2, '#fff');
+    Q(-10, -9 - cw, 4, 3, cl('#b91c1c')); Q(6, -9 - cw, 4, 3, cl('#b91c1c'));
+    for(let i = 0; i < 3; i++){ Q(-8 + i, -2 + ((i + l) % 2), 1, 2, '#7f1d1d'); Q(7 - i, -2 + ((i + l + 1) % 2), 1, 2, '#7f1d1d'); }
+    top = -15;
   } else {
     // Enemigo por defecto
     Q(-5, -12, 10, 10, cl('#8b5cf6')); Q(-2, -10, 2, 2, '#111'); Q(1, -10, 2, 2, '#111');
