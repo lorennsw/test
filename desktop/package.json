@@ -1,0 +1,63 @@
+{
+  "name": "pixel-shooter",
+  "productName": "Pixel Shooter",
+  "version": "1.0.0",
+  "description": "Pixel Shooter: roguelike de mazmorras, PvP y cooperativo",
+  "author": "Pixel Shooter",
+  "homepage": "https://github.com/lorennswaggerboi-lab/test",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "game": "node scripts/copy-game.js",
+    "start": "npm run game && electron .",
+    "dist": "npm run game && electron-builder --win nsis --x64 --publish never"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.11"
+  },
+  "devDependencies": {
+    "electron": "44.9.3",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "io.github.lorennswaggerboi.pixelshooter",
+    "productName": "Pixel Shooter",
+    "copyright": "© 2026 Pixel Shooter",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.js", "preload.js", "localnet.js", "package.json", "game/**", "build/icon.png"],
+    "electronLanguages": ["es", "es-419", "en-US"],
+    "compression": "maximum",
+    "publish": [{ "provider": "generic", "url": "https://github.com/lorennswaggerboi-lab/test/releases/latest/download" }],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build/icon.ico",
+      "executableName": "PixelShooter",
+      "legalTrademarks": "Pixel Shooter",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "artifactName": "PixelShooter-Setup.exe",
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "installerLanguages": ["es_ES"],
+      "language": "3082",
+      "license": "build/licencia.txt",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "installerSidebar": "build/installerSidebar.bmp",
+      "uninstallerSidebar": "build/uninstallerSidebar.bmp",
+      "installerHeader": "build/installerHeader.bmp",
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Pixel Shooter",
+      "uninstallDisplayName": "Pixel Shooter",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh"
+    }
+  }
+}

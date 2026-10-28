@@ -1,0 +1,17 @@
+﻿PIXEL SHOOTER — Términos de uso
+
+Gracias por instalar Pixel Shooter.
+
+1. Pixel Shooter es un juego gratuito. Podés instalarlo en todas las computadoras que quieras y compartir el instalador con tus amigos.
+
+2. Para el modo online, el ranking y la lista de amigos, el juego se conecta al servidor de Pixel Shooter. Tu cuenta guarda tu nombre de jugador, tu progreso y tus estadísticas; no se guarda ningún otro dato personal.
+
+3. Las partidas por red local se juegan solo entre los dispositivos de tu red. La primera vez que crees una, Windows puede preguntarte si permitís el acceso a la red: aceptá en "Redes privadas" para que tus amigos puedan unirse.
+
+4. El juego se actualiza solo: cuando hay una versión nueva se descarga en segundo plano y se instala al cerrar el juego.
+
+5. Tu partida guardada no se borra al desinstalar el juego, así no la perdés si lo volvés a instalar.
+
+El juego se ofrece "tal cual", sin garantías de ningún tipo.
+
+¡Que lo disfrutes!

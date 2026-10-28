@@ -2975,7 +2975,12 @@ const IS_APP = /PixelShooterApp/.test(navigator.userAgent);
 const APK_URL = 'https://github.com/lorennswaggerboi-lab/test/releases/latest/download/PixelShooter.apk';
 // Celular Android desde el navegador (también con "versión para computadora", que oculta "Android"); en iPhone el APK no sirve
 const ANDROID_WEB = !IS_APP && (/Android/i.test(navigator.userAgent) || (/Linux/i.test(navigator.userAgent) && navigator.maxTouchPoints > 0 && !/iPhone|iPad|CrOS/i.test(navigator.userAgent)));
-const apkLink = () => ANDROID_WEB ? `<a class=apk href="${APK_URL}" download>${I.download} Descargar la app para Android</a>` : '';
+// App de PC (Windows): el instalador agrega "PixelShooterPC" al user agent; desde el navegador de Windows se ofrece bajarla
+const IS_PC = /PixelShooterPC/.test(navigator.userAgent);
+const EXE_URL = 'https://github.com/lorennswaggerboi-lab/test/releases/latest/download/PixelShooter-Setup.exe';
+const WIN_WEB = !IS_PC && /Windows/i.test(navigator.userAgent);
+const apkLink = () => ANDROID_WEB ? `<a class=apk href="${APK_URL}" download>${I.download} Descargar la app para Android</a>`
+  : WIN_WEB ? `<a class=apk href="${EXE_URL}" download>${I.download} Descargar el juego para PC</a>` : '';
 let apkAsked = false;
 try{ apkAsked = localStorage.getItem('ps_noapk') === '1'; }catch(e){}
 // La primera vez que se entra desde el celular se ofrece la app antes del inicio de sesión
@@ -5040,14 +5045,14 @@ function localMenu(msg){
   ret = localMenu;
   const k = LAN.kind;
   panel(`<h2>Partida local</h2>
-  <div class=r>Sin internet, con celulares cerca. El PvP local es privado: no cambia el rating.</div>
+  <div class=r>${IS_PC ? 'Sin internet, con PCs o celulares en la misma red.' : 'Sin internet, con celulares cerca.'} El PvP local es privado: no cambia el rating.</div>
   ${msg ? `<div class="msg bad">${esc(msg)}</div>` : ''}
-  ${NB ? '' : `<div class="msg bad">Las partidas locales funcionan solo en la app de Android.</div>${apkLink()}`}
-  <div class=tabs>${[['wifi', 'Wi-Fi local'], ['bt', 'Bluetooth']].map(([v, n]) => `<button class="tab${k === v ? ' on' : ''}" data-a=lkind data-v=${v}>${n}</button>`).join('')}</div>
-  <div class=r><small>${k === 'wifi' ? 'Todos conectados a la misma red Wi-Fi, o uno comparte zona Wi-Fi (hotspot) y los demás se conectan. No usa datos.'
+  ${NB ? '' : `<div class="msg bad">Las partidas locales funcionan solo en la app de Android o de PC.</div>${apkLink()}`}
+  <div class=tabs>${(IS_PC ? [['wifi', 'Red local']] : [['wifi', 'Wi-Fi local'], ['bt', 'Bluetooth']]).map(([v, n]) => `<button class="tab${k === v ? ' on' : ''}" data-a=lkind data-v=${v}>${n}</button>`).join('')}</div>
+  <div class=r><small>${IS_PC ? 'Todos en la misma red (Wi-Fi o cable). Si Windows pregunta por el firewall, permití el acceso en redes privadas.' : k === 'wifi' ? 'Todos conectados a la misma red Wi-Fi, o uno comparte zona Wi-Fi (hotspot) y los demás se conectan. No usa datos.'
     : 'Emparejá los celulares por Bluetooth si te lo pide. Hasta 8 jugadores; se nota un poco más de demora que por Wi-Fi.'}</small></div>
   <div class=duo style="grid-template-columns:1fr 1fr">
-    <button class="big s" data-a=lhostm ${NB ? '' : 'disabled'}>${I.plus}<b>Crear partida</b><small>Tu celular es el anfitrión</small></button>
+    <button class="big s" data-a=lhostm ${NB ? '' : 'disabled'}>${I.plus}<b>Crear partida</b><small>Tu ${IS_PC ? 'PC' : 'celular'} es el anfitrión</small></button>
     <button class=big data-a=ljoinm ${NB ? '' : 'disabled'}>${I.link}<b>Unirse</b><small>Buscá la partida de un amigo</small></button>
   </div>
   <button data-a=home>${I.back} Volver</button>`);
@@ -5382,7 +5387,7 @@ function loadGame(i){
   curSave = s.id;
   if(!s.multi) return applySave(s);
   // partida local (Wi-Fi o Bluetooth): se vuelve a crear la partida local
-  if(s.lan && NB){ LAN.kind = s.lan; LAN.md = s.mode; LAN.max = s.max || 4; LAN.load = s; return lanHost(); }
+  if(s.lan && NB){ LAN.kind = IS_PC ? 'wifi' : s.lan; LAN.md = s.mode; LAN.max = s.max || 4; LAN.load = s; return lanHost(); }
   // multijugador: se vuelve a abrir la sala online con la misma cantidad de jugadores
   net.mode = s.mode; net.max = s.max || 4; net.load = s;
   net.autoRoom = pref() + (s.room || 'Partida');
