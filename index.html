@@ -850,11 +850,19 @@ const DIRS = [
   { k: 'e', dx: 1, dy: 0, opp: 'w' }
 ];
 
+// ---- dificultades de la mazmorra (en cooperativo la elige el anfitrión y se la pasa a todos)
+const DIFS = [
+  { n: 'Normal', d: 'Como siempre.', hp: 1, rooms: 0, mh: 5, bonus: 150, col: '#3ecf8e' },
+  { n: 'Difícil', d: 'Más salas por piso y enemigos con +60% de vida.', hp: 1.6, rooms: 3, mh: 5, bonus: 300, col: '#f2b33d' },
+  { n: 'Hardcore', d: 'Como difícil, pero con un solo corazón.', hp: 1.6, rooms: 3, mh: 1, bonus: 600, col: '#ef5b6b' }
+];
+let dif = 0;   // dificultad de la mazmorra en curso
+const DF = () => DIFS[dif] || DIFS[0];
 function genDungeon(floor, sd){
   const pr = mulberry32(sd);
   const thIdx = (floor - 1) % DUN_THEMES.length;
   const th = DUN_THEMES[thIdx];
-  const numRooms = 8 + floor * 3; // Muchas habitaciones: 11 en P1, 14 en P2, 17 en P3...
+  const numRooms = 8 + floor * 3 + DF().rooms; // Muchas habitaciones: 11 en P1, 14 en P2, 17 en P3... (más en difícil)
   const rooms = {};
   
   // Sala inicial
@@ -1713,7 +1721,7 @@ function descend(){
 function newFloor(fl, sdv){
   genDungeon(fl, sdv);
   p.x = RW * T / 2; p.y = RH * T / 2;
-  if(p.dead > 1000){ p.dead = 0; p.hp = 2; p.inv = 3; }
+  if(p.dead > 1000){ p.dead = 0; p.hp = Math.min(2, p.maxHp || 5); p.inv = 3; }
   banner('PISO ' + fl + ': ' + dung.floorTheme.n.toUpperCase());
 }
 // Al pasarse la mazmorra se borra la partida guardada: ya no hay a dónde volver
@@ -1721,15 +1729,16 @@ function newFloor(fl, sdv){
 const winDung = () => {
   if(state === 'clear') return;
   state = 'clear'; dropSave();
-  END = { coins: V.coins, bonus: 150, kills, mates: Object.values(net.rem).filter(r => r.av).map(r => r.av) };
+  END = { coins: V.coins, bonus: DF().bonus, dif, kills, mates: Object.values(net.rem).filter(r => r.av).map(r => r.av) };
   if(DB) DB.coins += END.coins + END.bonus; else V.coins += END.bonus;
   V.bestKills = Math.max(V.bestKills || 0, kills);
   save(); sFan();
   clearMenu();
 };
 const dungOver = () => { state = 'over'; V.bestKills = Math.max(V.bestKills || 0, kills); save(); over(); };
-function beginDung(fl, sdv, rk, cl, rs){
+function beginDung(fl, sdv, rk, cl, rs, df){
   net.wait = false;
+  dif = df != null ? df | 0 : V.dif | 0;   // el anfitrión (o el que juega solo) usa la que eligió
   start('dung', fl || 1, 0, sdv);
   applyRS(rs);
   if(rk && dung.rooms[rk]){
@@ -2021,6 +2030,7 @@ function start(md, lv, mp, sdd){
 
   if(md === 'dung'){
     ms = null;
+    p.maxHp = p.hp = DF().mh;
     genDungeon(lvl, sdd || rnd(1, 99999));
     p.x = RW * T / 2; p.y = RH * T / 2;
     banner('PISO ' + lvl + ': ' + dung.floorTheme.n.toUpperCase());
@@ -2043,7 +2053,7 @@ function start(md, lv, mp, sdd){
 
 const tier = () => mode === 'camp' ? lvl : mode === 'dung' ? dung.floor : 1 + Math.floor(kills / 10);
 // en la mazmorra la vida se multiplica por el número de piso (piso 2 = el doble, piso 3 = el triple…)
-const hpMul = () => mode === 'camp' ? 1 + .2 * (lvl - 1) : mode === 'dung' ? dung.floor : 1 + .07 * (tier() - 1);
+const hpMul = () => mode === 'camp' ? 1 + .2 * (lvl - 1) : mode === 'dung' ? dung.floor * DF().hp : 1 + .07 * (tier() - 1);
 const isBossLvl = () => mode === 'camp' && lvl % 5 === 0;
 const bossFor = () => BOSS[(lvl / 5 - 1) % 4];
 const goalDone = () => isBossLvl() ? bd : kills >= goal();
@@ -2063,7 +2073,7 @@ const coopN = () => net.on && mode !== 'duel' ? 1 + Object.keys(net.rem).length 
 function mk(k, x, y, opt){
   const d = EN[k];
   if(mode === 'dung' && !d.nc) [x, y] = freeNear(x, y, d.r > 8 ? 6 : 4);
-  let hm = d.boss ? (mode === 'camp' ? 1 + .15 * (lvl - 1) : mode === 'dung' ? Math.max(1.25, dung.floor) : 1 + .2 * (tier() - 1)) : hpMul();
+  let hm = d.boss ? (mode === 'camp' ? 1 + .15 * (lvl - 1) : mode === 'dung' ? Math.max(1.25, dung.floor) * DF().hp : 1 + .2 * (tier() - 1)) : hpMul();
   const el = mode === 'dung' && !d.boss && !(opt && opt.noElite) && Math.random() < Math.min(.5, .08 + dung.floor * .07);
   if(el) hm *= 2;
   hm *= coopN();   // en cooperativo cada jugador suma la vida de un enemigo entero (2 jugadores = el doble)
@@ -2867,9 +2877,9 @@ function onNet(d){
     if(!d.r) snd({ t: 'w_hi', to: d.from, n: V.av.name, av: V.av, h: net.host ? 1 : 0, r: 1 });
     if(net.wait) waitRoom();
     else if(net.host && mode === 'dung' && state === 'play')
-      snd({ t: 'd_go', to: d.from, fl: dung.floor, sd: dung.seed, rk: dung.curRoomKey, cl: Object.keys(dung.rooms).filter(k => dung.rooms[k].cleared), rs: dungRS() });
+      snd({ t: 'd_go', to: d.from, fl: dung.floor, sd: dung.seed, rk: dung.curRoomKey, cl: Object.keys(dung.rooms).filter(k => dung.rooms[k].cleared), rs: dungRS(), dif });
   }
-  else if(d.t === 'd_go'){ if(net.wait) beginDung(d.fl, d.sd, d.rk, d.cl, d.rs); }
+  else if(d.t === 'd_go'){ if(net.wait) beginDung(d.fl, d.sd, d.rk, d.cl, d.rs, d.dif); }
   else if(d.t === 'h' && net.host){
     const e = enemies.find(q => q.id === d.id);
     if(e && !e.dead) dmg(e, d.d, d.from);
@@ -3743,6 +3753,7 @@ function draw(){
 
   if(mode === 'dung'){
     TX('PISO ' + dung.floor + ': ' + dung.floorTheme.n.toUpperCase(), W / 2, 9, 4.2, '#ffd23f', 'center');
+    if(dif) TX(DF().n.toUpperCase(), W / 2, 23.5, 3, DF().col, 'center');
     const rr_ = dung.curRoom;
     if(rr_ && !rr_.cleared) TX('ENEMIGOS: ' + enemies.length + (rr_.waves > 1 ? '   OLEADA ' + Math.max(1, rr_.wave) + '/' + rr_.waves : ''), W / 2, 17, 3.6, '#ff9d9d', 'center');
     if(dung.passives.length > 0){
@@ -4250,8 +4261,11 @@ const MN = { dung: 'MAZMORRAS', camp: 'CAMPAÑA', surv: 'SUPERVIVENCIA', duel: '
 // Elegir cuántos jugadores: 1 = solitario, 2+ = sala online para esa cantidad
 function players(md, onlineOnly){
   net.mode = md;
-  const ns = []; for(let n = onlineOnly ? 2 : 1; n <= MAXP; n++) ns.push(n);
+  const ns = [], vd = V.dif | 0; for(let n = onlineOnly ? 2 : 1; n <= MAXP; n++) ns.push(n);
   panel(`<h2>${MN[md]}</h2>
+  ${md === 'dung' ? `<div class=r>Dificultad</div>
+  <div class=pcount style="grid-template-columns:repeat(3,1fr)">${DIFS.map((D, i) => `<button class="${i === vd ? 's' : ''}" data-a=dif data-v=${i} style="${i === vd ? '' : 'border-color:' + D.col + '66'}"><b style="color:${i === vd ? 'inherit' : D.col}">${D.n}</b><small>${D.d}</small></button>`).join('')}</div>
+  <div class=r><small>Premio al escapar: ${DIFS[vd].bonus} monedas${vd === 2 ? ' · ' : ''}${vd === 2 ? 'empezás con 1 corazón' : ''}</small></div>` : ''}
   <div class=r>¿Cuántos jugadores?</div>
   <div class=pcount>${ns.map(n => `<button class="${n === 1 ? 's' : ''}" data-a=np data-v=${n}>${n}<small>${n === 1 ? 'SOLITARIO' : 'ONLINE'}</small></button>`).join('')}</div>
   <div class=r><small>Con 2 o más se crea una sala online cooperativa para esa cantidad de jugadores.</small></div>
@@ -5041,7 +5055,7 @@ function lobbyGo(d){
   if(net.mode === 'dung'){
     net.wait = true; net.wl = {};
     if(!net.host) return wait('Mazmorras');
-    const sdv = rnd(1, 99999); snd({ t: 'd_go', fl: 1, sd: sdv }); beginDung(1, sdv); return;
+    const sdv = rnd(1, 99999); snd({ t: 'd_go', fl: 1, sd: sdv, dif: V.dif | 0 }); beginDung(1, sdv); return;
   }
   start(net.mode, 1);
 }
@@ -5081,7 +5095,7 @@ function snapGame(){
     hp: p.hp > 0 ? p.hp : 2, mh: p.maxHp || 5, ar: p.ar || 0
   };
   if(mode === 'dung') s.d = {
-    fl: dung.floor, sd: dung.seed, rk: dung.curRoomKey, rs: dungRS(), pas: dung.passives.slice(),
+    fl: dung.floor, sd: dung.seed, rk: dung.curRoomKey, rs: dungRS(), pas: dung.passives.slice(), dif,
     inv: { coins: V.coins, owned: V.owned.slice(), eq: V.eq }
   };
   return s;
@@ -5098,7 +5112,7 @@ function saveGame(fromBench){
   return ok;
 }
 function applySave(s){
-  if(s.mode === 'dung') beginDung(s.d.fl, s.d.sd, s.d.rk, null, s.d.rs);
+  if(s.mode === 'dung') beginDung(s.d.fl, s.d.sd, s.d.rk, null, s.d.rs, s.d.dif | 0);
   else start(s.mode, s.lvl, s.mp);
   restorePlayer(s);
 }
@@ -5119,7 +5133,7 @@ function loadGame(i){
   net.autoRoom = pref() + (s.room || 'Partida');
   connect(V.srv || DEFAULT_SERVER);
 }
-const saveDesc = s => s.mode === 'dung' ? 'PISO ' + (s.d ? s.d.fl : s.lvl) : s.mode === 'camp' ? 'NIVEL ' + s.lvl : 'OLEADA ' + (1 + Math.floor((s.kills || 0) / 10));
+const saveDesc = s => s.mode === 'dung' ? 'PISO ' + (s.d ? s.d.fl : s.lvl) + (s.d && s.d.dif ? ' · ' + DIFS[s.d.dif].n.toUpperCase() : '') : s.mode === 'camp' ? 'NIVEL ' + s.lvl : 'OLEADA ' + (1 + Math.floor((s.kills || 0) / 10));
 function savesMenu(msg){
   const l = getSaves();
   panel(`<h2>Partidas guardadas</h2>
@@ -5138,11 +5152,12 @@ const A = {
   surv: () => players('surv'),
   np: v => {
     curSave = null; net.load = null; net.autoRoom = null;
-    if(+v === 1) return start(net.mode, 1);
+    if(+v === 1){ if(net.mode === 'dung') dif = V.dif | 0; return start(net.mode, 1); }
     net.max = +v; online();
   },
   np2: () => players(net.mode),
   loads: () => savesMenu(),
+  dif: v => { V.dif = Math.max(0, Math.min(2, +v)); save(); players(net.mode); },
   merchb: v => merchBuy(+v),
   npcn: () => npcReady(),
   npcx: () => { npcTalk = null; A.resume(); },   // solo jugando solo: cerrar a mitad (hay que volver a hablarle)
@@ -5216,10 +5231,10 @@ const A = {
     if(!net.on || !net.host || !net.wait) return;
     const L = net.load; net.load = null;
     if(L && L.d){
-      snd({ t: 'd_go', fl: L.d.fl, sd: L.d.sd, rk: L.d.rk, rs: L.d.rs });
-      beginDung(L.d.fl, L.d.sd, L.d.rk, null, L.d.rs); restorePlayer(L); return;
+      snd({ t: 'd_go', fl: L.d.fl, sd: L.d.sd, rk: L.d.rk, rs: L.d.rs, dif: L.d.dif | 0 });
+      beginDung(L.d.fl, L.d.sd, L.d.rk, null, L.d.rs, L.d.dif | 0); restorePlayer(L); return;
     }
-    const sdv = rnd(1, 99999); snd({ t: 'd_go', fl: 1, sd: sdv }); beginDung(1, sdv);
+    const sdv = rnd(1, 99999); snd({ t: 'd_go', fl: 1, sd: sdv, dif: V.dif | 0 }); beginDung(1, sdv);
   },
   wquit: () => A.quit(),
   tab: v => shop(v),
