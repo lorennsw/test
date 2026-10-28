@@ -25,9 +25,10 @@
     const nameOf = ws => ws.user || ws.nick || 'Jugador';
     const getUser = name => store ? store.getUser(name) : null;
 
-    // Salas PvP según el prefijo del nombre: V| 1v1, W| 2v2, F| todos contra todos
-    const PV = { 'V|': { md: '1v1', max: 2 }, 'W|': { md: '2v2', max: 4 }, 'F|': { md: 'ffa', max: 8 } };
-    const QNEED = { '1v1': 2, '2v2': 4, ffa: 6 };
+    // Salas PvP según el prefijo del nombre: V| 1v1, W| 2v2, X| 3v3, Y| 4v4, F| todos contra todos
+    const PV = { 'V|': { md: '1v1', max: 2 }, 'W|': { md: '2v2', max: 4 }, 'X|': { md: '3v3', max: 6 }, 'Y|': { md: '4v4', max: 8 }, 'F|': { md: 'ffa', max: 8 } };
+    const QNEED = { '1v1': 2, '2v2': 4, '3v3': 6, '4v4': 8, ffa: 6 };
+    const teamSize = md => ({ '2v2': 2, '3v3': 3, '4v4': 4 })[md] || 0;   // jugadores por equipo en los modos por equipos
     const pvOf = name => PV[name.slice(0, 2)];
 
     function joinRoom(ws, name, max) {
@@ -53,8 +54,8 @@
     const duelRoomInfo = r => duelBroadcast(r, { t: 'duel_room', n: r.size, max: r.max, host: ([...r].find(x => x.host) || {}).id });
     async function duelStart(r) {
       const md = r.pv.md, ps = [...r].sort(() => Math.random() - .5);   // equipos al azar
-      // 2v2 de la sala local: los equipos que eligieron los jugadores (si siguen estando todos)
-      const fx = md === '2v2' && r.tm && ps.every(x => r.tm.has(x.id)) ? r.tm : null;
+      // equipos de la sala local: los que eligieron los jugadores (si siguen estando todos)
+      const fx = teamSize(md) && r.tm && ps.every(x => r.tm.has(x.id)) ? r.tm : null;
       // el servidor sortea el mapa (distinto al anterior en una revancha) para que todos vean el mismo
       let mp = Math.floor(Math.random() * DUEL_MAPS);
       if (mp === r.lastMp) mp = (mp + 1 + Math.floor(Math.random() * (DUEL_MAPS - 1))) % DUEL_MAPS;
@@ -118,7 +119,7 @@
       d.n++;
       duelBroadcast(r, { t: 'duel_round', sc: d.sc, w: wt, n: d.n });
     }
-    // w: equipo ganador (1v1 y 2v2) o id del ganador (FFA)
+    // w: equipo ganador (1v1 y por equipos) o id del ganador (FFA)
     async function duelEnd(r, w, ff) {
       const d = r.duel;
       d.live = false;
@@ -156,39 +157,39 @@
         return;
       }
       if (![...r].some(x => x.team === ws.team)) return duelEnd(r, 1 - ws.team, true);   // su equipo quedó vacío
-      duelDeath(r, ws, 0);   // en 2v2 cuenta como caído en esta ronda
+      duelDeath(r, ws, 0);   // por equipos cuenta como caído en esta ronda
     }
 
     // ---------- sala local: al terminar todos vuelven, el anfitrión elige el modo y se empieza cuando están todos listos
-    const MODES = { dung: 'D|', camp: 'C|', surv: 'S|', '1v1': 'V|', '2v2': 'W|', ffa: 'F|' };
-    const lobbyNeed = md => ({ '1v1': [2, 2], '2v2': [4, 4], ffa: [2, TOP_P] })[md] || [1, TOP_P];
+    const MODES = { dung: 'D|', camp: 'C|', surv: 'S|', '1v1': 'V|', '2v2': 'W|', '3v3': 'X|', '4v4': 'Y|', ffa: 'F|' };
+    const lobbyNeed = md => md === 'ffa' ? [2, TOP_P] : md === '1v1' ? [2, 2] : teamSize(md) ? [teamSize(md) * 2, teamSize(md) * 2] : [1, TOP_P];
     const lobbyInfo = r => duelBroadcast(r, { t: 'lob', md: r.lob.md, need: lobbyNeed(r.lob.md),
       p: [...r].map(x => [x.id, nameOf(x), r.lob.rd.has(x.id) ? 1 : 0, x.host ? 1 : 0, r.lob.tm.has(x.id) ? r.lob.tm.get(x.id) : -1]) });
-    // 2v2: cada uno elige equipo (2 por equipo) y se puede cambiar mientras haya lugar
-    const teamOk = r => [0, 1].every(t => [...r].filter(x => r.lob.tm.get(x.id) === t).length === 2);
+    // por equipos: cada uno elige el suyo (mitad y mitad) y se puede cambiar mientras haya lugar
+    const teamOk = r => [0, 1].every(t => [...r].filter(x => r.lob.tm.get(x.id) === t).length === teamSize(r.lob.md));
     function lobbyOpen(r, md) {
       if (r.lob) return;
       if (r.duel) { r.duel.live = false; clearTimeout(r.vetoT); }
-      r.lob = { md: MODES[md] ? md : 'dung', rd: new Set(), tm: new Map(r.tm || []) };   // los equipos del último 2v2 se mantienen
+      r.lob = { md: MODES[md] ? md : 'dung', rd: new Set(), tm: new Map(r.tm || []) };   // los equipos de la última partida por equipos se mantienen
       r.max = TOP_P;
       lobbyInfo(r);
     }
     // si están todos listos y la cantidad sirve para el modo, arranca; la sala cambia de nombre según el modo
     function lobbyCheck(r) {
       const l = r.lob, [a, b] = lobbyNeed(l.md);
-      if (r.size < a || r.size > b || [...r].some(x => !l.rd.has(x.id)) || (l.md === '2v2' && !teamOk(r))) return lobbyInfo(r);
+      if (r.size < a || r.size > b || [...r].some(x => !l.rd.has(x.id)) || (teamSize(l.md) && !teamOk(r))) return lobbyInfo(r);
       const old = [...r][0].room, name = MODES[l.md] + old.slice(2), pv = pvOf(name);
       delete rooms[old]; rooms[name] = r; r.forEach(x => { x.room = name; });
-      r.lob = null; r.tm = l.md === '2v2' ? l.tm : null; r.pv = pv || null; r.duel = pv ? { live: false } : null; r.max = pv ? pv.max : TOP_P;
+      r.lob = null; r.tm = teamSize(l.md) ? l.tm : null; r.pv = pv || null; r.duel = pv ? { live: false } : null; r.max = pv ? pv.max : TOP_P;
       duelBroadcast(r, { t: 'lob_go', md: l.md, room: name, max: r.max });
       if (pv) duelStart(r);
     }
 
     // ---------- búsqueda de partida
-    const queues = { '1v1': [], '2v2': [], ffa: [] };
+    const queues = { '1v1': [], '2v2': [], '3v3': [], '4v4': [], ffa: [] };
     const dropQ = ws => { for (const k in queues) queues[k] = queues[k].filter(x => x !== ws && x.readyState === 1 && !x.room); };
     function queueMatch(md, n) {
-      const q = queues[md], take = q.splice(0, n), name = { '1v1': 'V|#', '2v2': 'W|#', ffa: 'F|#' }[md] + duelN++;
+      const q = queues[md], take = q.splice(0, n), name = { '1v1': 'V|#', '2v2': 'W|#', '3v3': 'X|#', '4v4': 'Y|#', ffa: 'F|#' }[md] + duelN++;
       take.forEach(x => joinRoom(x, name));
       if (md === 'ffa') duelStart(rooms[name]);
     }
@@ -229,7 +230,7 @@
         if (r.lob && m.t === 'lob_tm') {
           const t = m.tm ? 1 : 0;
           if (r.lob.tm.get(ws.id) === t) r.lob.tm.delete(ws.id);   // tocar el propio equipo lo deja libre (para intercambiar)
-          else if ([...r].filter(x => r.lob.tm.get(x.id) === t).length < 2) r.lob.tm.set(ws.id, t);
+          else if ([...r].filter(x => r.lob.tm.get(x.id) === t).length < (teamSize(r.lob.md) || 2)) r.lob.tm.set(ws.id, t);
           else return;
           r.lob.rd.delete(ws.id);
           return lobbyInfo(r);

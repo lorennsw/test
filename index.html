@@ -3695,7 +3695,7 @@ function main(msg){
         </div>
 
         <button class="mb s" data-a=online>${I.globe}<span><b>Cooperativo online</b><small>Salas públicas y privadas</small></span></button>
-        <button class=mb data-a=duel>${I.target}<span><b>Arena PvP</b><small>1v1, 2v2 y todos contra todos · ranking</small></span></button>
+        <button class=mb data-a=duel>${I.target}<span><b>Arena PvP</b><small>1v1, 2v2, 3v3, 4v4 y todos contra todos · ranking</small></span></button>
         <button class=mb data-a=camp>${I.flag}<span><b>Campaña clásica</b><small>Niveles y misiones · 1-8 jugadores</small></span></button>
         <button class=mb data-a=surv>${I.swords}<span><b>Supervivencia</b><small>Oleadas sin fin · 1-8 jugadores</small></span></button>
         <div class=nrow>
@@ -4143,10 +4143,15 @@ const DUEL_HP = 6;
 const PVM = {
   '1v1': { n: '1v1', d: 'Uno contra uno al mejor de 5 rondas.', max: 2, pre: 'V|', ic: 'target' },
   '2v2': { n: '2v2', d: 'Dos equipos de 2, sin fuego amigo. Gana el equipo que se lleve 3 rondas.', max: 4, pre: 'W|', ic: 'users' },
+  '3v3': { n: '3v3', d: 'Dos equipos de 3, sin fuego amigo. Gana el equipo que se lleve 3 rondas.', max: 6, pre: 'X|', ic: 'users' },
+  '4v4': { n: '4v4', d: 'Dos equipos de 4, sin fuego amigo. Gana el equipo que se lleve 3 rondas.', max: 8, pre: 'Y|', ic: 'users' },
   ffa: { n: 'Todos contra todos', d: 'De 2 a 8 jugadores. Reaparecés al morir; gana el primero en llegar a 10 bajas.', max: 8, pre: 'F|', ic: 'swords' }
 };
 let pvMode = '1v1';
 let DU = { md: '1v1', ps: [], sc: {}, n: 1, win: 3, fz: 0, res: null };
+const pvTeams = md => md !== '1v1' && md !== 'ffa';
+// lugar de aparición del jugador i de n en su lado: en fila vertical, 2 casillas entre cada uno
+const teamSpot = (team, i, n) => { const sp = arenaSpawn(team); sp.y += (Math.max(0, i) - (n - 1) / 2) * 2 * T; return sp; };
 const pvMe = () => DU.ps.find(q => q[0] === net.id) || [net.id, V.av.name, null, 0];
 const teamOf = id => { const q = DU.ps.find(q => q[0] === +id); return q ? q[3] : -1; };
 const isMate = id => DU.md !== 'ffa' && teamOf(id) === pvMe()[3];
@@ -4191,7 +4196,7 @@ async function duelTop(){
   try{
     const l = await api('/api/top'), me = String(AU.name || '').toLowerCase();
     panel(`<h2>Ranking PvP</h2>
-    <div class=r><small>El rating se gana en 1v1 y 2v2 cuando todos los jugadores tienen cuenta.</small></div>
+    <div class=r><small>El rating se gana en 1v1 y en los modos por equipos cuando todos los jugadores tienen cuenta.</small></div>
     <div class=lb>${l.length ? l.map((r, i) => `<div class="lbr${r[0].toLowerCase() === me ? ' me' : ''}"><span>${i + 1}.</span><span class=nm>${esc(r[0])}</span><small>${r[2]} V · ${r[3]} D</small><b>${r[1]}</b></div>`).join('') : '<div class=r>Todavía nadie jugó con cuenta.</div>'}</div>
     <div><button data-a=duel>${I.back} Volver</button></div>`);
   } catch(e){ duelMenu(e.message); }
@@ -4270,7 +4275,7 @@ function vetoDone(d){
   DU.vlog = d.log;   // quién vetó cada arma (para el resultado)
 }
 
-// Dónde aparece cada uno: 1v1/2v2 en el lado de su equipo; en FFA, el punto más lejos de los rivales
+// Dónde aparece cada uno: 1v1 y por equipos en el lado de su equipo (en fila); en FFA, el punto más lejos de los rivales
 function pvSpawnPoint(){
   const me = pvMe();
   if(DU.md === 'ffa'){
@@ -4282,9 +4287,8 @@ function pvSpawnPoint(){
     }
     return best;
   }
-  const mates = DU.ps.filter(q => q[3] === me[3]), sp = arenaSpawn(me[3]);
-  if(mates.length > 1) sp.y += (mates.indexOf(me) ? 2 : -2) * T;
-  return sp;
+  const mates = DU.ps.filter(q => q[3] === me[3]);
+  return teamSpot(me[3], mates.findIndex(q => q[0] === me[0]), mates.length);
 }
 function duelSpawn(){
   const sp = pvSpawnPoint();
@@ -4326,8 +4330,8 @@ function duelResult(note){
   ${R.ff ? '<div class=r><small>La partida terminó porque abandonaron jugadores</small></div>' : ''}
   ${ffa ? `<div class=lb>${rows.map((q, i) => `<div class="lbr${q[0] === net.id ? ' me' : ''}"><span>${i + 1}.</span><span class=nm>${esc(q[1])}</span><b>${DU.sc[q[0]] || 0}</b></div>`).join('')}</div>`
     : `<div class=stats>
-    <div><small>${DU.md === '2v2' ? 'TU EQUIPO' : 'VOS'}</small><b>${DU.sc[me[3]] || 0}</b></div>
-    <div><small>${DU.md === '2v2' ? 'RIVALES' : esc(String(pvName(DU.ps.find(q => q[3] !== me[3])?.[0])).toUpperCase())}</small><b>${DU.sc[1 - me[3]] || 0}</b></div>
+    <div><small>${pvTeams(DU.md) ? 'TU EQUIPO' : 'VOS'}</small><b>${DU.sc[me[3]] || 0}</b></div>
+    <div><small>${pvTeams(DU.md) ? 'RIVALES' : esc(String(pvName(DU.ps.find(q => q[3] !== me[3])?.[0])).toUpperCase())}</small><b>${DU.sc[1 - me[3]] || 0}</b></div>
     ${R.d != null ? `<div><small>RATING</small><b>${AU.stats ? AU.stats.rating : '—'} <small style="color:${R.win ? 'var(--ok)' : 'var(--bad)'}">${R.win ? '+' : '−'}${R.d}</small></b></div>` : ''}
   </div>`}
   ${!ffa && R.d == null ? `<div class=r><small>${BOT.hub ? 'Contra bots: no cambia el rating' : net.lan ? 'Partida local: no cambia el rating' : 'Partida sin ranking (hace falta que todos tengan cuenta)'}</small></div>` : ''}
@@ -4349,9 +4353,9 @@ function drawDuelHud(){
     TX('TODOS CONTRA TODOS · A ' + DU.win + ' · ' + (DT ? DT.n.toUpperCase() : ''), W / 2, 20, 2.6, '#8a93a8', 'center');
   } else {
     const opp = DU.ps.find(q => q[3] !== me[3]);
-    TX(DU.md === '2v2' ? 'TU EQUIPO' : 'VOS', W / 2 - 14, 11, 3.6, '#56c8e0', 'right');
+    TX(pvTeams(DU.md) ? 'TU EQUIPO' : 'VOS', W / 2 - 14, 11, 3.6, '#56c8e0', 'right');
     TX((DU.sc[me[3]] || 0) + '-' + (DU.sc[1 - me[3]] || 0), W / 2, 11.5, 5.2, '#fff', 'center');
-    TX(DU.md === '2v2' ? 'RIVALES' : String(opp ? opp[1] : 'RIVAL').toUpperCase().slice(0, 10), W / 2 + 14, 11, 3.6, '#ef5b6b', 'left');
+    TX(pvTeams(DU.md) ? 'RIVALES' : String(opp ? opp[1] : 'RIVAL').toUpperCase().slice(0, 10), W / 2 + 14, 11, 3.6, '#ef5b6b', 'left');
     TX('RONDA ' + DU.n + ' · ' + (DT ? DT.n.toUpperCase() : ''), W / 2, 20, 2.8, '#8a93a8', 'center');
   }
   // flechas hacia los demás jugadores que están fuera de la pantalla
@@ -4368,7 +4372,7 @@ function drawDuelHud(){
 // base de datos, así que no cambia el rating. Cada bot es un jugador más conectado a esa sala: manda su
 // posición, sus disparos, sus impactos y sus muertes con los mismos mensajes que una persona.
 const BOT = { hub: null, list: [], want: 0 };
-const BOT_N = { '1v1': 1, '2v2': 3, ffa: 5 };
+const BOT_N = { '1v1': 1, '2v2': 3, '3v3': 5, '4v4': 7, ffa: 5 };
 const BOT_NAMES = ['Ráfaga', 'Sombra', 'Vector', 'Kira', 'Tanque', 'Nova', 'Zeta', 'Halcón'];
 const BOT_COLS = ['#e43b44', '#3b82f6', '#22c55e', '#a855f7', '#f97316', '#eab308', '#14b8a6', '#ec4899'];
 // conexión directa con una sala que corre en esta misma página
@@ -4444,8 +4448,8 @@ function botSpawn(b){
       if(dd > bd){ bd = dd; sp = { x, y }; }
     }
   } else {
-    const mates = DU.ps.filter(q => q[3] === b.team), i = mates.findIndex(q => q[0] === b.id);
-    sp = arenaSpawn(b.team); if(mates.length > 1) sp.y += (i ? 2 : -2) * T;
+    const mates = DU.ps.filter(q => q[3] === b.team);
+    sp = teamSpot(b.team, mates.findIndex(q => q[0] === b.id), mates.length);
   }
   Object.assign(b, { x: sp.x, y: sp.y, hp: DUEL_HP, alive: true, spawn: false, back: 0, inv: b.md === 'ffa' ? 1.2 : 0, fz: b.md === 'ffa' && DU.fz <= 0 ? 0 : 2.2, roll: 0, bul: [], seeT: 0 });
 }
@@ -4597,8 +4601,8 @@ function botShoot(b, w){
 const NB = window.PSNative || null;
 const LAN = { kind: 'wifi', found: {}, hub: null, peers: {}, client: null, host: null, md: 'dung', max: 4, joining: false };
 const LAN_MODES = [['dung', 'Mazmorras', 'key', 'D|'], ['camp', 'Campaña', 'flag', 'C|'], ['surv', 'Supervivencia', 'swords', 'S|'],
-  ['1v1', '1v1', 'target', 'V|'], ['2v2', '2v2', 'users', 'W|'], ['ffa', 'Todos contra todos', 'swords', 'F|']];
-const lanPvp = md => md === '1v1' || md === '2v2' || md === 'ffa';
+  ['1v1', '1v1', 'target', 'V|'], ['2v2', '2v2', 'users', 'W|'], ['3v3', '3v3', 'users', 'X|'], ['4v4', '4v4', 'users', 'Y|'], ['ffa', 'Todos contra todos', 'swords', 'F|']];
+const lanPvp = md => !!PVM[md];
 const lanName = md => (LAN_MODES.find(x => x[0] === md) || [0, md])[1];
 function lanSetMode(room){
   const m = LAN_MODES.find(x => room.startsWith(x[3]));
@@ -4739,14 +4743,14 @@ function lobbyMenu(){
   ret = lobbyMenu;
   const L = LOB, me = L.p.find(q => q[0] === net.id), rd = me && me[2], [a, b] = L.need, n = L.p.length;
   net.host = !!(me && me[3]);
-  const tv = L.md === '2v2', myTm = me ? me[4] : -1, tmN = k => L.p.filter(q => q[4] === k).length;
+  const ts = pvTeams(L.md) && PVM[L.md] ? PVM[L.md].max / 2 : 0, tv = ts > 0, myTm = me ? me[4] : -1, tmN = k => L.p.filter(q => q[4] === k).length;
   const row = q => `<div class="lbr${q[0] === net.id ? ' me' : ''}"><span>${q[3] ? '★' : ''}</span><span class=nm>${esc(q[1])}${q[3] ? ' <small>ANFITRIÓN</small>' : ''}</span><b style="color:var(--${q[2] ? 'ok' : 'muted'})">${q[2] ? 'LISTO' : 'ESPERANDO'}</b></div>`;
-  // 2v2: dos grupos; cada uno toca el suyo y se puede cambiar si hay lugar
+  // por equipos: dos grupos; cada uno toca el suyo y se puede cambiar si hay lugar
   const teams = `<div class=duo style="grid-template-columns:1fr 1fr;text-align:left">${[0, 1].map(k => `<div>
-    <button class="${myTm === k ? 's' : ''}" data-a=lbtm data-v=${k} ${myTm !== k && tmN(k) >= 2 ? 'disabled' : ''} style="width:100%;border-color:var(--${k ? 'acc2' : 'bad'})">${I.users} Equipo ${k ? 'Azul' : 'Rojo'} <small>${tmN(k)}/2${myTm === k ? ' · SALIR' : tmN(k) >= 2 ? ' · LLENO' : myTm >= 0 ? ' · CAMBIARME' : ' · UNIRME'}</small></button>
+    <button class="${myTm === k ? 's' : ''}" data-a=lbtm data-v=${k} ${myTm !== k && tmN(k) >= ts ? 'disabled' : ''} style="width:100%;border-color:var(--${k ? 'acc2' : 'bad'})">${I.users} Equipo ${k ? 'Azul' : 'Rojo'} <small>${tmN(k)}/${ts}${myTm === k ? ' · SALIR' : tmN(k) >= ts ? ' · LLENO' : myTm >= 0 ? ' · CAMBIARME' : ' · UNIRME'}</small></button>
     <div class=lb style="display:block;min-width:0">${L.p.filter(q => q[4] === k).map(row).join('') || '<div class=r><small>Vacío</small></div>'}</div></div>`).join('')}</div>
     ${L.p.some(q => q[4] < 0) ? `<div class=r><small>SIN EQUIPO</small></div><div class=lb>${L.p.filter(q => q[4] < 0).map(row).join('')}</div>` : ''}`;
-  const need = n >= a && n <= b ? (tv && (tmN(0) !== 2 || tmN(1) !== 2) ? 'Elijan equipo: 2 en cada uno.' : `${L.p.filter(q => q[2]).length} de ${n} listos. Empieza cuando estén todos.`)
+  const need = n >= a && n <= b ? (tv && (tmN(0) !== ts || tmN(1) !== ts) ? `Elijan equipo: ${ts} en cada uno.` : `${L.p.filter(q => q[2]).length} de ${n} listos. Empieza cuando estén todos.`)
     : a === b ? `${lanName(L.md)} necesita exactamente ${a} jugadores (hay ${n}).` : n < a ? `Hacen falta al menos ${a} jugadores.` : `Máximo ${b} jugadores.`;
   panel(`<h2>Sala · ${LAN.kind === 'bt' ? 'Bluetooth' : 'Wi-Fi local'}</h2>
   <div class=r>${net.host ? 'Elegí el modo' : 'Modo elegido por el anfitrión'}</div>
