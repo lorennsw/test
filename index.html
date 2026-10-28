@@ -446,8 +446,15 @@ const WP = [
   // Nuevas armas legendarias para mazmorras y tienda
   { n: 'Lanzallamas', d: 1, cd: .05, s: 190, pel: 2, sp: .26, pr: 450, col: '#ff5722' },
   { n: 'Arco Tesla', d: 3, cd: .32, s: 350, pel: 3, sp: .18, pr: 620, col: '#38bdf8' },
-  { n: 'Daga Sombría', d: 3, cd: .20, s: 330, pel: 2, sp: .10, pr: 550, col: '#c084fc', prc: true }
+  { n: 'Daga Sombría', d: 3, cd: .20, s: 330, pel: 2, sp: .10, pr: 1200, col: '#c084fc', prc: true }
 ];
+// Armas que aparecen en la mazmorra según el piso: de la más floja a la más fuerte, y cada piso
+// habilita una franja (piso 1: subfusil o escopeta … piso 5: las legendarias, recién ahí la daga)
+const WP_TIER = [1, 2, 3, 5, 6, 4, 7];
+const floorWp = (fl, rn) => {
+  const f = Math.max(1, Math.min(5, fl)) - 1, lo = [0, 0, 1, 2, 3][f], hi = [1, 2, 3, 5, 6][f];
+  return WP_TIER[lo + Math.floor(rn() * (hi - lo + 1))];
+};
 
 // Dibujo de cada arma en píxeles (mismo orden que WP). h: columna y fila de la mano (empuñadura).
 // Filas de arriba a abajo con el cañón hacia la derecha; c = color del arma, C = ese color más claro.
@@ -874,7 +881,7 @@ function genDungeon(floor, sd){
   for(let n = floor >= 3 ? 2 : 1; n > 0 && armCand.length; n--){
     const r = armCand.splice(Math.floor(ar() * armCand.length), 1)[0];
     r.type = 'treasure'; r.cleared = true; r.rug = true;
-    r.item = { t: 'wp', i: 1 + Math.floor(ar() * (WP.length - 1)) };
+    r.item = { t: 'wp', i: floorWp(floor, ar) };
     r.obs = []; r.props = []; r.spk = []; r.eps = []; r.ep = []; r.waves = 0;
   }
 
@@ -907,7 +914,7 @@ function setupRoomInterior(r, th, fl, pr){
   const cx = r.w >> 1, cy = r.h >> 1;
   if(r.type === 'start'){ r.rug = true; return; }
   if(r.type === 'treasure'){
-    r.item = pr() < 0.5 ? { t: 'relic', i: Math.floor(pr() * RELICS.length) } : { t: 'wp', i: 1 + Math.floor(pr() * (WP.length - 1)) };
+    r.item = pr() < 0.5 ? { t: 'relic', i: Math.floor(pr() * RELICS.length) } : { t: 'wp', i: floorWp(fl, pr) };
     r.rug = true;
     if(pr() < .4){
       for(const [dx, dy] of [[-2,-1],[-2,0],[-2,1],[2,-1],[2,0],[2,1],[-1,-2],[0,-2],[1,-2],[-1,2],[0,2],[1,2]]) r.spk.push({ x: cx + dx, y: cy + dy });
@@ -1648,7 +1655,7 @@ function start(md, lv, mp, sdd){
 }
 
 const tier = () => mode === 'camp' ? lvl : mode === 'dung' ? dung.floor : 1 + Math.floor(kills / 10);
-const hpMul = () => mode === 'camp' ? 1 + .2 * (lvl - 1) : mode === 'dung' ? 1.4 + .4 * (dung.floor - 1) : 1 + .07 * (tier() - 1);
+const hpMul = () => mode === 'camp' ? 1 + .2 * (lvl - 1) : mode === 'dung' ? 1.4 + .5 * (dung.floor - 1) : 1 + .07 * (tier() - 1);
 const isBossLvl = () => mode === 'camp' && lvl % 5 === 0;
 const bossFor = () => BOSS[(lvl / 5 - 1) % 4];
 const goalDone = () => isBossLvl() ? bd : kills >= goal();
@@ -1663,12 +1670,15 @@ function freeNear(x, y, r){
   }
   return [x, y];
 }
+// jugadores en la partida cooperativa (los que siguen conectados)
+const coopN = () => net.on && mode !== 'duel' ? 1 + Object.keys(net.rem).length : 1;
 function mk(k, x, y, opt){
   const d = EN[k];
   if(mode === 'dung' && !d.nc) [x, y] = freeNear(x, y, d.r > 8 ? 6 : 4);
-  let hm = d.boss ? (mode === 'camp' ? 1 + .15 * (lvl - 1) : mode === 'dung' ? 1.25 + .2 * (dung.floor - 1) : 1 + .2 * (tier() - 1)) : hpMul();
+  let hm = d.boss ? (mode === 'camp' ? 1 + .15 * (lvl - 1) : mode === 'dung' ? 1.25 + .3 * (dung.floor - 1) : 1 + .2 * (tier() - 1)) : hpMul();
   const el = mode === 'dung' && !d.boss && !(opt && opt.noElite) && Math.random() < Math.min(.5, .08 + dung.floor * .07);
   if(el) hm *= 2;
+  hm *= coopN();   // en cooperativo cada jugador suma la vida de un enemigo entero (2 jugadores = el doble)
   const hp = Math.ceil(d.hp * hm);
   const e = { id: nid++, k, x, y, hp, mx: hp, ph: Math.random() * 6, fl: 0, hb: 0, at: 3, st: 0, tm: 0, z: 0, el: el ? 1 : 0, born: mode === 'dung' ? .9 : 0 };
   // En la mazmorra no todos te persiguen desde el principio: algunos vigilan su zona hasta verte
