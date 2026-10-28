@@ -213,6 +213,8 @@ canvas.mac{width:3.6cqw;height:3.6cqw;image-rendering:pixelated}
 .stp{display:inline-flex;align-items:stretch;border:1px solid var(--line2);border-radius:var(--r);overflow:hidden;vertical-align:middle}
 .stp b{display:flex;align-items:center;justify-content:center;min-width:3cqw;padding:0 1cqw;font-size:1.2em;background:rgba(0,0,0,.25)}
 .stp button{margin:0;border-radius:0;border:0;border-left:1px solid var(--line2);min-width:3cqw;font-size:1.2em;font-weight:800}
+.lbmode{display:flex;align-items:center;gap:1.2cqw;max-width:60cqw;margin:.4cqw auto 1cqw;padding:.8cqw 1.2cqw;background:var(--panel2);border:1px solid var(--line2);border-left:3px solid var(--acc);border-radius:var(--r);text-align:left}
+.lbmode>.ico{width:2.4cqw;height:2.4cqw;color:var(--acc);flex:none}.lbmode span{display:flex;flex-direction:column;flex:1}.lbmode b{font-size:1.15em}.lbmode button{margin:0}
 .npcw{display:flex;align-items:center;gap:1.4cqw;max-width:62cqw;margin:0 auto 1cqw;text-align:left}
 .npcw canvas{width:7cqw;height:8.5cqw;image-rendering:pixelated;flex:none;background:var(--panel2);border:1px solid var(--line2);border-radius:.6cqw}
 .say{flex:1;background:var(--panel2);border:1px solid var(--line2);border-radius:.6cqw;padding:1cqw 1.4cqw;font-size:1.05em;line-height:1.4}
@@ -4033,7 +4035,7 @@ function main(msg){
         <!-- inicio: Jugar y lo demás -->
         <div class=nhome>
           <button class=playb data-a=play>${I.play}<span><b>Jugar</b><small>Mazmorras, Arena PvP, Campaña y Supervivencia · solo o con amigos</small></span></button>
-          <button class="mb crb" data-a=create>${I.plus}<span><b>Crear sala</b><small>Elegí modo, jugadores, dificultad y contra quién jugar</small></span></button>
+          <button class="mb crb" data-a=party>${I.users}<span><b>Crear o unirse a una sala</b><small>Elegí modo, jugadores, dificultad y contra quién · o entrá con un código</small></span></button>
           <div class=nrow>
             <button class=mb data-a=shop>${I.cart}<span><b>Tienda</b><small>Armas y equipo</small></span></button>
             <button class=mb data-a=loads>${I.save}<span><b>Cargar</b><small>Partidas guardadas</small></span></button>
@@ -4054,7 +4056,6 @@ function main(msg){
           <button class=mb data-a=duel>${I.target}<span><b>Arena PvP</b><small>1v1, 2v2, 3v3, 4v4 y todos contra todos · ranking</small></span></button>
           <button class=mb data-a=camp>${I.flag}<span><b>Campaña clásica</b><small>Niveles y misiones · 1-8 jugadores</small></span></button>
           <button class=mb data-a=surv>${I.swords}<span><b>Supervivencia</b><small>Oleadas sin fin · 1-8 jugadores</small></span></button>
-          <button class=mb data-a=party>${I.users}<span><b>Sala con amigos</b><small>Elegí el modo, sumá bots e invitá amigos</small></span></button>
           ${NB ? `<button class=mb data-a=local>${I.link}<span><b>Partida local</b><small>Wi-Fi o Bluetooth, sin internet</small></span></button>` : ''}
           <button class="mb back" data-a=playx>${I.back}<span><b>Atrás</b></span></button>
         </div>
@@ -5120,15 +5121,16 @@ let FR = { friends: [], req: [], open: false, inv: {} };
 const frInv = n => FR.inv[String(n).toLowerCase()] || null;   // invitación pendiente de ese amigo
 const partyCode = () => { const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let r = ''; for(let i = 0; i < 5; i++) r += c[rnd(0, c.length - 1)]; return r; };
 function partyMenu(msg){
-  panel(`<h2>Sala con amigos</h2>
-  <div class=r>Armá una sala online, elegí el modo (también PvP contra bots) e invitá a tus amigos.</div>
+  ret = partyMenu;   // "Volver" de Crear sala vuelve acá
+  panel(`<h2>Salas</h2>
+  <div class=r>Creá una sala eligiendo el modo (también PvP contra bots) o entrá a la de un amigo con su código.</div>
   ${msg ? `<div class="msg bad">${esc(msg)}</div>` : ''}
   <div class=duo style="grid-template-columns:1fr 1fr">
     <button class="big s" data-a=create>${I.plus}<b>Crear sala</b><small>Elegí el modo y te damos un código para compartir</small></button>
     <div class=big style="display:flex;flex-direction:column;gap:.6cqw;justify-content:center">${I.link}<b>Unirse con código</b>
       <div class=mk><input type=text id=pcode maxlength=8 placeholder="Código" style="text-transform:uppercase;text-align:center"><button data-a=pjoin>Unirse</button></div></div>
   </div>
-  <div class=actions><button data-a=friends>${I.users} Amigos${FR.req.length ? ' (' + FR.req.length + ')' : ''}</button><button data-a=home>${I.back} Volver</button></div>`);
+  <div class=actions><button data-a=friends>${I.users} Amigos${FR.req.length ? ' (' + FR.req.length + ')' : ''}</button><button data-a=phome>${I.back} Volver</button></div>`);
 }
 // ---- Crear sala: modo, jugadores, dificultad (mazmorras) y, en PvP, contra quién se juega
 const CR = { md: 'dung', n: 4, dif: 0, pub: false, rival: 'in', title: '' };
@@ -5176,7 +5178,7 @@ function friendsMenu(msg, ok){
   ${FR.req.length ? `<div class=r><small>SOLICITUDES</small></div><div class=lb>${FR.req.map(n => `<div class=lbr><span>${I.user}</span><span class=nm>${esc(n)}</span><button class="mini s" data-a=facc data-v="${esc(n)}">Aceptar</button><button class=mini data-a=frem data-v="${esc(n)}">Rechazar</button></div>`).join('')}</div>` : ''}
   <div class=r><small>TUS AMIGOS · ${FR.friends.length}</small></div>
   <div class=lb>${FR.friends.length ? FR.friends.slice().sort((a, b) => b.online - a.online).map(row).join('') : '<div class=r><small>Todavía no agregaste a nadie.</small></div>'}</div>
-  ${inParty ? '' : '<div class=r><small>Para invitar, creá una sala desde Jugar → Sala con amigos.</small></div>'}
+  ${inParty ? '' : '<div class=r><small>Para invitar, creá una sala desde "Crear o unirse a una sala" en el inicio.</small></div>'}
   <div class=actions><button data-a=${back}>${I.back} Volver</button></div>`);
 }
 // cada unos segundos: amigos en línea, solicitudes e invitaciones (y te marca como en línea)
@@ -5218,11 +5220,26 @@ function lobbyEnter(d){
   if(d.cfg && d.cfg.rival === 'bots' && pvTeams(d.md) && me && me[4] < 0 && !isBot(net.id)) raw({ t: 'lob_tm', tm: 0 });
   lobbyMenu();
 }
+let lobEdit = false;   // el anfitrión está cambiando el modo de la sala
+// La sala se ve como una sala normal (jugadores, listo, invitar); el modo y sus opciones se cambian
+// con el botón "Cambiar modo" (solo el anfitrión)
 function lobbyMenu(){
   if(!LOB) return;
   ret = lobbyMenu;
   const L = LOB, me = L.p.find(q => q[0] === net.id), rd = me && me[2], [a, b] = L.need, n = L.p.length;
   net.host = !!(me && me[3]);
+  if(!net.host) lobEdit = false;
+  const code = net.party ? String(net.roomName || '').slice(2) : '', pvp = lanPvp(L.md), nb = BOT.list.length, cf = L.cfg || {};
+  const head = `<h2>${code ? (cf.title ? esc(cf.title) : 'Sala con amigos') : 'Sala · ' + (LAN.kind === 'bt' ? 'Bluetooth' : 'Wi-Fi local')}</h2>
+  ${code ? `<div class=r>Código: <b class=pcode>${esc(code)}</b> · <small>${cf.pub ? 'PÚBLICA' : 'PRIVADA'}</small></div>` : ''}`;
+  if(lobEdit) return panel(`${head}
+  <div class=r>Modo</div>
+  <div class=pcount style="grid-template-columns:repeat(4,1fr)">${LAN_MODES.map(([v, nm, ic]) => `<button class="${v === L.md ? 's' : ''}" data-a=lbmd data-v=${v} style="font-size:max(11px,1.1cqw)">${I[ic]}${nm}<small>${lanPvp(v) ? 'PVP' : 'COOPERATIVO'}</small></button>`).join('')}</div>
+  ${code && !pvp ? `<div class=r>Jugadores <span class=stp><b>${cf.max || 8}</b><button data-a=lbcfg data-k=max data-v=${Math.max(Math.max(1, n), (cf.max || 8) - 1)}>−</button><button data-a=lbcfg data-k=max data-v=${Math.min(8, (cf.max || 8) + 1)}>+</button></span></div>` : ''}
+  ${L.md === 'dung' ? `<div class=r>Dificultad</div><div class=pcount style="grid-template-columns:repeat(3,1fr)">${DIFS.map((D, i) => `<button class="${i === (V.dif | 0) ? 's' : ''}" data-a=lbdif data-v=${i} style="font-size:max(11px,1.1cqw)"><b style="color:${i === (V.dif | 0) ? 'inherit' : D.col}">${D.n}</b><small>${D.d}</small></button>`).join('')}</div>` : ''}
+  ${code && pvp ? `<div class=r>¿Contra quién?</div><div class=pcount style="grid-template-columns:repeat(3,1fr)">${RIVALS.map(([v, n_, d_]) => `<button class="${cf.rival === v ? 's' : ''}" data-a=lbcfg data-k=rival data-v=${v} style="font-size:max(11px,1.1cqw)"><b>${n_}</b><small>${d_}</small></button>`).join('')}</div>` : ''}
+  ${code ? `<div class=r><span class=stp style="font-size:.85em"><button class="${cf.pub ? 's' : ''}" data-a=lbcfg data-k=pub data-v=1 style="border-left:0;font-size:1em;padding:0 1.2cqw">Pública</button><button class="${cf.pub ? '' : 's'}" data-a=lbcfg data-k=pub data-v=0 style="font-size:1em;padding:0 1.2cqw" ${cf.rival === 'pub' ? 'disabled' : ''}>Privada</button></span></div>` : ''}
+  <div class=actions><button class=s data-a=lbedx>${I.check} Listo, volver a la sala</button></div>`);
   const ts = pvTeams(L.md) && PVM[L.md] ? PVM[L.md].max / 2 : 0, tv = ts > 0, myTm = me ? me[4] : -1, tmN = k => L.p.filter(q => q[4] === k).length;
   const row = q => `<div class="lbr${q[0] === net.id ? ' me' : ''}"><span>${q[3] ? '★' : ''}</span><span class=nm>${esc(q[1])}${q[3] ? ' <small>ANFITRIÓN</small>' : ''}</span><b style="color:var(--${q[2] ? 'ok' : 'muted'})">${q[2] ? 'LISTO' : 'ESPERANDO'}</b></div>`;
   // por equipos: dos grupos; cada uno toca el suyo y se puede cambiar si hay lugar
@@ -5232,21 +5249,18 @@ function lobbyMenu(){
     ${L.p.some(q => q[4] < 0) ? `<div class=r><small>SIN EQUIPO</small></div><div class=lb>${L.p.filter(q => q[4] < 0).map(row).join('')}</div>` : ''}`;
   const need = n >= a && n <= b ? (tv && (tmN(0) !== ts || tmN(1) !== ts) ? `Elijan equipo: ${ts} en cada uno.` : `${L.p.filter(q => q[2]).length} de ${n} listos. Empieza cuando estén todos.`)
     : a === b ? `${lanName(L.md)} necesita exactamente ${a} jugadores (hay ${n}).` : n < a ? `Hacen falta al menos ${a} jugadores.` : `Máximo ${b} jugadores.`;
-  const code = net.party ? String(net.roomName || '').slice(2) : '', pvp = lanPvp(L.md), nb = BOT.list.length;
-  panel(`<h2>${net.party ? 'Sala con amigos' : 'Sala · ' + (LAN.kind === 'bt' ? 'Bluetooth' : 'Wi-Fi local')}</h2>
-  ${code ? `<div class=r>${L.cfg && L.cfg.title ? '<b>' + esc(L.cfg.title) + '</b> · ' : ''}Código: <b class=pcode>${esc(code)}</b>${L.cfg ? ' · <small>' + (L.cfg.pub ? 'PÚBLICA' : 'PRIVADA') + '</small>' : ''}</div>` : ''}
-  ${code && pvp ? `<div class=r><small>CONTRA QUIÉN</small><br>${RIVALS.map(([v, n_]) => `<button class="mini${L.cfg && L.cfg.rival === v ? ' s' : ''}" data-a=lbcfg data-k=rival data-v=${v} ${net.host ? '' : 'disabled'}>${n_}</button>`).join(' ')}</div>` : ''}
-  ${code && net.host ? `<div class=r><button class="mini${L.cfg && L.cfg.pub ? ' s' : ''}" data-a=lbcfg data-k=pub data-v=1>Pública</button> <button class="mini${L.cfg && !L.cfg.pub ? ' s' : ''}" data-a=lbcfg data-k=pub data-v=0 ${L.cfg && L.cfg.rival === 'pub' ? 'disabled' : ''}>Privada</button></div>` : ''}
-  <div class=r>${net.host ? 'Elegí el modo' : 'Modo elegido por el anfitrión'}</div>
-  <div class=pcount style="grid-template-columns:repeat(3,1fr)">${LAN_MODES.map(([v, nm, ic]) => `<button class="${v === L.md ? 's' : ''}" data-a=lbmd data-v=${v} ${net.host || v === L.md ? '' : 'disabled'} style="font-size:max(11px,1.2cqw)">${I[ic]}${nm}<small>${lanPvp(v) ? 'PVP PRIVADO' : 'COOPERATIVO'}</small></button>`).join('')}</div>
+  const ic = (LAN_MODES.find(x => x[0] === L.md) || [])[2];
+  const extra = [L.md === 'dung' ? DIFS[cf.dif != null && code ? cf.dif : V.dif | 0].n : '', code && pvp ? (RIVALS.find(x => x[0] === cf.rival) || RIVALS[0])[1] : '', code && !pvp ? 'hasta ' + (cf.max || 8) + ' jugadores' : ''].filter(Boolean).join(' · ');
+  panel(`${head}
+  <div class=lbmode>${ic ? I[ic] : ''}<span><b>${esc(lanName(L.md))}</b><small>${extra || (pvp ? 'PvP' : 'Cooperativo')}</small></span>${net.host ? `<button class=mini data-a=lbed>${I.swap} Cambiar modo</button>` : '<small>ELIGE EL ANFITRIÓN</small>'}</div>
   ${tv ? teams : `<div class=lb>${L.p.map(row).join('')}</div>`}
   ${net.host && pvp ? `<div class=r>Bots: <button class=mini data-a=lbbot data-v=-1 ${nb ? '' : 'disabled'}>${I.x} Quitar</button> <b>${nb}</b> <button class=mini data-a=lbbot data-v=1 ${n < 8 ? '' : 'disabled'}>${I.plus} Agregar</button> <button class=mini data-a=lbfill ${n < b ? '' : 'disabled'}>Completar con bots</button><br><small>Los bots no cambian el rating.</small></div>` : ''}
-  <div class=r><small>${need}${LAN.hub ? ' ' + lanHint() : code ? ' Tus amigos entran con el código desde Jugar → Sala con amigos, o invitalos.' : ''}</small></div>
+  <div class=r><small>${need}${LAN.hub ? ' ' + lanHint() : code ? ' Tus amigos entran con el código desde "Crear o unirse a una sala", o invitalos.' : ''}</small></div>
   <div class=actions><button class="${rd ? '' : 's'}" data-a=lbrd ${tv && myTm < 0 ? 'disabled' : ''}>${rd ? I.x + ' Ya no estoy listo' : I.check + ' Listo'}</button>${code ? `<button data-a=friends>${I.users} Invitar amigos</button>` : ''}<button data-a=quit>${I.exit} Salir</button></div>`);
 }
 // todos listos: cada uno arranca el modo elegido (en PvP el motor manda enseguida la ruleta)
 function lobbyGo(d){
-  LOB = null; net.roomName = d.room; net.max = d.max; setNetMd(d.md); LAN.md = d.md; curSave = null; net.load = null;
+  LOB = null; lobEdit = false; net.roomName = d.room; net.max = d.max; setNetMd(d.md); LAN.md = d.md; curSave = null; net.load = null;
   const wait = t => panel(`<h2>${esc(t)}</h2><div class=load><i></i><i></i><i></i><i></i></div>`);
   if(net.mode === 'duel') return wait(PVM[pvMode].n);
   if(net.mode === 'dung'){
@@ -5377,6 +5391,7 @@ const A = {
   stp: v => { net.max = V.np = Math.max(2, Math.min(MAXP, (net.max || 4) + (+v))); const e = $('#stpn'); if(e) e.textContent = net.max; },
   loads: () => savesMenu(),
   party: () => partyMenu(),
+  phome: () => { menuPlay = false; main(); },
   pnew: () => partyJoin(partyCode()),
   pjoin: () => partyJoin(($('#pcode') || {}).value),
   friends: () => { friendsPoll(); friendsMenu(); },
@@ -5515,9 +5530,12 @@ const A = {
   crgo: () => {
     crKeep(); V.dif = CR.dif; save();
     const pvp = lanPvp(CR.md);
-    partyJoin(partyCode(), { md: CR.md, max: pvp ? PVM[CR.md].max : CR.n, pub: CR.pub, rival: pvp ? CR.rival : 'in', title: CR.title.trim() });
+    partyJoin(partyCode(), { md: CR.md, max: pvp ? PVM[CR.md].max : CR.n, pub: CR.pub, rival: pvp ? CR.rival : 'in', title: CR.title.trim(), dif: CR.dif });
   },
-  lbcfg: (v, k) => { if(LOB && net.host) raw({ t: 'lob_cfg', cfg: { [k]: k === 'pub' ? +v === 1 : v } }); },
+  lbcfg: (v, k) => { if(LOB && net.host) raw({ t: 'lob_cfg', cfg: { [k]: k === 'pub' ? +v === 1 : k === 'max' ? +v : v } }); },
+  lbed: () => { lobEdit = true; lobbyMenu(); },
+  lbedx: () => { lobEdit = false; lobbyMenu(); },
+  lbdif: v => { V.dif = Math.max(0, Math.min(2, +v)); save(); if(LOB && net.party) raw({ t: 'lob_cfg', cfg: { dif: V.dif } }); lobbyMenu(); },
   make: () => { const n = $('#nr').value.trim().slice(0, 17); if(n){ net.roomName = pref() + n; raw({ t: 'join', room: pref() + n, max: net.max, n: V.av.name }); } },
   cancel: () => { const lan = net.lan; if(net.abort) net.abort(); net.q = false; lan ? (lanStop(), localMenu()) : net.mode === 'duel' ? duelMenu() : online(); },
   lback: () => { net.lob = false; if(!net.on) try{ net.ws.close(); }catch(e){} net.mode === 'duel' ? duelMenu() : players(net.mode); }

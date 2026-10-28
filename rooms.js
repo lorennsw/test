@@ -180,11 +180,12 @@
       if ('pub' in c) r.pub = !!c.pub;
       if (r.rival === 'pub') r.pub = true;
       if ('max' in c && c.max) r.cmax = Math.max(1, Math.min(TOP_P, c.max | 0));
+      if ('dif' in c) r.dif = Math.max(0, Math.min(2, c.dif | 0));   // dificultad de la mazmorra (para mostrarla)
     }
     // en la sala entran: en PvP los que pide el modo; en cooperativo los que eligió el anfitrión
     const lobbyMax = r => { const pv = PV[MODES[r.lob.md]]; r.max = Math.max(r.size, pv ? pv.max : r.cmax || TOP_P); };
     const lobbyInfo = r => duelBroadcast(r, { t: 'lob', md: r.lob.md, need: lobbyNeed(r.lob.md),
-      cfg: r.party ? { title: r.title || '', rival: r.rival || 'in', pub: !!r.pub, max: r.cmax || TOP_P } : undefined,
+      cfg: r.party ? { title: r.title || '', rival: r.rival || 'in', pub: !!r.pub, max: r.cmax || TOP_P, dif: r.dif | 0 } : undefined,
       p: [...r].map(x => [x.id, nameOf(x), r.lob.rd.has(x.id) ? 1 : 0, x.host ? 1 : 0, r.lob.tm.has(x.id) ? r.lob.tm.get(x.id) : -1]) });
     // por equipos: cada uno elige el suyo (mitad y mitad) y se puede cambiar mientras haya lugar
     const teamOk = r => [0, 1].every(t => [...r].filter(x => r.lob.tm.get(x.id) === t).length === teamSize(r.lob.md));
