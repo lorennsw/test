@@ -3506,19 +3506,8 @@ function draw(){
   if(p.dead > 1000) dr.push({ y: p.y, f: () => drawGrave(p.x, p.y) });
   if(pet) dr.push({ y: pet.y, f: () => drawPet(g, Math.round(pet.x - camx), Math.round(pet.y - camy), pet.ty, pet.t) });
 
-  for(const q of coins) dr.push({
-    y: q.y, f: () => {
-      const w = 2 + Math.abs(Math.sin(t * 6 + q.x)) * 2, b = Math.round(Math.sin(t * 5 + q.y));
-      R(q.x - w / 2, q.y - 4 + b, w, 4, '#ffd23f');
-    }
-  });
-
-  for(const h of hearts) dr.push({
-    y: h.y, f: () => {
-      const b = Math.sin(t * 5) * 1.5;
-      R(h.x - 3, h.y - 7 + b, 6, 5, '#e43b44');
-    }
-  });
+  for(const q of coins) dr.push({ y: q.y, f: () => drawCoinPick(q) });
+  for(const h of hearts) dr.push({ y: h.y, f: () => drawHeartPick(h) });
 
   for(const id in net.rem){
     const r = net.rem[id];
@@ -3636,6 +3625,38 @@ const HEART = ['.XX.XX.', 'XoXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...']
 const SHIELD = ['XXXXXXX', 'XoXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'];
 const COIN = ['.XXX.', 'XoXXX', 'XXXXX', 'XXXXX', '.XXX.'];
 const KEY = ['.XX.....', 'Xo.XXXXX', 'X..X.X.X', '.XX.....'];
+// ---- objetos en el piso: que se note qué son (moneda que gira, corazón que late)
+const COIN_F = [['..XXX..', '.XoXXX.', 'XoXdXXX', 'XoXdXXX', 'XXXdXXX', '.XXXXX.', '..XXX..'],
+  ['.XXX.', 'XoXXX', 'XoXdX', 'XXXdX', 'XXXdX', 'XXXXX', '.XXX.'], ['.X.', 'XoX', 'XdX', 'XdX', 'XdX', 'XXX', '.X.'], ['X', 'X', 'X', 'X', 'X', 'X', 'X']];
+const COIN_SEQ = [0, 1, 2, 3, 2, 1];   // vuelta completa de la moneda
+const HEART_P = ['.XX.XX.', 'XooXXXX', 'XoXXXXX', 'XXXXXXd', '.XXXXd.', '..XXd..', '...d...'];
+// dibuja un patrón con contorno oscuro; pal: color de cada letra
+function pxPat(pat, x, y, pal, ol){
+  x = Math.round(x); y = Math.round(y);
+  g.fillStyle = ol;
+  for(let r = 0; r < pat.length; r++) for(let q = 0; q < pat[r].length; q++) if(pat[r][q] !== '.')
+    for(const [a, b] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.fillRect(x + q + a, y + r + b, 1, 1);
+  for(let r = 0; r < pat.length; r++) for(let q = 0; q < pat[r].length; q++){
+    const ch = pat[r][q]; if(ch === '.') continue;
+    g.fillStyle = pal[ch]; g.fillRect(x + q, y + r, 1, 1);
+  }
+}
+function drawCoinPick(q){
+  const X = q.x - camx, Y = q.y - camy, ph = COIN_SEQ[Math.floor((t * 10 + q.x * .1) % 6)], f = COIN_F[ph], w = f[0].length;
+  const b = Math.round(Math.sin(t * 5 + q.y) * 1.2);
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(Math.round(X - 3), Math.round(Y), 7, 1);   // sombra
+  pxPat(f, X - Math.floor(w / 2), Y - 9 + b, ph === 3 ? { X: '#c98a1c', o: '#ffe9a8', d: '#c98a1c' } : { X: '#f2b33d', o: '#ffe9a8', d: '#c98a1c' }, '#5a3d06');
+  if(ph === 0 && Math.sin(t * 2 + q.x) > .6){ g.fillStyle = '#fff'; g.fillRect(Math.round(X - 1), Math.round(Y - 8 + b), 1, 1); g.fillRect(Math.round(X + 2), Math.round(Y - 10 + b), 1, 1); }   // brillito
+}
+function drawHeartPick(h){
+  const X = h.x - camx, Y = h.y - camy, b = Math.round(Math.sin(t * 4) * 1.5), k = .5 + .5 * Math.sin(t * 6);
+  g.fillStyle = 'rgba(228,59,68,' + (.12 + .12 * k) + ')'; g.beginPath(); g.arc(X, Y - 6 + b, 7 + k * 2, 0, 6.283); g.fill();   // resplandor que late
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(Math.round(X - 3), Math.round(Y), 7, 1);
+  pxPat(HEART_P, X - 3, Y - 10 + b, { X: '#e43b44', o: '#ff9aa4', d: '#a61e2b' }, '#3a0d14');
+  // destellos alrededor
+  const s_ = Math.floor(t * 3) % 3, sp = [[-6, -9], [5, -11], [6, -3]][s_];
+  g.fillStyle = 'rgba(255,220,225,' + k + ')'; g.fillRect(Math.round(X + sp[0]), Math.round(Y + sp[1] + b), 1, 3); g.fillRect(Math.round(X + sp[0] - 1), Math.round(Y + sp[1] + 1 + b), 3, 1);
+}
 function pxIcon(pat, x, y, col, hl){
   for(let r = 0; r < pat.length; r++) for(let q = 0; q < pat[r].length; q++){
     const ch = pat[r][q]; if(ch === '.') continue;
