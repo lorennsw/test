@@ -2,9 +2,10 @@
 // Lo usan el servidor online (server.js, en Node) y el celular que crea una partida local
 // (Wi-Fi o Bluetooth, dentro del juego). Así las reglas son las mismas en los dos lados.
 //
-// createRooms({ store, readToken, gameV }) devuelve { open(ws), message(ws, texto), close(ws) }.
+// createRooms({ store, readToken, gameV, lobby }) devuelve { open(ws), message(ws, texto), close(ws) }.
 // Cada "ws" es cualquier objeto con send(texto) y readyState (1 = abierto).
 // Sin store (partida local) no hay ranking: el PvP no cambia el Elo.
+// lobby (solo partida local): al terminar se puede volver a la sala, cambiar de modo y empezar cuando todos están listos.
 (function (root) {
   const MAX = 4;                                        // jugadores por sala si el cliente no elige
   const MIN_P = 2, TOP_P = 8;                           // límites para la cantidad elegida
@@ -15,7 +16,7 @@
   const WEAPONS = 8, VETO_S = 12, ROULETTE_MS = 5800;   // veto de armas: 12 s por turno, empieza al terminar la ruleta
   const DEFAULT_STATS = { rating: 1000, wins: 0, losses: 0, kills: 0, deaths: 0, matches: 0 };
 
-  function createRooms({ store = null, readToken = () => null, gameV }) {
+  function createRooms({ store = null, readToken = () => null, gameV, lobby = false }) {
     const rooms = {};
     let nextId = 1, duelN = 1;
     const send = (ws, o) => ws.readyState === 1 && ws.send(JSON.stringify(o));
@@ -39,7 +40,8 @@
       ws.room = name;
       ws.host = r.size === 0;                         // el primero es el anfitrión (maneja los enemigos)
       r.add(ws);
-      send(ws, { t: 'welcome', id: ws.id, host: ws.host, max: r.max });
+      send(ws, { t: 'welcome', id: ws.id, host: ws.host, max: r.max, lob: r.lob ? 1 : 0 });
+      if (r.lob) return lobbyInfo(r);
       if (pv) {
         if (pv.md !== 'ffa' && r.size === r.max) duelStart(r);
         else duelRoomInfo(r);
@@ -155,6 +157,29 @@
       duelDeath(r, ws, 0);   // en 2v2 cuenta como caído en esta ronda
     }
 
+    // ---------- sala local: al terminar todos vuelven, el anfitrión elige el modo y se empieza cuando están todos listos
+    const MODES = { dung: 'D|', camp: 'C|', surv: 'S|', '1v1': 'V|', '2v2': 'W|', ffa: 'F|' };
+    const lobbyNeed = md => ({ '1v1': [2, 2], '2v2': [4, 4], ffa: [2, TOP_P] })[md] || [1, TOP_P];
+    const lobbyInfo = r => duelBroadcast(r, { t: 'lob', md: r.lob.md, need: lobbyNeed(r.lob.md),
+      p: [...r].map(x => [x.id, nameOf(x), r.lob.rd.has(x.id) ? 1 : 0, x.host ? 1 : 0]) });
+    function lobbyOpen(r, md) {
+      if (r.lob) return;
+      if (r.duel) { r.duel.live = false; clearTimeout(r.vetoT); }
+      r.lob = { md: MODES[md] ? md : 'dung', rd: new Set() };
+      r.max = TOP_P;
+      lobbyInfo(r);
+    }
+    // si están todos listos y la cantidad sirve para el modo, arranca; la sala cambia de nombre según el modo
+    function lobbyCheck(r) {
+      const l = r.lob, [a, b] = lobbyNeed(l.md);
+      if (r.size < a || r.size > b || [...r].some(x => !l.rd.has(x.id))) return lobbyInfo(r);
+      const old = [...r][0].room, name = MODES[l.md] + old.slice(2), pv = pvOf(name);
+      delete rooms[old]; rooms[name] = r; r.forEach(x => { x.room = name; });
+      r.lob = null; r.pv = pv || null; r.duel = pv ? { live: false } : null; r.max = pv ? pv.max : TOP_P;
+      duelBroadcast(r, { t: 'lob_go', md: l.md, room: name, max: r.max });
+      if (pv) duelStart(r);
+    }
+
     // ---------- búsqueda de partida
     const queues = { '1v1': [], '2v2': [], ffa: [] };
     const dropQ = ws => { for (const k in queues) queues[k] = queues[k].filter(x => x !== ws && x.readyState === 1 && !x.room); };
@@ -195,6 +220,10 @@
         if (m.t === 'duel_qx') return dropQ(ws);
         const r = rooms[ws.room];
         if (!r) return;
+        if (lobby && m.t === 'lobby') return lobbyOpen(r, m.md);
+        if (r.lob && m.t === 'lob_md') { if (ws.host && MODES[m.md]) { r.lob.md = m.md; r.lob.rd.clear(); lobbyInfo(r); } return; }
+        if (r.lob && m.t === 'lob_rd') { m.on ? r.lob.rd.add(ws.id) : r.lob.rd.delete(ws.id); return lobbyCheck(r); }
+        if (r.lob) return;                               // en la sala no se juega
         if (r.duel && m.t === 'veto') return doVeto(r, ws.id, m.w | 0, false);
         if (r.duel && m.t === 'dd') { if (r.duel.veto && !r.duel.veto.done) return; return duelDeath(r, ws, m.k); }
         if (r.duel && m.t === 'duel_go') { if (ws.host && !r.duel.live && r.size >= 2) duelStart(r); return; }
@@ -216,7 +245,8 @@
         r.delete(ws);
         r.forEach(o => send(o, { t: 'left', id: ws.id }));
         if (ws.host && r.size) { const n = [...r][0]; n.host = true; send(n, { t: 'host' }); } // pasa el anfitrión
-        if (r.duel && r.size) duelLeft(r, ws);   // abandono en PvP
+        if (r.lob && r.size) { r.lob.rd.delete(ws.id); lobbyCheck(r); }
+        else if (r.duel && r.size) duelLeft(r, ws);   // abandono en PvP
         if (!r.size) delete rooms[ws.room];
       }
     };

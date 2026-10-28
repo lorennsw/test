@@ -2357,7 +2357,9 @@ function onNet(d){
   else if(d.t === 'duel_end') duelOver(d);
   else if(d.t === 'duel_again' && state === 'duelend') duelResult(`Revancha: ${d.n} de ${d.need} listos`);
   else if(d.t === 'duel_wait') duelSearching(d.n, d.need);
-  else if(d.t === 'duel_room' && net.mode === 'duel' && state !== 'play' && state !== 'roulette' && state !== 'veto' && state !== 'duelend'){ net.host = d.host === net.id; duelWaiting(d); }
+  else if(d.t === 'lob') lobbyEnter(d);
+  else if(d.t === 'lob_go') lobbyGo(d);
+  else if(d.t === 'duel_room' && !LOB && net.mode === 'duel' && state !== 'play' && state !== 'roulette' && state !== 'veto' && state !== 'duelend'){ net.host = d.host === net.id; duelWaiting(d); }
   else if(d.t === 'left'){ delete net.rem[d.id]; if(net.wl) delete net.wl[d.id]; if(net.wait) waitRoom(); }
   else if(d.t === 'host'){
     net.host = true; nid = enemies.reduce((a, e) => Math.max(a, e.id), 0) + 1;
@@ -2385,7 +2387,7 @@ function apkOffer(){
   <div class=r><small>Cuando termine la descarga, abrí el archivo. Si Android lo pide, permití instalar apps de esta fuente.</small></div>`);
 }
 // Versión del protocolo online: tiene que coincidir con GAME_V del servidor (subir las dos juntas)
-const GAME_V = 3;
+const GAME_V = 4;
 // Recarga la página salteando la caché del navegador (GitHub Pages la guarda hasta 10 minutos)
 const freshReload = () => location.replace(location.pathname + '?v=' + Date.now() + location.hash);
 // quien tenía guardado el servidor viejo (sin cuentas) pasa al nuevo
@@ -2445,7 +2447,8 @@ function connect(url, sock){
       const L = net.load;
       net.guest = !!(L && !d.host);           // la sala ya tenía anfitrión: entrás como invitado
       if(net.guest) net.load = null;
-      if(net.mode === 'duel'){ net.q = false; duelWaiting(); }
+      if(d.lob) panel(`<h2>Entrando a la sala</h2><div class=load><i></i><i></i><i></i><i></i></div>`);   // llega enseguida el estado de la sala
+      else if(net.mode === 'duel'){ net.q = false; duelWaiting(); }
       else if(net.mode === 'dung') enterWait();
       else if(net.load){ net.load = null; applySave(L); }
       else start(net.mode, 1);
@@ -3409,6 +3412,7 @@ function pauseMenu(msg){
     ${mode === 'duel' ? '' : mode === 'dung' ? `<button disabled>${I.save} Guardar partida <small>En el banco al inicio del piso</small></button>`
       : `<button data-a=gsave>${I.save} Guardar partida <small>${net.on ? 'Multijugador' : 'Solitario'}</small></button>`}
     ${mode === 'dung' ? '' : `<button data-a=shop>${I.cart} Tienda</button>`}
+    ${lobbyBtn()}
     <button data-a=set>${I.sliders} Ajustes</button>
     <button data-a=quit>${I.exit} Salir al menú</button>
   </div>`);
@@ -3425,6 +3429,7 @@ function over(){
     <div><small>MONEDAS</small><b>${V.coins}</b></div>
   </div>
   <div class=vlist>
+    ${lobbyBtn('s')}
     ${net.on ? '' : sv ? `<button class=s data-a=retry>${I.save} Volver al guardado <small>${saveDesc(sv)}</small></button>`
       : `<button class=s data-a=retry>${I.retry} Empezar de nuevo <small>No guardaste la partida</small></button>`}
     ${mode === 'dung' ? '' : `<button data-a=shop>${I.cart} Tienda</button>`}
@@ -3438,6 +3443,7 @@ function clearMenu(){
   <div class=r>Derrotaste al Soberano del Inframundo y conquistaste la mazmorra.</div>
   <div class=win>${I.trophy} Conquistador de mazmorras<small>Bonus: +150 monedas</small></div>
   <div class=vlist>
+    ${lobbyBtn('s')}
     <button class=s data-a=quit>${I.exit} Volver al menú</button>
   </div>`);
   if(DB) DB.coins += 150; else V.coins += 150;
@@ -3977,6 +3983,7 @@ function duelResult(note){
   ${!ffa && R.d == null ? `<div class=r><small>${net.lan ? 'Partida local: no cambia el rating' : 'Partida sin ranking (hace falta que todos tengan cuenta)'}</small></div>` : ''}
   ${note ? `<div class="msg ok">${esc(note)}</div>` : ''}
   <div class=vlist>
+    ${lobbyBtn()}
     ${net.on ? `<button class=s data-a=drematch ${DU.asked ? 'disabled' : ''}>${I.retry} ${DU.asked ? 'Esperando a los demás…' : 'Revancha'}</button>` : ''}
     <button data-a=quit>${I.exit} Salir al menú</button>
   </div>`);
@@ -4023,7 +4030,7 @@ function lanSetMode(room){
 }
 function lanStop(){
   if(NB && (net.lan || LAN.hub || LAN.client)) try{ NB.stopHost(); NB.disconnect(); NB.stopScan(); }catch(e){}
-  net.lan = false; LAN.hub = null; LAN.peers = {}; LAN.client = null; LAN.host = null; LAN.joining = false;
+  net.lan = false; LAN.hub = null; LAN.peers = {}; LAN.client = null; LAN.host = null; LAN.joining = false; LOB = null;
 }
 // el anfitrión se conecta a su propia sala sin pasar por la red
 function lanSelfSocket(){
@@ -4102,7 +4109,7 @@ function lanHost(){
 // Android avisa que ya está escuchando: el anfitrión entra a su propia sala
 function lanHosting(ev){
   if(!net.lan) return;
-  LAN.hub = PSRooms.createRooms({ gameV: GAME_V });
+  LAN.hub = PSRooms.createRooms({ gameV: GAME_V, lobby: true });
   LAN.ip = ev.ip || '';
   const m = LAN_MODES.find(x => x[0] === LAN.md);
   lanSetMode(m[3]);
@@ -4140,6 +4147,43 @@ function lanJoin(addr){
   panel(`<h2>Conectando</h2><div class=load><i></i><i></i><i></i><i></i></div><div class=r>${esc(addr)}</div><button data-a=lcancel>${I.x} Cancelar</button>`);
   try{ NB.connect(LAN.kind, addr); }catch(e){ LAN.joining = false; localMenu('No se pudo conectar'); }
 }
+
+// ---- sala local: al terminar una partida cualquiera puede volver a la sala y vuelven todos.
+// El anfitrión elige el modo y la partida arranca cuando están todos listos (lo decide rooms.js).
+let LOB = null;   // { md, need: [mín, máx], p: [[id, nombre, listo, anfitrión]] }
+const lanCurMd = () => mode === 'duel' ? pvMode : net.mode;
+function lobbyEnter(d){
+  if(!LOB){ mode = 'surv'; state = 'menu'; paused = false; net.wait = false; net.rem = {}; bullets = []; enemies = []; eb = []; DU.wait = null; }
+  LOB = d; LAN.md = d.md;
+  lobbyMenu();
+}
+function lobbyMenu(){
+  if(!LOB) return;
+  ret = lobbyMenu;
+  const L = LOB, me = L.p.find(q => q[0] === net.id), rd = me && me[2], [a, b] = L.need, n = L.p.length;
+  net.host = !!(me && me[3]);
+  const need = n >= a && n <= b ? `${L.p.filter(q => q[2]).length} de ${n} listos. Empieza cuando estén todos.`
+    : a === b ? `${lanName(L.md)} necesita exactamente ${a} jugadores (hay ${n}).` : n < a ? `Hacen falta al menos ${a} jugadores.` : `Máximo ${b} jugadores.`;
+  panel(`<h2>Sala · ${LAN.kind === 'bt' ? 'Bluetooth' : 'Wi-Fi local'}</h2>
+  <div class=r>${net.host ? 'Elegí el modo' : 'Modo elegido por el anfitrión'}</div>
+  <div class=pcount style="grid-template-columns:repeat(3,1fr)">${LAN_MODES.map(([v, nm, ic]) => `<button class="${v === L.md ? 's' : ''}" data-a=lbmd data-v=${v} ${net.host || v === L.md ? '' : 'disabled'} style="font-size:max(11px,1.2cqw)">${I[ic]}${nm}<small>${lanPvp(v) ? 'PVP PRIVADO' : 'COOPERATIVO'}</small></button>`).join('')}</div>
+  <div class=lb>${L.p.map(q => `<div class="lbr${q[0] === net.id ? ' me' : ''}"><span>${q[3] ? '★' : ''}</span><span class=nm>${esc(q[1])}${q[3] ? ' <small>ANFITRIÓN</small>' : ''}</span><b style="color:var(--${q[2] ? 'ok' : 'muted'})">${q[2] ? 'LISTO' : 'ESPERANDO'}</b></div>`).join('')}</div>
+  <div class=r><small>${need}${LAN.hub ? ' ' + lanHint() : ''}</small></div>
+  <div class=actions><button class="${rd ? '' : 's'}" data-a=lbrd>${rd ? I.x + ' Ya no estoy listo' : I.check + ' Listo'}</button><button data-a=quit>${I.exit} Salir</button></div>`);
+}
+// todos listos: cada uno arranca el modo elegido (en PvP el motor manda enseguida la ruleta)
+function lobbyGo(d){
+  LOB = null; net.roomName = d.room; net.max = d.max; lanSetMode(d.room); LAN.md = d.md; curSave = null; net.load = null;
+  const wait = t => panel(`<h2>${esc(t)}</h2><div class=load><i></i><i></i><i></i><i></i></div>`);
+  if(net.mode === 'duel') return wait(PVM[pvMode].n);
+  if(net.mode === 'dung'){
+    net.wait = true; net.wl = {};
+    if(!net.host) return wait('Mazmorras');
+    const sdv = rnd(1, 99999); snd({ t: 'd_go', fl: 1, sd: sdv }); beginDung(1, sdv); return;
+  }
+  start(net.mode, 1);
+}
+const lobbyBtn = cls => net.on && net.lan ? `<button class="${cls || ''}" data-a=lobby>${I.users} Volver a la sala <small>Vuelven todos</small></button>` : '';
 
 // ---------- PARTIDAS GUARDADAS ----------
 // Cada partida recuerda si era solitario o multijugador y se carga igual que se guardó.
@@ -4237,6 +4281,9 @@ const A = {
   },
   np2: () => players(net.mode),
   loads: () => savesMenu(),
+  lobby: () => { if(net.on && net.lan) raw({ t: 'lobby', md: lanCurMd() }); },
+  lbmd: v => { if(LOB && net.host && v !== LOB.md) raw({ t: 'lob_md', md: v }); },
+  lbrd: () => { const me = LOB && LOB.p.find(q => q[0] === net.id); if(me) raw({ t: 'lob_rd', on: me[2] ? 0 : 1 }); },
   duel: () => duelMenu(),
   pvm: v => { if(PVM[v]){ pvMode = v; duelMenu(); } },
   dfind: () => { net.mode = 'duel'; net.max = PVM[pvMode].max; net.q = true; DU.wait = null; connect(V.srv || DEFAULT_SERVER); },
