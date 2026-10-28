@@ -1146,7 +1146,9 @@ function roomCleared(r, rel, hd, cn){
   if(hd) hearts.push({ x: r.w * T / 2 + 18, y: r.h * T / 2 });
   if(r.type === 'boss'){
     dung.trapdoor = { x: (r.w / 2) * T, y: (r.h / 2) * T };
-    if(dung.floor >= 5) setTimeout(() => banner('¡LA SALIDA SE ABRIÓ!'), 1200);
+    const nr = npcRoom();
+    if(nr && !nr.talk) setTimeout(() => banner('HABLÁ CON ' + NPCS[nr.npc].n.split(',')[0].toUpperCase() + ' PARA SEGUIR'), 1200);
+    else if(dung.floor >= 5) setTimeout(() => banner('¡LA SALIDA SE ABRIÓ!'), 1200);
     V.bestDung = Math.max(V.bestDung || 1, dung.floor + 1);
     save();
   }
@@ -1282,6 +1284,13 @@ const NPCS = [
     'Cuando caiga el Soberano se va a abrir la escalera de luz. Subí y no mires atrás.',
     'Prometeme que vas a salir. Por todos los que no pudimos.'] }
 ];
+const npcRoom = () => Object.values(dung.rooms).find(r => r.type === 'npc') || null;
+// terminar la charla abre la trampilla del piso para todo el grupo
+function npcDone(r){
+  if(r.talk) return;
+  r.talk = true;
+  if(net.on) snd({ t: 'd_talk', k: Object.keys(dung.rooms).find(k => dung.rooms[k] === r) });
+}
 const npcPos = r => ({ x: r.w * T / 2, y: r.h * T / 2 - 4 });
 const npcHere = () => mode === 'dung' && dung.curRoom && dung.curRoom.type === 'npc' && state === 'play';
 let npcTalk = null;   // { r, i: línea actual }
@@ -1325,7 +1334,7 @@ function drawNpcHud(){
   if(!npcHere()) return;
   const r = dung.curRoom, N = NPCS[r.npc] || NPCS[0], q = npcPos(r), X = q.x - camx, Y = q.y - camy;
   TX(N.n.split(',')[0].toUpperCase(), X, Y - 28, 3, '#e9d5ff', 'center');
-  if(!r.used) TX('!', X, Y - 34 + Math.sin(t * 6) * 1.5, 5, '#f2b33d', 'center');
+  if(!r.talk) TX('!', X, Y - 34 + Math.sin(t * 6) * 1.5, 5, '#f2b33d', 'center');
 }
 
 // ---- final: al vencer al Soberano se abre la escalera de luz; al subir, escapás
@@ -1486,9 +1495,12 @@ function checkPedestals(){
     }
   }
 
-  // Trampilla al siguiente piso (la maneja el anfitrión)
+  // Trampilla al siguiente piso (la maneja el anfitrión). No se abre hasta hablar con el personaje del piso.
   if(dung.trapdoor && !p.dead && Math.hypot(p.x - dung.trapdoor.x, p.y - dung.trapdoor.y) < 14){
-    if(net.on && !net.host){
+    const nr = npcRoom();
+    if(nr && !nr.talk){
+      if(t - (dung.talkT || -9) > 2.5){ dung.talkT = t; banner('HABLÁ CON ' + NPCS[nr.npc].n.split(',')[0].toUpperCase() + ' PARA SEGUIR'); }
+    } else if(net.on && !net.host){
       if(t - (net.ndT || -9) > 1){ net.ndT = t; snd({ t: 'd_next' }); }
     } else if(!dung.descending){
       dung.descending = true; descend();
@@ -2631,6 +2643,7 @@ function onNet(d){
   else if(d.t === 'd_pd' && mode === 'dung' && dung.curRoomKey === d.k){
     const q = dung.curRoom.props[d.i]; if(q && !q.dead) propFx(q, false, d.o);
   }
+  else if(d.t === 'd_talk' && mode === 'dung' && dung.rooms[d.k]) dung.rooms[d.k].talk = true;
   else if(d.t === 'd_next' && net.host && mode === 'dung'){ if(!dung.descending){ dung.descending = true; descend(); } }
   else if(d.t === 'd_win' && mode === 'dung') winDung();
   else if(d.t === 'd_over' && mode === 'dung') dungOver();
@@ -4524,7 +4537,7 @@ function dungRS(){
   const rs = {};
   for(const k in dung.rooms){
     const r = dung.rooms[k], o = {};
-    if(r.cleared) o.c = 1; if(r.visited) o.v = 1; if(r.itemTaken) o.i = 1; if(r.used) o.u = 1;
+    if(r.cleared) o.c = 1; if(r.visited) o.v = 1; if(r.itemTaken) o.i = 1; if(r.used) o.u = 1; if(r.talk) o.t = 1;
     if(r.shopItems){ const b = r.shopItems.map((it, i) => it.bought ? i : -1).filter(i => i >= 0); if(b.length) o.b = b; }
     if(Object.keys(o).length) rs[k] = o;
   }
@@ -4533,7 +4546,7 @@ function dungRS(){
 function applyRS(rs){
   for(const k in rs || {}){
     const r = dung.rooms[k], o = rs[k]; if(!r) continue;
-    if(o.c) r.cleared = true; if(o.v) r.visited = true; if(o.i) r.itemTaken = true; if(o.u) r.used = true;
+    if(o.c) r.cleared = true; if(o.v) r.visited = true; if(o.i) r.itemTaken = true; if(o.u) r.used = true; if(o.t) r.talk = true;
     if(o.b && r.shopItems) o.b.forEach(i => { if(r.shopItems[i]) r.shopItems[i].bought = true; });
   }
 }
@@ -4608,7 +4621,7 @@ const A = {
   np2: () => players(net.mode),
   loads: () => savesMenu(),
   npcn: () => { if(npcTalk){ npcTalk.i++; npcMenu(); } },
-  npcx: () => { const T_ = npcTalk; if(T_ && T_.i >= (NPCS[T_.r.npc] || NPCS[0]).l.length - 1) npcGift(T_.r); npcTalk = null; A.resume(); },
+  npcx: () => { const T_ = npcTalk; if(T_ && T_.i >= (NPCS[T_.r.npc] || NPCS[0]).l.length - 1){ npcGift(T_.r); npcDone(T_.r); } npcTalk = null; A.resume(); },
   lobby: () => { if(net.on && net.lan) raw({ t: 'lobby', md: lanCurMd() }); },
   lbmd: v => { if(LOB && net.host && v !== LOB.md) raw({ t: 'lob_md', md: v }); },
   lbtm: v => { if(LOB) raw({ t: 'lob_tm', tm: +v }); },
