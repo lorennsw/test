@@ -21,8 +21,10 @@
     const rooms = {};
     let nextId = 1, duelN = 1;
     const send = (ws, o) => ws.readyState === 1 && ws.send(JSON.stringify(o));
-    const list = () => [...new Set([...DEFAULT_ROOMS, ...Object.keys(rooms).filter(n => !n.includes('|#') && !n.startsWith('P|'))])]
-      .map(n => [n, rooms[n] ? rooms[n].size : 0, rooms[n] ? rooms[n].max : MAX]);
+    // salas públicas: las de siempre y las salas con amigos marcadas como públicas (con su modo y nombre)
+    const list = () => [...new Set([...DEFAULT_ROOMS, ...Object.keys(rooms).filter(n => !n.includes('|#') && (!n.startsWith('P|') || rooms[n].pub))])]
+      .map(n => { const r = rooms[n]; if (!r) return [n, 0, MAX]; const busy = r.duel && r.duel.live;
+        return r.party ? [n, r.size, busy ? r.size : r.max, r.lob ? r.lob.md : r.md, r.title || ''] : [n, r.size, r.max]; });
     const nameOf = ws => ws.user || ws.nick || 'Jugador';
     const getUser = name => store ? store.getUser(name) : null;
 
@@ -32,12 +34,16 @@
     const teamSize = md => ({ '2v2': 2, '3v3': 3, '4v4': 4 })[md] || 0;   // jugadores por equipo en los modos por equipos
     const pvOf = name => PV[name.slice(0, 2)];
 
-    function joinRoom(ws, name, max) {
+    function joinRoom(ws, name, max, cfg) {
       const pv = pvOf(name);
       // el que crea la sala elige cuántos jugadores entran (las salas PvP tienen tamaño fijo)
       const party = name.startsWith('P|');
       const r = rooms[name] || Object.assign(new Set(), { max: party ? TOP_P : pv ? pv.max : Math.max(MIN_P, Math.min(TOP_P, max | 0 || MAX)) });
-      if (party && !rooms[name]) { r.party = true; r.lob = { md: 'dung', rd: new Set(), tm: new Map() }; }   // sala con amigos: empieza en la sala
+      if (party && !rooms[name]) {   // sala con amigos: empieza en la sala, con lo que eligió el que la creó
+        const c = cfg && typeof cfg === 'object' ? cfg : {};
+        r.party = true; r.lob = { md: MODES[c.md] ? c.md : 'dung', rd: new Set(), tm: new Map() };
+        r.cmax = Math.max(1, Math.min(TOP_P, c.max | 0 || TOP_P)); setCfg(r, c); lobbyMax(r);
+      }
       if (r.size >= r.max || (r.duel && r.duel.live)) return send(ws, { t: 'full' });
       if (pv && !r.duel) { r.pv = pv; r.duel = { live: false }; }
       rooms[name] = r;
@@ -166,7 +172,19 @@
     // ---------- sala local: al terminar todos vuelven, el anfitrión elige el modo y se empieza cuando están todos listos
     const MODES = { dung: 'D|', camp: 'C|', surv: 'S|', '1v1': 'V|', '2v2': 'W|', '3v3': 'X|', '4v4': 'Y|', ffa: 'F|' };
     const lobbyNeed = md => md === 'ffa' ? [2, TOP_P] : md === '1v1' ? [2, 2] : teamSize(md) ? [teamSize(md) * 2, teamSize(md) * 2] : [1, TOP_P];
+    // configuración de la sala con amigos: pública o no, nombre y contra quién se juega el PvP
+    // (in: entre ellos · pub: contra otras personas, la sala aparece en la lista · bots: contra bots, sin ranking)
+    function setCfg(r, c) {
+      if ('title' in c) r.title = String(c.title || '').slice(0, 17);
+      if ('rival' in c) r.rival = ['in', 'pub', 'bots'].includes(c.rival) ? c.rival : 'in';
+      if ('pub' in c) r.pub = !!c.pub;
+      if (r.rival === 'pub') r.pub = true;
+      if ('max' in c && c.max) r.cmax = Math.max(1, Math.min(TOP_P, c.max | 0));
+    }
+    // en la sala entran: en PvP los que pide el modo; en cooperativo los que eligió el anfitrión
+    const lobbyMax = r => { const pv = PV[MODES[r.lob.md]]; r.max = Math.max(r.size, pv ? pv.max : r.cmax || TOP_P); };
     const lobbyInfo = r => duelBroadcast(r, { t: 'lob', md: r.lob.md, need: lobbyNeed(r.lob.md),
+      cfg: r.party ? { title: r.title || '', rival: r.rival || 'in', pub: !!r.pub, max: r.cmax || TOP_P } : undefined,
       p: [...r].map(x => [x.id, nameOf(x), r.lob.rd.has(x.id) ? 1 : 0, x.host ? 1 : 0, r.lob.tm.has(x.id) ? r.lob.tm.get(x.id) : -1]) });
     // por equipos: cada uno elige el suyo (mitad y mitad) y se puede cambiar mientras haya lugar
     const teamOk = r => [0, 1].every(t => [...r].filter(x => r.lob.tm.get(x.id) === t).length === teamSize(r.lob.md));
@@ -174,7 +192,7 @@
       if (r.lob) return;
       if (r.duel) { r.duel.live = false; clearTimeout(r.vetoT); }
       r.lob = { md: MODES[md] ? md : 'dung', rd: new Set(), tm: new Map(r.tm || []) };   // los equipos de la última partida por equipos se mantienen
-      r.max = TOP_P;
+      if (r.party) lobbyMax(r); else r.max = TOP_P;
       lobbyInfo(r);
     }
     // si están todos listos y la cantidad sirve para el modo, arranca; la sala cambia de nombre según el modo
@@ -184,7 +202,7 @@
       const old = [...r][0].room, name = r.party ? old : MODES[l.md] + old.slice(2), pv = PV[MODES[l.md]];
       if (name !== old) { delete rooms[old]; rooms[name] = r; r.forEach(x => { x.room = name; }); }
       r.md = l.md;
-      r.lob = null; r.tm = teamSize(l.md) ? l.tm : null; r.pv = pv || null; r.duel = pv ? { live: false } : null; r.max = pv ? pv.max : TOP_P;
+      r.lob = null; r.tm = teamSize(l.md) ? l.tm : null; r.pv = pv || null; r.duel = pv ? { live: false } : null; r.max = pv ? pv.max : (r.party && r.cmax) || TOP_P;
       duelBroadcast(r, { t: 'lob_go', md: l.md, room: name, max: r.max });
       if (pv) duelStart(r);
     }
@@ -224,13 +242,14 @@
         if (m.t === 'auth') { ws.user = readToken(m.token); return send(ws, { t: 'authok', ok: !!ws.user }); }
         if (m.t === 'list') return send(ws, { t: 'rooms', l: list() });
         if ((m.t === 'join' || m.t === 'duel_q') && m.v !== gameV) return send(ws, { t: 'old', v: gameV });
-        if (m.t === 'join') { if (!ws.room) joinRoom(ws, String(m.room || 'D|Sala 1').slice(0, 30), m.max); return; }
+        if (m.t === 'join') { if (!ws.room) joinRoom(ws, String(m.room || 'D|Sala 1').slice(0, 30), m.max, m.cfg); return; }
         if (m.t === 'duel_q') return queueDuel(ws, m.md in queues ? m.md : '1v1');
         if (m.t === 'duel_qx') return dropQ(ws);
         const r = rooms[ws.room];
         if (!r) return;
         if ((lobby || r.party) && m.t === 'lobby') return lobbyOpen(r, m.md);
-        if (r.lob && m.t === 'lob_md') { if (ws.host && MODES[m.md]) { r.lob.md = m.md; r.lob.rd.clear(); lobbyInfo(r); } return; }
+        if (r.lob && m.t === 'lob_md') { if (ws.host && MODES[m.md]) { r.lob.md = m.md; r.lob.rd.clear(); if (r.party) lobbyMax(r); lobbyInfo(r); } return; }
+        if (r.lob && r.party && m.t === 'lob_cfg') { if (ws.host && m.cfg && typeof m.cfg === 'object') { setCfg(r, m.cfg); lobbyMax(r); lobbyInfo(r); } return; }
         if (r.lob && m.t === 'lob_tm') {
           const t = m.tm ? 1 : 0;
           if (r.lob.tm.get(ws.id) === t) { if (!m.x) return; r.lob.tm.delete(ws.id); }   // salir del equipo (para intercambiar) solo si se pide: así un mensaje repetido no te saca
