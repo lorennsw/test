@@ -4150,7 +4150,7 @@ function lanJoin(addr){
 
 // ---- sala local: al terminar una partida cualquiera puede volver a la sala y vuelven todos.
 // El anfitrión elige el modo y la partida arranca cuando están todos listos (lo decide rooms.js).
-let LOB = null;   // { md, need: [mín, máx], p: [[id, nombre, listo, anfitrión]] }
+let LOB = null;   // { md, need: [mín, máx], p: [[id, nombre, listo, anfitrión, equipo (-1 sin elegir)]] }
 const lanCurMd = () => mode === 'duel' ? pvMode : net.mode;
 function lobbyEnter(d){
   if(!LOB){ mode = 'surv'; state = 'menu'; paused = false; net.wait = false; net.rem = {}; bullets = []; enemies = []; eb = []; DU.wait = null; }
@@ -4162,14 +4162,21 @@ function lobbyMenu(){
   ret = lobbyMenu;
   const L = LOB, me = L.p.find(q => q[0] === net.id), rd = me && me[2], [a, b] = L.need, n = L.p.length;
   net.host = !!(me && me[3]);
-  const need = n >= a && n <= b ? `${L.p.filter(q => q[2]).length} de ${n} listos. Empieza cuando estén todos.`
+  const tv = L.md === '2v2', myTm = me ? me[4] : -1, tmN = k => L.p.filter(q => q[4] === k).length;
+  const row = q => `<div class="lbr${q[0] === net.id ? ' me' : ''}"><span>${q[3] ? '★' : ''}</span><span class=nm>${esc(q[1])}${q[3] ? ' <small>ANFITRIÓN</small>' : ''}</span><b style="color:var(--${q[2] ? 'ok' : 'muted'})">${q[2] ? 'LISTO' : 'ESPERANDO'}</b></div>`;
+  // 2v2: dos grupos; cada uno toca el suyo y se puede cambiar si hay lugar
+  const teams = `<div class=duo style="grid-template-columns:1fr 1fr;text-align:left">${[0, 1].map(k => `<div>
+    <button class="${myTm === k ? 's' : ''}" data-a=lbtm data-v=${k} ${myTm !== k && tmN(k) >= 2 ? 'disabled' : ''} style="width:100%;border-color:var(--${k ? 'acc2' : 'bad'})">${I.users} Equipo ${k ? 'Azul' : 'Rojo'} <small>${tmN(k)}/2${myTm === k ? ' · SALIR' : tmN(k) >= 2 ? ' · LLENO' : myTm >= 0 ? ' · CAMBIARME' : ' · UNIRME'}</small></button>
+    <div class=lb style="display:block;min-width:0">${L.p.filter(q => q[4] === k).map(row).join('') || '<div class=r><small>Vacío</small></div>'}</div></div>`).join('')}</div>
+    ${L.p.some(q => q[4] < 0) ? `<div class=r><small>SIN EQUIPO</small></div><div class=lb>${L.p.filter(q => q[4] < 0).map(row).join('')}</div>` : ''}`;
+  const need = n >= a && n <= b ? (tv && (tmN(0) !== 2 || tmN(1) !== 2) ? 'Elijan equipo: 2 en cada uno.' : `${L.p.filter(q => q[2]).length} de ${n} listos. Empieza cuando estén todos.`)
     : a === b ? `${lanName(L.md)} necesita exactamente ${a} jugadores (hay ${n}).` : n < a ? `Hacen falta al menos ${a} jugadores.` : `Máximo ${b} jugadores.`;
   panel(`<h2>Sala · ${LAN.kind === 'bt' ? 'Bluetooth' : 'Wi-Fi local'}</h2>
   <div class=r>${net.host ? 'Elegí el modo' : 'Modo elegido por el anfitrión'}</div>
   <div class=pcount style="grid-template-columns:repeat(3,1fr)">${LAN_MODES.map(([v, nm, ic]) => `<button class="${v === L.md ? 's' : ''}" data-a=lbmd data-v=${v} ${net.host || v === L.md ? '' : 'disabled'} style="font-size:max(11px,1.2cqw)">${I[ic]}${nm}<small>${lanPvp(v) ? 'PVP PRIVADO' : 'COOPERATIVO'}</small></button>`).join('')}</div>
-  <div class=lb>${L.p.map(q => `<div class="lbr${q[0] === net.id ? ' me' : ''}"><span>${q[3] ? '★' : ''}</span><span class=nm>${esc(q[1])}${q[3] ? ' <small>ANFITRIÓN</small>' : ''}</span><b style="color:var(--${q[2] ? 'ok' : 'muted'})">${q[2] ? 'LISTO' : 'ESPERANDO'}</b></div>`).join('')}</div>
+  ${tv ? teams : `<div class=lb>${L.p.map(row).join('')}</div>`}
   <div class=r><small>${need}${LAN.hub ? ' ' + lanHint() : ''}</small></div>
-  <div class=actions><button class="${rd ? '' : 's'}" data-a=lbrd>${rd ? I.x + ' Ya no estoy listo' : I.check + ' Listo'}</button><button data-a=quit>${I.exit} Salir</button></div>`);
+  <div class=actions><button class="${rd ? '' : 's'}" data-a=lbrd ${tv && myTm < 0 ? 'disabled' : ''}>${rd ? I.x + ' Ya no estoy listo' : I.check + ' Listo'}</button><button data-a=quit>${I.exit} Salir</button></div>`);
 }
 // todos listos: cada uno arranca el modo elegido (en PvP el motor manda enseguida la ruleta)
 function lobbyGo(d){
@@ -4283,6 +4290,7 @@ const A = {
   loads: () => savesMenu(),
   lobby: () => { if(net.on && net.lan) raw({ t: 'lobby', md: lanCurMd() }); },
   lbmd: v => { if(LOB && net.host && v !== LOB.md) raw({ t: 'lob_md', md: v }); },
+  lbtm: v => { if(LOB) raw({ t: 'lob_tm', tm: +v }); },
   lbrd: () => { const me = LOB && LOB.p.find(q => q[0] === net.id); if(me) raw({ t: 'lob_rd', on: me[2] ? 0 : 1 }); },
   duel: () => duelMenu(),
   pvm: v => { if(PVM[v]){ pvMode = v; duelMenu(); } },
