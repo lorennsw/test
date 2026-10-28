@@ -881,14 +881,15 @@ function setupRoomInterior(r, th, fl, pr){
     () => {},
     () => { for(const x of [cx - 6, cx + 5]) for(const y of [3, 5, 7]) addO(x, y); }
   ];
-  const pat = r.type === 'boss' ? [0, 3, 2, 9, 0][fl % 5] : Math.floor(pr() * L.length);
+  // la sala del jefe queda despejada: los jefes son grandes y se trababan con las estructuras
+  const pat = r.type === 'boss' ? 13 : Math.floor(pr() * L.length);
   L[pat]();
   // ---- pinchos, barriles explosivos y cajas
   const addSp = n => { for(let i = 0; i < n; i++){ const c = cell(); if(c){ occ[c.x + ',' + c.y] = 2; r.spk.push(c); } } };
   if(r.type !== 'boss' && (pat === 13 || pr() < .4)) addSp(pat === 13 ? 8 + Math.floor(pr() * 4) : 3 + Math.floor(pr() * 5));
   const nBar = pr() < .55 ? 1 + Math.floor(pr() * 3) : 0, nCr = pr() < .65 ? 2 + Math.floor(pr() * 4) : 0;
-  for(let i = 0; i < nBar; i++){ const c = cell(); if(c){ occ[c.x + ',' + c.y] = 3; r.props.push({ x: c.x, y: c.y, t: 'barrel', hp: 2 }); } }
-  for(let i = 0; i < nCr; i++){ const c = cell(); if(c){ occ[c.x + ',' + c.y] = 3; r.props.push({ x: c.x, y: c.y, t: 'crate', hp: 2 }); } }
+  if(r.type !== 'boss') for(let i = 0; i < nBar; i++){ const c = cell(); if(c){ occ[c.x + ',' + c.y] = 3; r.props.push({ x: c.x, y: c.y, t: 'barrel', hp: 2 }); } }
+  if(r.type !== 'boss') for(let i = 0; i < nCr; i++){ const c = cell(); if(c){ occ[c.x + ',' + c.y] = 3; r.props.push({ x: c.x, y: c.y, t: 'crate', hp: 2 }); } }
   // ---- oleadas de enemigos
   const spawnCell = () => {
     for(let i = 0; i < 60; i++){
@@ -1543,6 +1544,13 @@ function mk(k, x, y, opt){
   if(el) hm *= 2;
   const hp = Math.ceil(d.hp * hm);
   const e = { id: nid++, k, x, y, hp, mx: hp, ph: Math.random() * 6, fl: 0, hb: 0, at: 3, st: 0, tm: 0, z: 0, el: el ? 1 : 0, born: mode === 'dung' ? .9 : 0 };
+  // En la mazmorra no todos te persiguen desde el principio: algunos vigilan su zona hasta verte
+  // y otros se quedan quietos emboscados hasta que te acercás. Las invocaciones atacan siempre.
+  if(mode === 'dung' && !d.boss && !(opt && opt.noElite)){
+    const r_ = Math.random(), quiet = d.ranged || d.sniper || d.summoner || d.burst;
+    e.mood = r_ < .4 ? 0 : r_ < .75 || quiet ? 1 : 2;   // 0 persigue · 1 vigila · 2 embosca
+    e.aw = e.mood === 0 ? 1 : 0; e.hx = x; e.hy = y;
+  } else e.aw = 1;
   enemies.push(e);
   return e;
 }
@@ -1771,19 +1779,110 @@ function bossAI(e, dt, sp, tg, a, dist, go, CDM){
   if(done){ e.st = 0; e.z = 0; e.at = (rage ? 1.1 : 1.7) + Math.random() * .6; }
 }
 
+// ¿hay una pared u obstáculo entre (x0,y0) y (x1,y1)?
+function seen(x0, y0, x1, y1){
+  const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 6);
+  for(let i = 1; i < n; i++) if(tile(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n) === 1) return false;
+  return true;
+}
+// Camino por la sala hacia cada jugador: distancia en casillas (BFS), para que los enemigos rodeen
+// paredes y obstáculos en vez de quedarse empujando contra ellos. Se recalcula cada medio segundo.
+const flows = new Map();
+function flowTo(tg){
+  const r = dung.curRoom, tx = Math.floor(tg.x / T), ty = Math.floor(tg.y / T), key = dung.curRoomKey + ':' + tx + ',' + ty;
+  let f = flows.get(key);
+  if(f && t - f.t < .5 && f.t <= t) return f.D;
+  if(flows.size > 12) flows.clear();
+  const w = r.w, h = r.h, D = new Int16Array(w * h).fill(-1), q = [];
+  const free = (x, y) => x > 0 && y > 0 && x < w - 1 && y < h - 1 && dungTile(x * T + 8, y * T + 8) === 0;
+  if(tx >= 0 && ty >= 0 && tx < w && ty < h){ D[ty * w + tx] = 0; q.push(tx, ty); }
+  for(let i = 0; i < q.length; i += 2){
+    const x = q[i], y = q[i + 1], d0 = D[y * w + x];
+    for(const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]){
+      const X = x + dx, Y = y + dy;
+      if(free(X, Y) && D[Y * w + X] < 0){ D[Y * w + X] = d0 + 1; q.push(X, Y); }
+    }
+  }
+  flows.set(key, { t, D });
+  return D;
+}
+// hacia qué lado ir para acercarse a tg siguiendo el camino (null si no hay camino)
+function pathAng(e, tg){
+  const r = dung.curRoom, w = r.w, D = flowTo(tg), x = Math.floor(e.x / T), y = Math.floor(e.y / T);
+  const at = (X, Y) => X < 0 || Y < 0 || X >= w || Y >= r.h ? -1 : D[Y * w + X];
+  let best = at(x, y), bx = x, by = y;
+  for(const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]){
+    const v = at(x + dx, y + dy);
+    // en diagonal solo si las dos casillas de al lado están libres (para no cortar esquinas)
+    if(v < 0 || (dx && dy && (at(x + dx, y) < 0 || at(x, y + dy) < 0))) continue;
+    if(best < 0 || v < best){ best = v; bx = x + dx; by = y + dy; }
+  }
+  if(bx === x && by === y) return null;
+  return Math.atan2(by * T + 8 - e.y, bx * T + 8 - e.x);
+}
+// se da cuenta del jugador: grita "!", se lanza un momento más rápido y avisa a los que están cerca
+function wake(e, rush){
+  if(e.aw) return;
+  e.aw = 1; e.ex = .7; e.rush = rush; e.at = Math.max(e.at, .6);
+  for(const q of enemies) if(!q.aw && q !== e && Math.hypot(q.x - e.x, q.y - e.y) < 45){ q.aw = 1; q.ex = .7; q.rush = .4; }
+}
+
 function aiMove(e, dt, sm, tg){
   const d = EN[e.k], k = e.k, CDM = mode === 'dung' ? 1.3 : 1;
   if(e.born > 0){ e.born -= dt; return; }
   const dx = tg.x - e.x, dy = tg.y - e.y, dist = Math.hypot(dx, dy) || 1;
   const a = Math.atan2(dy, dx);
-  const sp = d.sp * dt * sm * (e.el ? 1.15 : 1) * (1 + Math.sin(t * 6 + e.ph) * .4);
+  if(e.rush > 0) e.rush -= dt;
+  if(e.ex > 0) e.ex -= dt;
+  const sp = d.sp * dt * sm * (e.el ? 1.15 : 1) * (1 + Math.sin(t * 6 + e.ph) * .4) * (e.rush > 0 ? 2.3 : 1);
+  const rr = d.r > 8 ? 6 : 4;
 
+  // en la mazmorra, si no te ve directo (hay algo en el medio), sigue el camino que rodea los obstáculos
+  if(mode === 'dung' && !d.nc){
+    e.lt = (e.lt || 0) - dt;
+    if(e.lt <= 0){ e.lt = .2; e.los = seen(e.x, e.y - 3, tg.x, tg.y - 3) && hit4(e.x, e.y, rr + 3) === false; e.pa = null; }
+    if(!e.los){ e.pt = (e.pt || 0) - dt; if(e.pt <= 0 || e.pa == null){ e.pt = .12; e.pa = pathAng(e, tg); } }
+  }
   const go = (an, s) => {
-    if(d.nc){ e.x += Math.cos(an) * s; e.y += Math.sin(an) * s; }
-    else move(e, Math.cos(an) * s, Math.sin(an) * s, d.r > 8 ? 6 : 4);
+    if(d.nc){ e.x += Math.cos(an) * s; e.y += Math.sin(an) * s; return; }
+    // si iba hacia el jugador pero hay algo en el medio, toma el camino
+    if(mode === 'dung' && !e.los && e.pa != null && Math.abs(Math.atan2(Math.sin(an - a), Math.cos(an - a))) < 1.2){ move(e, Math.cos(e.pa) * s, Math.sin(e.pa) * s, rr); return; }
+    // si viene esquivando una pared, sigue el desvío un ratito
+    if(e.dv > 0){ e.dv -= dt; an = e.da; }
+    else if(e.sdT > 0){ e.sdT -= dt; if(e.sdT <= 0) e.sd = 0; }
+    const x0 = e.x, y0 = e.y;
+    move(e, Math.cos(an) * s, Math.sin(an) * s, rr);
+    if(s > .05 && Math.hypot(e.x - x0, e.y - y0) < s * .45){
+      // se está chocando: prueba para los costados (primero hacia el mismo lado que la última vez)
+      const sd = e.sd || (Math.random() < .5 ? 1 : -1);
+      for(const k_ of [1, 2, 3]) for(const sg of [sd, -sd]){
+        const a2 = an + sg * k_ * .785;
+        if(!hit4(x0 + Math.cos(a2) * 7, y0 + Math.sin(a2) * 7, rr)){
+          e.x = x0; e.y = y0; move(e, Math.cos(a2) * s, Math.sin(a2) * s, rr);
+          e.da = a2; e.dv = .3 + k_ * .1; e.sd = sg; e.sdT = 1.2;
+          return;
+        }
+      }
+    }
   };
   e.tm += dt;
   if(d.boss) return bossAI(e, dt, sp, tg, a, dist, go, CDM);
+
+  if(!e.aw){
+    // vigila: te ve si no hay paredes en el medio · emboscado: espera a que estés muy cerca · si le pegan, se despierta
+    if(e.hb > 0) wake(e, .5);
+    else if(e.mood === 1 && ((dist < 100 && seen(e.x, e.y - 4, tg.x, tg.y - 4)) || dist < 40)) wake(e, .5);
+    else if(e.mood === 2 && dist < 58) wake(e, .9);
+    if(!e.aw){
+      if(e.mood === 1){
+        // da vueltas despacio cerca de donde apareció
+        e.wt = (e.wt || 0) - dt;
+        if(e.wt <= 0){ e.wt = 1 + Math.random() * 1.5; e.wa = Math.hypot(e.hx - e.x, e.hy - e.y) > 24 ? Math.atan2(e.hy - e.y, e.hx - e.x) : Math.random() * 6.283; e.wm = Math.random() < .35 ? 0 : 1; }
+        if(e.wm) go(e.wa, sp * .3);
+      }
+      return;
+    }
+  }
 
   // Nuevos comportamientos (Esqueleto, Ojo, Kamikaze, Jefes)
   if(d.charger){
@@ -2151,7 +2250,7 @@ function update(dt){
         net.et = .1; lsb = board();
         snd({
           t: 'e', k: kills, lv: lvl, mp: mapIdx, rt: Math.round(rt), bd: bd ? 1 : 0, ls: lsb, rk: mode === 'dung' ? dung.curRoomKey : 0,
-          l: enemies.map(e => [e.id, e.k, Math.round(e.x), Math.round(e.y), e.hp, e.mx, e.el || 0, e.born > 0 ? 1 : 0, Math.round(e.z || 0), e.tl ? 1 : 0])
+          l: enemies.map(e => [e.id, e.k, Math.round(e.x), Math.round(e.y), e.hp, e.mx, e.el || 0, e.born > 0 ? 1 : 0, Math.round(e.z || 0), e.tl ? 1 : 0, e.ex > 0 ? 1 : 0])
         });
       }
     }
@@ -2181,11 +2280,11 @@ function onNet(d){
     if(mode === 'surv' && d.mp != null && d.mp !== mapIdx){ start('surv', 1, d.mp); return; }
     kills = d.k; rt = d.rt; bd = !!d.bd; lsb = d.ls || [];
     const old = new Map(enemies.map(e => [e.id, e]));
-    enemies = d.l.map(([id, k, x, y, hp, mx, el, bo, z, tl]) => {
+    enemies = d.l.map(([id, k, x, y, hp, mx, el, bo, z, tl, ex]) => {
       let e = old.get(id);
       if(!e) e = { id, k, x, y, ph: Math.random() * 6, fl: 0, hb: 0 };
       else if(hp < e.hp){ e.fl = .12; e.hb = 1.6; }
-      e.k = k; e.tx = x; e.tz = y; e.hp = hp; e.mx = mx; e.el = el || 0; e.born = bo ? 1 : 0; e.z = z || 0; e.tl = tl || 0; return e;
+      e.k = k; e.tx = x; e.tz = y; e.hp = hp; e.mx = mx; e.el = el || 0; e.born = bo ? 1 : 0; e.z = z || 0; e.tl = tl || 0; e.ex = ex ? .2 : 0; return e;
     });
     boss = enemies.find(e => EN[e.k].boss) || null;
   }
@@ -2667,6 +2766,7 @@ function drawEnemy(e){
     Q(-w / 2, top, w, 3, '#111'); Q(-w / 2 + 1, top + 1, (w - 2) * pc, 1, e.el ? '#ff2a2a' : '#e43b44');
   }
   if(e.el && !d.boss){ Q(-3, top - 4, 6, 2, '#ff2a2a'); Q(-2, top - 5, 4, 1, '#ff2a2a'); }
+  if(e.ex > 0){ const o = e.el ? 7 : 0; Q(-1, top - 10 - o, 3, 6, '#ffd23f'); Q(-1, top - 3 - o, 3, 2, '#ffd23f'); }
   g.globalAlpha = 1;
 }
 
