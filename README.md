@@ -17,6 +17,16 @@ Shooter pixel art para navegador: mazmorras procedurales, campaña, supervivenci
 - **Partida local sin internet** (solo en la app): por Wi-Fi local (misma red o zona Wi-Fi) o por Bluetooth (hasta 8 jugadores). Un celular crea la partida y corre el motor de salas (`rooms.js`, el mismo del servidor); los demás se unen desde una lista. Sirve para el cooperativo y para el PvP privado (sin cambiar el rating). La parte de Android está en `android/.../LocalNet.java`.
 - Está firmada con `android/pixelshooter.keystore` (clave de juego casero, incluida en el repo) para que cada versión nueva se instale encima de la anterior.
 
+## Juego para PC (Windows)
+
+- Instalador: https://github.com/lorennswaggerboi-lab/test/releases/latest/download/PixelShooter-Setup.exe (lo publica el mismo workflow, en la misma release que la APK).
+- Instalador en español con bienvenida, términos, elección de carpeta, accesos directos en el escritorio y el menú Inicio, y desinstalador en "Agregar o quitar programas". La partida guardada no se borra al desinstalar.
+- El juego de PC **se actualiza solo**: baja la versión nueva en segundo plano (`latest.yml` de la última release) y la instala al cerrar.
+- Código en `desktop/`: Electron con el juego adentro (`npm run game` copia `index.html`, `rooms.js` y `fonts/`). `F11` o `Alt+Enter` para pantalla completa; recuerda el tamaño de la ventana.
+- **Partida local** por la red de la casa (Wi-Fi o cable), con el mismo protocolo que la app de Android (`desktop/localnet.js`), así una PC y un celular pueden jugar juntos.
+- Compilar a mano: `cd desktop && npm install && npm run dist` (en Linux necesita Wine). Las imágenes del instalador se generan con `desktop/scripts/make-art.py`.
+- El instalador no está firmado con un certificado: Windows puede mostrar "Windows protegió tu PC" → *Más información* → *Ejecutar de todas formas*.
+
 ## Servidor (Render)
 
 ```

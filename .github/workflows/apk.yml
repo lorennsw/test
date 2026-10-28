@@ -1,12 +1,14 @@
-# Compila la app de Android cada vez que cambia el juego y la publica como "release".
-# Link fijo para descargar la última versión desde el celular:
+# Compila la app de Android y el instalador de PC cada vez que cambia el juego y los publica como "release".
+# Links fijos para descargar la última versión:
 #   https://github.com/lorennswaggerboi-lab/test/releases/latest/download/PixelShooter.apk
+#   https://github.com/lorennswaggerboi-lab/test/releases/latest/download/PixelShooter-Setup.exe
+# La app de PC se actualiza sola con el latest.yml de la última release.
 name: APK de Android
 
 on:
   push:
     branches: [main]
-    paths: ['index.html', 'fonts/**', 'android/**', '.github/workflows/apk.yml']
+    paths: ['index.html', 'rooms.js', 'fonts/**', 'android/**', 'desktop/**', '.github/workflows/apk.yml']
   workflow_dispatch:
 
 permissions:
@@ -36,10 +38,43 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-${{ github.run_number }}
-          name: Pixel Shooter para Android (versión 1.${{ github.run_number }})
+          name: Pixel Shooter 1.${{ github.run_number }} para Android y PC
           make_latest: true
           files: PixelShooter.apk
           body: |
             Descargá **PixelShooter.apk** desde el celular y abrilo para instalar.
             Si Android lo pide, permití "instalar apps de origen desconocido" para el navegador.
             Las versiones nuevas se instalan encima de la anterior sin perder el progreso.
+
+            **PC (Windows 10/11):** descargá **PixelShooter-Setup.exe** y seguí el instalador.
+            Si Windows muestra "Windows protegió tu PC", tocá *Más información* → *Ejecutar de todas formas*.
+            El juego de PC se actualiza solo.
+
+  exe:
+    needs: apk
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Compilar el instalador de Windows
+        working-directory: desktop
+        shell: bash
+        run: |
+          npm ci
+          npm run game
+          npx electron-builder --win nsis --x64 --publish never -c.extraMetadata.version=1.0.${{ github.run_number }}
+
+      - name: Publicar
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          files: |
+            desktop/dist/PixelShooter-Setup.exe
+            desktop/dist/PixelShooter-Setup.exe.blockmap
+            desktop/dist/latest.yml
