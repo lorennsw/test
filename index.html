@@ -2886,9 +2886,20 @@ function onNet(d){
     if(!d.r) snd({ t: 'w_hi', to: d.from, n: V.av.name, av: V.av, h: net.host ? 1 : 0, r: 1 });
     if(net.wait) waitRoom();
     else if(net.host && mode === 'dung' && state === 'play')
-      snd({ t: 'd_go', to: d.from, fl: dung.floor, sd: dung.seed, rk: dung.curRoomKey, cl: Object.keys(dung.rooms).filter(k => dung.rooms[k].cleared), rs: dungRS(), dif });
+      snd({ t: 'd_go', to: d.from, fl: dung.floor, sd: dung.seed, rk: dung.curRoomKey, cl: Object.keys(dung.rooms).filter(k => dung.rooms[k].cleared), rs: dungRS(), dif, pl: net.pl || undefined });
   }
-  else if(d.t === 'd_go'){ if(net.wait) beginDung(d.fl, d.sd, d.rk, d.cl, d.rs, d.dif); }
+  else if(d.t === 'd_go'){ if(net.wait){ beginDung(d.fl, d.sd, d.rk, d.cl, d.rs, d.dif); if(d.pl) applyMe(d.pl[V.av.name]); } }
+  else if(d.t === 'sv_go' && state === 'play' && mode !== 'duel'){
+    const s = Object.assign(snapGame(), { id: d.id }), me = snapMe(), old = getSaves().find(o => o.id === d.id);
+    s.pl = Object.assign({}, old && old.pl, { [me.n]: me });
+    storeSave(s); save();
+    snd({ t: 'sv_me', id: d.id, st: me });
+    banner('PARTIDA GUARDADA');
+  }
+  else if(d.t === 'sv_me' && d.st && d.st.n){
+    const l = getSaves(), s = l.find(o => o.id === d.id);
+    if(s){ s.pl = Object.assign(s.pl || {}, { [d.st.n]: d.st }); putSaves(l); }
+  }
   else if(d.t === 'h' && net.host){
     const e = enemies.find(q => q.id === d.id);
     if(e && !e.dead) dmg(e, d.d, d.from);
@@ -4989,7 +5000,7 @@ function lanHosting(ev){
   lanSetMode(m[3]);
   net.max = lanPvp(LAN.md) ? PVM[LAN.md].max : LAN.max;
   net.autoRoom = m[3] + 'Local';
-  net.load = null; net.q = false; curSave = null;
+  net.load = LAN.load || null; LAN.load = null; net.q = false; curSave = net.load ? net.load.id : null;   // reanudar una partida local guardada
   connect('local', lanSelfSocket());
 }
 const lanHint = () => !net.lan ? '' : LAN.hub
@@ -5060,7 +5071,7 @@ function lobbyGo(d){
   if(net.mode === 'dung'){
     net.wait = true; net.wl = {};
     if(!net.host) return wait('Mazmorras');
-    const sdv = rnd(1, 99999); snd({ t: 'd_go', fl: 1, sd: sdv, dif: V.dif | 0 }); beginDung(1, sdv); return;
+    net.pl = null; const sdv = rnd(1, 99999); snd({ t: 'd_go', fl: 1, sd: sdv, dif: V.dif | 0 }); beginDung(1, sdv); return;
   }
   start(net.mode, 1);
 }
@@ -5096,22 +5107,39 @@ function applyRS(rs){
 function snapGame(){
   const s = {
     id: curSave || Date.now(), at: Date.now(), mode, multi: net.on, max: net.on ? net.max : 1,
-    room: net.on ? String(net.roomName || '').slice(2) : '', lvl, mp: mapIdx, kills, nb, rt, key,
+    room: net.on ? String(net.roomName || '').slice(2) : '', lan: net.lan ? LAN.kind : 0, lvl, mp: mapIdx, kills, nb, rt, key,
     hp: p.hp > 0 ? p.hp : 2, mh: p.maxHp || 5, ar: p.ar || 0
   };
   if(mode === 'dung') s.d = {
     fl: dung.floor, sd: dung.seed, rk: dung.curRoomKey, rs: dungRS(), pas: dung.passives.slice(), dif,
-    inv: { coins: V.coins, owned: V.owned.slice(), eq: V.eq }
+    inv: { coins: V.coins, owned: V.owned.slice(), eq: V.eq, arm: V.arm, armo: V.armo.slice() }
   };
   return s;
 }
 // fromBench: guardado desde el banco de la mazmorra (sin abrir la pausa). En mazmorras es la única forma.
+// Lo de cada jugador (vida, reliquias y lo que lleva en esta partida). En cooperativo la partida guardada
+// tiene el de todos, y al reanudarla cada uno recupera lo suyo (se identifica por el nombre).
+const snapMe = () => ({ n: V.av.name, hp: p.hp > 0 ? p.hp : 2, mh: p.maxHp || 5, ar: p.ar || 0,
+  pas: mode === 'dung' ? dung.passives.slice() : [],
+  inv: mode === 'dung' ? { coins: V.coins, owned: V.owned.slice(), eq: V.eq, arm: V.arm, armo: V.armo.slice() } : null });
+function applyMe(st){
+  if(!st) return;
+  p.maxHp = st.mh || p.maxHp || 5; p.hp = Math.min(p.maxHp, st.hp || p.maxHp); p.ar = st.ar || 0;
+  if(mode === 'dung'){ dung.passives = (st.pas || []).slice(); if(st.inv) Object.assign(V, st.inv); }
+}
+function storeSave(s){
+  const l = getSaves().filter(o => o.id !== s.id);
+  l.unshift(s); curSave = s.id;
+  return putSaves(l.slice(0, SAVES_MAX));
+}
 function saveGame(fromBench){
   if(state !== 'play' || mode === 'duel') return false;
   if(mode === 'dung' && !fromBench) return false;
-  const s = snapGame(), l = getSaves().filter(o => o.id !== s.id);
-  l.unshift(s); curSave = s.id;
-  const ok = putSaves(l.slice(0, SAVES_MAX));
+  const s = snapGame();
+  s.pl = { [V.av.name]: snapMe() };
+  const ok = storeSave(s);
+  // en cooperativo se guarda en el celular de todos, con lo de cada uno
+  if(net.on){ snd({ t: 'sv_go', id: s.id }); snd({ t: 'sv_me', id: s.id, st: s.pl[V.av.name] }); }
   save();
   if(!fromBench) pauseMenu(ok ? 'Partida guardada (' + (s.multi ? 'multijugador' : 'solitario') + ')' : 'No se pudo guardar la partida');
   return ok;
@@ -5133,6 +5161,8 @@ function loadGame(i){
   const s = getSaves()[i]; if(!s || !MN[s.mode]) return;
   curSave = s.id;
   if(!s.multi) return applySave(s);
+  // partida local (Wi-Fi o Bluetooth): se vuelve a crear la partida local
+  if(s.lan && NB){ LAN.kind = s.lan; LAN.md = s.mode; LAN.max = s.max || 4; LAN.load = s; return lanHost(); }
   // multijugador: se vuelve a abrir la sala online con la misma cantidad de jugadores
   net.mode = s.mode; net.max = s.max || 4; net.load = s;
   net.autoRoom = pref() + (s.room || 'Partida');
@@ -5237,9 +5267,13 @@ const A = {
     if(!net.on || !net.host || !net.wait) return;
     const L = net.load; net.load = null;
     if(L && L.d){
-      snd({ t: 'd_go', fl: L.d.fl, sd: L.d.sd, rk: L.d.rk, rs: L.d.rs, dif: L.d.dif | 0 });
-      beginDung(L.d.fl, L.d.sd, L.d.rk, null, L.d.rs, L.d.dif | 0); restorePlayer(L); return;
+      net.pl = L.pl || null;
+      snd({ t: 'd_go', fl: L.d.fl, sd: L.d.sd, rk: L.d.rk, rs: L.d.rs, dif: L.d.dif | 0, pl: net.pl });
+      beginDung(L.d.fl, L.d.sd, L.d.rk, null, L.d.rs, L.d.dif | 0); restorePlayer(L);
+      if(net.pl) applyMe(net.pl[V.av.name]);
+      return;
     }
+    net.pl = null;
     const sdv = rnd(1, 99999); snd({ t: 'd_go', fl: 1, sd: sdv, dif: V.dif | 0 }); beginDung(1, sdv);
   },
   wquit: () => A.quit(),
