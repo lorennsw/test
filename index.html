@@ -2376,6 +2376,8 @@ function update(dt){
     goDoor();
   }
 
+  if(BOT.list.length && mode === 'duel') botTick(dt);
+
   // Sincronización en red
   if(net.on){
     net.pt = (net.pt || 0) - dt;
@@ -2581,6 +2583,7 @@ function connect(url, sock){
     }
     else if(d.t === 'welcome'){
       net.lob = false; net.id = d.id; net.host = d.host; net.on = true; net.rem = {};
+      if(BOT.hub && BOT.want) setTimeout(botsJoin, 300);   // contra bots: entran después de vos
       if(d.max) net.max = d.max;
       const L = net.load;
       net.guest = !!(L && !d.host);           // la sala ya tenía anfitrión: entrás como invitado
@@ -3963,6 +3966,7 @@ function duelMenu(msg){
   <div class=actions>
     <button class=s data-a=dfind>${I.swords} Buscar partida</button>
     <button data-a=dpriv>${I.users} Sala privada</button>
+    <button data-a=dbots>${I.target} Contra bots <small>Sin rating</small></button>
     <button data-a=dtop>${I.trophy} Ranking</button>
     <button data-a=home>${I.back} Volver</button>
   </div>`);
@@ -4128,7 +4132,7 @@ function duelResult(note){
     <div><small>${DU.md === '2v2' ? 'RIVALES' : esc(String(pvName(DU.ps.find(q => q[3] !== me[3])?.[0])).toUpperCase())}</small><b>${DU.sc[1 - me[3]] || 0}</b></div>
     ${R.d != null ? `<div><small>RATING</small><b>${AU.stats ? AU.stats.rating : '—'} <small style="color:${R.win ? 'var(--ok)' : 'var(--bad)'}">${R.win ? '+' : '−'}${R.d}</small></b></div>` : ''}
   </div>`}
-  ${!ffa && R.d == null ? `<div class=r><small>${net.lan ? 'Partida local: no cambia el rating' : 'Partida sin ranking (hace falta que todos tengan cuenta)'}</small></div>` : ''}
+  ${!ffa && R.d == null ? `<div class=r><small>${BOT.hub ? 'Contra bots: no cambia el rating' : net.lan ? 'Partida local: no cambia el rating' : 'Partida sin ranking (hace falta que todos tengan cuenta)'}</small></div>` : ''}
   ${note ? `<div class="msg ok">${esc(note)}</div>` : ''}
   <div class=vlist>
     ${lobbyBtn()}
@@ -4159,6 +4163,233 @@ function drawDuelHud(){
     TX(n > 0 ? n : '¡YA!', W / 2, H / 2 - 14, n > 0 ? 14 : 10, n > 0 ? '#fff' : '#f2b33d', 'center');
   }
   if(p.dead > 0) TX(ffa ? 'REAPARECÉS EN ' + Math.ceil(p.dead) : 'CAÍSTE · ESPERÁ EL FIN DE LA RONDA', W / 2, H / 2 + 4, 4, '#fff', 'center');
+}
+
+// ---------- BOTS DEL PVP (sin internet y sin ranking) ----------
+// La partida contra bots arma una sala en el propio juego con el mismo motor de salas (rooms.js) pero sin
+// base de datos, así que no cambia el rating. Cada bot es un jugador más conectado a esa sala: manda su
+// posición, sus disparos, sus impactos y sus muertes con los mismos mensajes que una persona.
+const BOT = { hub: null, list: [], want: 0 };
+const BOT_N = { '1v1': 1, '2v2': 3, ffa: 5 };
+const BOT_NAMES = ['Ráfaga', 'Sombra', 'Vector', 'Kira', 'Tanque', 'Nova', 'Zeta', 'Halcón'];
+const BOT_COLS = ['#e43b44', '#3b82f6', '#22c55e', '#a855f7', '#f97316', '#eab308', '#14b8a6', '#ec4899'];
+// conexión directa con una sala que corre en esta misma página
+function hubSocket(hub, onClose){
+  const sock = { readyState: 1, onmessage: null, onclose: null, onopen: null, onerror: null,
+    send(t){ setTimeout(() => a.readyState === 1 && hub.message(a, t), 0); },
+    close(){ sock.readyState = 3; a.readyState = 3; hub.close(a); if(onClose) onClose(); } };
+  const a = { readyState: 1, send(t){ setTimeout(() => sock.readyState === 1 && sock.onmessage && sock.onmessage({ data: t }), 0); } };
+  hub.open(a);
+  return sock;
+}
+function botStop(){
+  for(const b of BOT.list) if(b.a.readyState === 1){ b.a.readyState = 3; if(BOT.hub) BOT.hub.close(b.a); }
+  BOT.list = []; BOT.hub = null; BOT.want = 0;
+}
+function botMatch(){
+  botStop(); lanStop();
+  BOT.hub = PSRooms.createRooms({ gameV: GAME_V });
+  BOT.want = BOT_N[pvMode];
+  net.mode = 'duel'; net.max = PVM[pvMode].max; net.q = false; DU.wait = null; curSave = null;
+  net.autoRoom = PVM[pvMode].pre + 'Bots';
+  connect('local', hubSocket(BOT.hub, botStop));
+}
+const botSend = (b, o) => { if(BOT.hub && b.a.readyState === 1) BOT.hub.message(b.a, JSON.stringify(o)); };
+function botsJoin(){
+  const n = BOT.want; BOT.want = 0;
+  if(!BOT.hub) return;
+  const names = BOT_NAMES.slice().sort(() => Math.random() - .5);
+  for(let i = 0; i < n; i++){
+    const c = BOT_COLS[(i * 3 + rnd(0, 7)) % BOT_COLS.length];
+    const b = { name: names[i], id: 0, team: 0, md: pvMode, alive: false, x: 0, y: 0, ang: 0, hp: DUEL_HP, cd: 0, inv: 0, fz: 0, roll: 0, rlc: 0, bul: [],
+      av: { skin: ['#f2c18d', '#c68642', '#8d5524', '#ffdbac'][rnd(0, 3)], hair: ['#1b1b1b', '#5a3a22', '#d4a017', '#b03a2e'][rnd(0, 3)], shirt: c, pn: '#2b2b40', ec: '#111111', hs: rnd(0, 3), os: rnd(0, 3), acc: 0, name: names[i] },
+      st: 1, stT: 0, seeT: 0, pt: 0, w: 0, tv: {} };
+    b.a = { readyState: 1, send: t => setTimeout(() => { try{ botMsg(b, JSON.parse(t)); }catch(e){} }, 0) };
+    BOT.hub.open(b.a);
+    BOT.list.push(b);
+    BOT.hub.message(b.a, JSON.stringify({ t: 'join', room: net.roomName, v: GAME_V, n: b.name }));
+  }
+  if(pvMode === 'ffa') setTimeout(() => raw({ t: 'duel_go' }), 300);
+}
+// lo que le llega a cada bot desde la sala
+function botMsg(b, d){
+  if(d.t === 'welcome') b.id = d.id;
+  else if(d.t === 'duel_start'){ const q = d.p.find(q => q[0] === b.id); b.team = q ? q[3] : 0; b.md = d.md; b.alive = false; b.bul = []; }
+  else if(d.t === 'veto_st' && d.turn === b.id){
+    // veta el arma que más le conviene sacar (la más fuerte que queda), con un poco de azar
+    const l = d.left.slice().sort((x, y) => WP[y].d * WP[y].pel / WP[y].cd - WP[x].d * WP[x].pel / WP[x].cd);
+    setTimeout(() => botSend(b, { t: 'veto', w: Math.random() < .7 ? l[0] : l[rnd(0, l.length - 1)] }), 700 + Math.random() * 1000);
+  }
+  else if(d.t === 'veto_done'){ b.w = d.w; b.spawn = true; }
+  else if(d.t === 'duel_round') b.spawn = true;
+  else if(d.t === 'pvhit') botHurt(b, d.from);
+  else if(d.t === 'duel_end'){ b.alive = false; b.bul = []; setTimeout(() => botSend(b, { t: 'duel_again' }), 1000 + Math.random() * 1500); }
+}
+const botFoe = (b, id) => b.md === 'ffa' ? id !== b.id : teamOf(id) !== b.team;
+function botHurt(b, from){
+  if(!b.alive || b.fz > 0 || b.inv > 0 || b.roll > 0 || !botFoe(b, from)) return;
+  b.hp--; b.inv = .35;
+  if(b.hp <= 0){
+    b.alive = false; b.bul = [];
+    botSend(b, { t: 'dd', k: from });
+    botSend(b, { t: 'p', x: b.x, y: b.y, a: b.ang, n: b.name, av: b.av, ar: -1, dd: 1, hp: 0, w: b.w });
+    if(b.md === 'ffa') b.back = 2.5;
+  }
+}
+function botSpawn(b){
+  let sp;
+  if(b.md === 'ffa'){
+    const others = botFighters(b).filter(o => o.al);
+    let bd = -1;
+    for(const [ax, ay] of ffaSpots(ARN.w, ARN.h)){
+      const x = (ARN.x + ax) * T + 8, y = (ARN.y + ay) * T + 8, dd = others.length ? Math.min(...others.map(o => Math.hypot(o.x - x, o.y - y))) : Math.random() * 999;
+      if(dd > bd){ bd = dd; sp = { x, y }; }
+    }
+  } else {
+    const mates = DU.ps.filter(q => q[3] === b.team), i = mates.findIndex(q => q[0] === b.id);
+    sp = arenaSpawn(b.team); if(mates.length > 1) sp.y += (i ? 2 : -2) * T;
+  }
+  Object.assign(b, { x: sp.x, y: sp.y, hp: DUEL_HP, alive: true, spawn: false, back: 0, inv: b.md === 'ffa' ? 1.2 : 0, fz: b.md === 'ffa' && DU.fz <= 0 ? 0 : 2.2, roll: 0, bul: [], seeT: 0 });
+}
+// todos los que pelean (vos y los bots) vistos por un bot
+function botFighters(b){
+  const l = [{ id: myId(), x: p.x, y: p.y, al: !p.dead, roll: p.roll > 0, me: 1 }];
+  for(const o of BOT.list) if(o !== b) l.push({ id: o.id, x: o.x, y: o.y, al: o.alive, roll: o.roll > 0, bot: o });
+  return l;
+}
+// línea de tiro libre (solo frenan las paredes; el agua deja pasar las balas)
+function botLos(x0, y0, x1, y1){
+  const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 5);
+  for(let i = 1; i < n; i++) if(tile(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n) === 1) return false;
+  return true;
+}
+// mapa de distancias por casillas hasta el objetivo (para rodear paredes y agua), se recalcula seguido
+const botFlows = new Map();
+function botFlow(tx, ty){
+  const k = tx + ',' + ty, c = botFlows.get(k);
+  if(c && t - c.t < .4) return c.d;
+  const d = new Int16Array(MW * MH).fill(-1), q = [ty * MW + tx];
+  d[q[0]] = 0;
+  for(let h = 0; h < q.length; h++){
+    const i = q[h], x = i % MW, y = (i / MW) | 0;
+    for(const [a, bb] of [[1, 0], [-1, 0], [0, 1], [0, -1]]){
+      const nx = x + a, ny = y + bb, j = ny * MW + nx;
+      if(!inArena(nx, ny) || d[j] >= 0 || m[j] !== 0) continue;
+      d[j] = d[i] + 1; q.push(j);
+    }
+  }
+  if(botFlows.size > 40) botFlows.clear();
+  botFlows.set(k, { t, d });
+  return d;
+}
+function botPathDir(b, o){
+  const d = botFlow(Math.floor(o.x / T), Math.floor(o.y / T)), x = Math.floor(b.x / T), y = Math.floor(b.y / T);
+  let best = null, bv = d[y * MW + x] >= 0 ? d[y * MW + x] : 1e9;
+  for(const [a, bb] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]){
+    const j = (y + bb) * MW + x + a, v = d[j];
+    if(v < 0 || v >= bv) continue;
+    if(a && bb && (m[y * MW + x + a] !== 0 || m[(y + bb) * MW + x] !== 0)) continue;   // sin cortar esquinas
+    bv = v; best = [a, bb];
+  }
+  if(!best) return Math.atan2(o.y - b.y, o.x - b.x);
+  return Math.atan2((y + best[1]) * T + 8 - b.y, (x + best[0]) * T + 8 - b.x);
+}
+function botTick(dt){
+  for(const b of BOT.list){
+    if(b.spawn && state === 'play') botSpawn(b);
+    if(!b.alive){
+      if(b.back > 0 && (b.back -= dt) <= 0) botSpawn(b);
+      continue;
+    }
+    b.fz -= dt; b.inv -= dt; b.cd -= dt; b.rlc -= dt;
+    const w = WP[b.w] || WP[0], range = w.s * (w.pel > 1 ? .38 : 1.1) * .85;
+    const want = w.pel > 1 ? 42 : w.d >= 3 ? 115 : 80;   // distancia cómoda según el arma
+    const foes = botFighters(b).filter(o => o.al && botFoe(b, o.id));
+    // velocidad de cada rival (para apuntar adonde va a estar)
+    for(const o of foes){
+      const v = b.tv[o.id] || (b.tv[o.id] = { x: o.x, y: o.y, vx: 0, vy: 0 });
+      v.vx = v.vx * .7 + (o.x - v.x) / Math.max(dt, .001) * .3; v.vy = v.vy * .7 + (o.y - v.y) / Math.max(dt, .001) * .3; v.x = o.x; v.y = o.y;
+    }
+    let tg = null, td = 1e9, tvis = false;
+    for(const o of foes){
+      const dd = Math.hypot(o.x - b.x, o.y - b.y), vis = botLos(b.x, b.y - 6, o.x, o.y - 6), score = dd - (vis ? 60 : 0);
+      if(score < td){ td = score; tg = o; tvis = vis; }
+    }
+    // esquivar: si viene una bala directo, rueda hacia un costado
+    if(b.roll <= 0 && b.rlc <= 0 && b.fz <= 0){
+      for(const q of bullets){
+        if(q.rm && q.own === b.id) continue;
+        if(q.rm && !botFoe(b, q.own)) continue;
+        if(!q.rm && !botFoe(b, myId())) continue;
+        const rx = b.x - q.x, ry = b.y - 6 - q.y, sp = Math.hypot(q.vx, q.vy) || 1, along = (rx * q.vx + ry * q.vy) / sp;
+        if(along < 0 || along > sp * .22) continue;
+        const side = (rx * q.vy - ry * q.vx) / sp;
+        if(Math.abs(side) > 9 || Math.random() > .75) continue;
+        const ra = Math.atan2(q.vy, q.vx) + (side >= 0 ? -1 : 1) * Math.PI / 2;
+        b.roll = ROLL_T; b.rlc = ROLL_CD + Math.random() * .4; b.rdx = Math.cos(ra); b.rdy = Math.sin(ra);
+        botSend(b, { t: 'rl', s: b.rdx < 0 ? -1 : 1 });
+        break;
+      }
+    }
+    let mx_ = 0, my_ = 0;
+    if(b.roll > 0){ b.roll -= dt; move(b, b.rdx * ROLL_SP * dt, b.rdy * ROLL_SP * dt, 4); }
+    else if(b.fz <= 0 && tg){
+      const dist = Math.hypot(tg.x - b.x, tg.y - b.y), toA = Math.atan2(tg.y - b.y, tg.x - b.x);
+      if((b.stT -= dt) <= 0){ b.st = Math.random() < .5 ? 1 : -1; b.stT = .5 + Math.random() * .9; }
+      if(!tvis || dist > range * 1.05){ const a = botPathDir(b, tg); mx_ = Math.cos(a); my_ = Math.sin(a); }
+      else {
+        const k = dist > want + 15 ? .8 : dist < want - 15 ? -.8 : 0;   // acercarse o alejarse
+        mx_ = Math.cos(toA) * k + Math.cos(toA + Math.PI / 2) * b.st; my_ = Math.sin(toA) * k + Math.sin(toA + Math.PI / 2) * b.st;
+      }
+      // no amontonarse con los compañeros
+      for(const o of BOT.list) if(o !== b && o.alive && Math.hypot(o.x - b.x, o.y - b.y) < 18){ mx_ += (b.x - o.x) / 18; my_ += (b.y - o.y) / 18; }
+      const l = Math.hypot(mx_, my_);
+      if(l > .05){
+        const ox = b.x, oy = b.y, s = 75 * dt / l;
+        move(b, mx_ * s, my_ * s, 4);
+        if(Math.hypot(b.x - ox, b.y - oy) < 75 * dt * .3) b.stT = 0;   // trabado: cambia de lado
+      }
+    }
+    b.moving = Math.hypot(mx_, my_) > .05 && b.roll <= 0;
+    // apuntar con anticipación y disparar
+    if(tg){
+      const v = b.tv[tg.id], ex = b.x + Math.cos(b.ang) * 9, ey = b.y - 6 + Math.sin(b.ang) * 9;
+      const th = Math.hypot(tg.x - ex, tg.y - 6 - ey) / w.s;
+      const ax = tg.x + (v ? v.vx : 0) * th, ay = tg.y - 6 + (v ? v.vy : 0) * th;
+      const aim = Math.atan2(ay - (b.y - 6), ax - b.x) + (Math.random() - .5) * .05;
+      let da = aim - b.ang; while(da > Math.PI) da -= 2 * Math.PI; while(da < -Math.PI) da += 2 * Math.PI;
+      b.ang += Math.max(-12 * dt, Math.min(12 * dt, da));
+      b.seeT = tvis ? b.seeT + dt : 0;
+      const dist = Math.hypot(tg.x - b.x, tg.y - b.y);
+      if(tvis && b.seeT > .2 && b.fz <= 0 && b.roll <= 0 && b.cd <= 0 && dist < range && Math.abs(da) < .12) botShoot(b, w);
+    }
+    // sus balas: los impactos los decide el que dispara, como con las personas
+    for(const q of b.bul){
+      q.x += q.vx * dt; q.y += q.vy * dt; q.l -= dt;
+      if(tile(q.x, q.y) === 1){ q.l = 0; continue; }
+      for(const o of foes){
+        if(o.roll || Math.hypot(q.x - o.x, q.y - (o.y - 6)) >= 6) continue;
+        q.l = 0;
+        if(o.me){ if(!(DU.fz > 0) && p.inv <= 0) botSend(b, { t: 'pvhit', to: o.id }); }
+        else botSend(b, { t: 'pvhit', to: o.id });
+        break;
+      }
+    }
+    b.bul = b.bul.filter(q => q.l > 0);
+    if((b.pt -= dt) <= 0){
+      b.pt = .05;
+      botSend(b, { t: 'p', x: b.x, y: b.y, a: b.ang, n: b.name, av: b.av, ar: -1, dd: 0, hp: b.hp, w: b.w });
+    }
+  }
+}
+function botShoot(b, w){
+  b.cd = w.cd * 1.08;
+  for(let i = 0; i < w.pel; i++){
+    const a = b.ang + (w.pel > 1 ? (i - (w.pel - 1) / 2) * 0.16 : (Math.random() - .5) * w.sp);
+    const vx = Math.cos(a) * w.s, vy = Math.sin(a) * w.s, x = b.x + Math.cos(b.ang) * 9, y = b.y - 6 + Math.sin(b.ang) * 9, l = w.pel > 1 ? .38 : 1.1;
+    b.bul.push({ x, y, vx, vy, l });
+    botSend(b, { t: 's', x, y, vx, vy, l, col: w.col });
+  }
 }
 
 // ---------- PARTIDA LOCAL SIN INTERNET (Wi-Fi o Bluetooth, solo en la app) ----------
@@ -4447,6 +4678,7 @@ const A = {
   dgo: () => raw({ t: 'duel_go' }),
   veto: v => { if(state === 'veto' && DU.veto && DU.veto.turn === net.id){ raw({ t: 'veto', w: +v }); DU.veto.turn = -1; vetoPanel(); } },
   dtop: () => duelTop(),
+  dbots: () => botMatch(),
   drematch: () => { DU.asked = true; raw({ t: 'duel_again' }); duelResult(); },
   home: () => main(),
   local: () => localMenu(),
