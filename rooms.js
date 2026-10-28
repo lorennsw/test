@@ -10,7 +10,7 @@
 (function (root) {
   const MAX = 4;                                        // jugadores por sala si el cliente no elige
   const MIN_P = 2, TOP_P = 8;                           // límites para la cantidad elegida
-  const DEFAULT_ROOMS = ['Sala 1', 'Sala 2', 'Sala 3']; // salas que siempre aparecen en la lista
+  const DEFAULT_ROOMS = [];                             // sin salas fijas: las crean los jugadores
   const WIN_ROUNDS = 3;                                 // duelo al mejor de 5
   const DUEL_MAPS = 6;                                  // mapas del duelo (el cliente los dibuja)
   const FFA_KILLS = 10;                                 // todos contra todos: gana el primero en llegar

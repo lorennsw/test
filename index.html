@@ -122,8 +122,8 @@ kbd{display:inline-block;min-width:1.6em;text-align:center;background:rgba(255,2
 .nav{display:flex;flex-direction:column;gap:.7cqw;min-height:0}
 .nhome,.nplay{flex:1;display:flex;flex-direction:column;gap:.7cqw;min-height:0;animation:pin .18s ease-out}
 .nav.play>.nhome,.nav:not(.play)>.nplay{display:none}
-.nhome .nrow{display:grid;grid-template-columns:1fr 1fr;flex:1.6}.nhome .nrow .mb{min-width:0}
-.playb{flex:3;display:flex;align-items:center;justify-content:flex-start;gap:1.6cqw;width:100%;margin:0;padding:1cqw 2.4cqw;text-align:left;background:linear-gradient(120deg,#f6c453,var(--acc) 55%,#d99a1f);border-color:#ffd27a;color:var(--acc-ink);box-shadow:0 .6cqw 2cqw rgba(242,179,61,.25)}
+.nhome .nrow{display:grid;grid-template-columns:1fr 1fr;flex:2}.nhome .nrow .mb{min-width:0}
+.playb{flex:1.4;display:flex;align-items:center;justify-content:flex-start;gap:1.6cqw;width:100%;margin:0;padding:1cqw 2.4cqw;text-align:left;background:linear-gradient(120deg,#f6c453,var(--acc) 55%,#d99a1f);border-color:#ffd27a;color:var(--acc-ink);box-shadow:0 .6cqw 2cqw rgba(242,179,61,.25)}
 .playb:hover{filter:brightness(1.06);background:linear-gradient(120deg,#f6c453,var(--acc) 55%,#d99a1f);border-color:#fff3c4}
 .playb>.ico{width:4.6cqw;height:4.6cqw;color:var(--acc-ink)}
 .playb span{display:flex;flex-direction:column}
@@ -189,6 +189,9 @@ canvas.mac{width:3.6cqw;height:3.6cqw;image-rendering:pixelated}
 #invt button{margin:0;padding:.4cqw 1cqw}
 .badge{font-style:normal;background:var(--bad);color:#fff;border-radius:1cqw;padding:0 .5cqw;font-size:.75em;margin-left:.3cqw}.badge:empty{display:none}
 .pcode{font-family:var(--px);color:var(--acc);letter-spacing:.2em;font-size:1.2em}
+.stp{display:inline-flex;align-items:stretch;border:1px solid var(--line2);border-radius:var(--r);overflow:hidden;vertical-align:middle}
+.stp b{display:flex;align-items:center;justify-content:center;min-width:3cqw;padding:0 1cqw;font-size:1.2em;background:rgba(0,0,0,.25)}
+.stp button{margin:0;border-radius:0;border:0;border-left:1px solid var(--line2);min-width:3cqw;font-size:1.2em;font-weight:800}
 .npcw{display:flex;align-items:center;gap:1.4cqw;max-width:62cqw;margin:0 auto 1cqw;text-align:left}
 .npcw canvas{width:7cqw;height:8.5cqw;image-rendering:pixelated;flex:none;background:var(--panel2);border:1px solid var(--line2);border-radius:.6cqw}
 .say{flex:1;background:var(--panel2);border:1px solid var(--line2);border-radius:.6cqw;padding:1cqw 1.4cqw;font-size:1.05em;line-height:1.4}
@@ -4295,43 +4298,40 @@ function avatar(){
 const pref = () => net.mode === 'dung' ? 'D|' : net.mode === 'camp' ? 'C|' : net.mode === 'duel' ? PVM[pvMode].pre : 'S|';
 const MN = { dung: 'MAZMORRAS', camp: 'CAMPAÑA', surv: 'SUPERVIVENCIA', duel: 'ARENA PVP' }, MAXP = 8;
 
-// Elegir cuántos jugadores: 1 = solitario, 2+ = sala online para esa cantidad
-function players(md, onlineOnly){
+// Solo, u online: se ven todas las salas del modo y la cantidad de jugadores se elige al crear una
+function players(md){
   net.mode = md;
-  const ns = [], vd = V.dif | 0; for(let n = onlineOnly ? 2 : 1; n <= MAXP; n++) ns.push(n);
+  const vd = V.dif | 0;
   panel(`<h2>${MN[md]}</h2>
   ${md === 'dung' ? `<div class=r>Dificultad</div>
   <div class=pcount style="grid-template-columns:repeat(3,1fr)">${DIFS.map((D, i) => `<button class="${i === vd ? 's' : ''}" data-a=dif data-v=${i} style="${i === vd ? '' : 'border-color:' + D.col + '66'}"><b style="color:${i === vd ? 'inherit' : D.col}">${D.n}</b><small>${D.d}</small></button>`).join('')}</div>
   <div class=r><small>Premio al escapar: ${DIFS[vd].bonus} monedas${vd === 2 ? ' · ' : ''}${vd === 2 ? 'empezás con 1 corazón' : ''}</small></div>` : ''}
-  <div class=r>¿Cuántos jugadores?</div>
-  <div class=pcount>${ns.map(n => `<button class="${n === 1 ? 's' : ''}" data-a=np data-v=${n}>${n}<small>${n === 1 ? 'SOLITARIO' : 'ONLINE'}</small></button>`).join('')}</div>
-  <div class=r><small>Con 2 o más se crea una sala online cooperativa para esa cantidad de jugadores.</small></div>
+  <div class=duo style="grid-template-columns:1fr 1fr">
+    <button class="big s" data-a=np data-v=1>${I.user}<b>Solo</b><small>Jugás vos solo</small></button>
+    <button class=big data-a=onl>${I.globe}<b>Online</b><small>Unite a una sala o creá una para jugar con otros</small></button>
+  </div>
   <button data-a=back>${I.back} Volver</button>`);
 }
 
 function online(msg){
   net.lob = false;
   panel(`<h2>${MN[net.mode]} online</h2>
-  <div class=r><small>PARTIDA PARA ${net.max} JUGADORES</small></div>
   <div class=r><small>SERVIDOR</small><br><input type=text id=su style="width:34cqw" value="${esc(V.srv || DEFAULT_SERVER)}"></div>
   ${msg ? `<div class="msg bad">${esc(msg)}</div>` : ''}
   <div class=actions>
     <button class=s data-a=conn>${I.link} Conectar y buscar salas</button>
   </div>
   <div class=actions>
-    ${net.mode === 'duel' ? `<button data-a=duel>${I.back} Volver</button>` : `<button data-a=online>${I.swap} Cambiar modo</button>
-    <button data-a=np2>${I.users} Cambiar jugadores</button>
-    <button data-a=back>${I.back} Menú</button>`}
+    ${net.mode === 'duel' ? `<button data-a=duel>${I.back} Volver</button>` : `<button data-a=np2>${I.back} Volver</button>`}
   </div>`);
 }
 
 function updRooms(){
   const el = $('#rl'); if(!el) return;
   const P = pref(), L = (net.rooms || []).filter(r => r[0].startsWith(P));
-  for(let i = 1; i <= 3; i++) if(!L.some(r => r[0] === P + 'Sala ' + i)) L.push([P + 'Sala ' + i, 0, net.max]);
-  L.sort((a, b) => a[0] < b[0] ? -1 : 1);
-  el.innerHTML = L.map(([n, c, mx]) => `<div class="rm${c >= mx ? ' full' : ''}">
-    <span class=rn>${esc(n.slice(2))}</span>
+  L.sort((a, b) => (a[1] >= a[2]) - (b[1] >= b[2]) || (a[0] < b[0] ? -1 : 1));   // primero las que tienen lugar
+  el.innerHTML = !L.length ? '<div class=r><small>Todavía no hay salas de este modo. ¡Creá una!</small></div>' : L.map(([n, c, mx]) => `<div class="rm${c >= mx ? ' full' : ''}">
+    <span class=rn>${esc(n.slice(2))}<br><span class=sm>${mx} jugadores</span></span>
     <span class=pp>${'●'.repeat(c)}${'○'.repeat(Math.max(0, mx - c))}</span>
     <button ${c >= mx ? 'disabled' : ''} class="${c >= mx ? '' : 's'}" data-a=join data-v="${esc(n)}">${c >= mx ? 'Llena' : 'Unirse'}</button>
   </div>`).join('');
@@ -4339,10 +4339,12 @@ function updRooms(){
 
 function lobby(msg){
   panel(`<h2>Salas · ${MN[net.mode]}</h2>
-  <div class=r>Jugás como <b style="color:var(--acc)">${esc(V.av.name)}</b> · <small>Las salas nuevas son para ${net.max} jugadores</small></div>
+  <div class=r>Jugás como <b style="color:var(--acc)">${esc(V.av.name)}</b></div>
   ${msg ? `<div class="msg bad">${esc(msg)}</div>` : ''}
   <div id=rl></div>
-  <div class="r mk"><input type=text id=nr maxlength=17 placeholder="Nombre de la sala"><button class=s data-a=make>${I.plus} Crear sala</button></div>
+  <div class="r mk"><input type=text id=nr maxlength=17 placeholder="Nombre de la sala nueva">
+    ${net.mode === 'duel' ? '' : `<span class=stp title="Jugadores"><b id=stpn>${net.max}</b><button data-a=stp data-v=-1>−</button><button data-a=stp data-v=1>+</button></span>`}
+    <button class=s data-a=make>${I.plus} Crear sala</button></div>
   <button data-a=lback>${I.back} Volver</button>`);
   updRooms();
 }
@@ -5311,6 +5313,8 @@ const A = {
     net.max = +v; online();
   },
   np2: () => players(net.mode),
+  onl: () => { net.max = Math.max(2, Math.min(MAXP, V.np || 4)); net.autoRoom = null; connect(V.srv || DEFAULT_SERVER); },
+  stp: v => { net.max = V.np = Math.max(2, Math.min(MAXP, (net.max || 4) + (+v))); const e = $('#stpn'); if(e) e.textContent = net.max; },
   loads: () => savesMenu(),
   party: () => partyMenu(),
   pnew: () => partyJoin(partyCode()),
@@ -5441,7 +5445,7 @@ const A = {
   join: v => { net.roomName = v; raw({ t: 'join', room: v, max: net.max, n: V.av.name }); },
   make: () => { const n = $('#nr').value.trim().slice(0, 17); if(n){ net.roomName = pref() + n; raw({ t: 'join', room: pref() + n, max: net.max, n: V.av.name }); } },
   cancel: () => { const lan = net.lan; if(net.abort) net.abort(); net.q = false; lan ? (lanStop(), localMenu()) : net.mode === 'duel' ? duelMenu() : online(); },
-  lback: () => { net.lob = false; if(!net.on) try{ net.ws.close(); }catch(e){} main(); }
+  lback: () => { net.lob = false; if(!net.on) try{ net.ws.close(); }catch(e){} net.mode === 'duel' ? duelMenu() : players(net.mode); }
 };
 
 function uiS(k){
