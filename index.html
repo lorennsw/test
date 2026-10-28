@@ -118,7 +118,7 @@ kbd{display:inline-block;min-width:1.6em;text-align:center;background:rgba(255,2
 .logo .l2 span{background-image:linear-gradient(#ffd57a 30%,var(--acc))}
 .sub{font-size:max(10px,1.05cqw);color:var(--muted);letter-spacing:.14em;margin-top:.9cqw;font-weight:600}
 .badge-ver{display:inline-block;white-space:nowrap;color:var(--muted);font-size:max(9px,.9cqw);font-weight:600;letter-spacing:.12em;padding:.45cqw .9cqw;border:1px solid var(--line2);border-radius:2cqw}
-.cols{display:grid;grid-template-columns:42cqw 24cqw 1fr;gap:1.6cqw;margin:1.8cqw 0 1.4cqw;flex:1;min-height:0;align-items:stretch}
+.cols{display:grid;grid-template-columns:1fr 30cqw;gap:1.6cqw;margin:1.8cqw 0 1.4cqw;flex:1;min-height:0;align-items:stretch}
 .nav{display:flex;flex-direction:column;gap:.7cqw;min-height:0}
 .nhome,.nplay{flex:1;display:flex;flex-direction:column;gap:.7cqw;min-height:0;animation:pin .18s ease-out}
 .nav.play>.nhome,.nav:not(.play)>.nplay{display:none}
@@ -215,6 +215,9 @@ canvas.mac{width:3.6cqw;height:3.6cqw;image-rendering:pixelated}
 .stp button{margin:0;border-radius:0;border:0;border-left:1px solid var(--line2);min-width:3cqw;font-size:1.2em;font-weight:800}
 .lbmode{display:flex;align-items:center;gap:1.2cqw;max-width:60cqw;margin:.4cqw auto 1cqw;padding:.8cqw 1.2cqw;background:var(--panel2);border:1px solid var(--line2);border-left:3px solid var(--acc);border-radius:var(--r);text-align:left}
 .lbmode>.ico{width:2.4cqw;height:2.4cqw;color:var(--acc);flex:none}.lbmode span{display:flex;flex-direction:column;flex:1}.lbmode b{font-size:1.15em}.lbmode button{margin:0}
+.stop{display:flex;gap:1cqw;justify-content:center;align-items:stretch;margin:.4cqw 0 1cqw}.stop button{margin:0}
+.plist2{max-height:22cqw;overflow:auto;min-width:46cqw}.plist2 .rn .ico{width:1em;height:1em;vertical-align:-.15em}
+.set.keys .row{padding:.45cqw 1.2cqw}.set.keys kbd{white-space:nowrap}
 .npcw{display:flex;align-items:center;gap:1.4cqw;max-width:62cqw;margin:0 auto 1cqw;text-align:left}
 .npcw canvas{width:7cqw;height:8.5cqw;image-rendering:pixelated;flex:none;background:var(--panel2);border:1px solid var(--line2);border-radius:.6cqw}
 .say{flex:1;background:var(--panel2);border:1px solid var(--line2);border-radius:.6cqw;padding:1cqw 1.4cqw;font-size:1.05em;line-height:1.4}
@@ -4009,7 +4012,7 @@ function homeBox(){
     <div class=hbr>${I.save}<span><b>${MN[sv.mode] ? MN[sv.mode].charAt(0) + MN[sv.mode].slice(1).toLowerCase() : sv.mode} · ${esc(saveDesc(sv))}</b><small>${sv.multi ? 'Multijugador' : 'Solitario'} · ${esc(new Date(sv.at).toLocaleDateString())}</small></span><button class="mini s" data-a=sload data-v=0>${I.play} Continuar</button></div>` : ''}
   <div class=hbh><small>AMIGOS${AU.token ? ' EN LÍNEA · ' + on.length : ''}</small>${AU.token ? `<button class=mini data-a=friends>Ver todos${FR.req.length ? ' (' + FR.req.length + ')' : ''}</button>` : ''}</div>
   ${!AU.token ? `<div class=hbr>${I.user}<span><b>Jugá con tus amigos</b><small>Iniciá sesión para agregarlos e invitarlos a tus salas</small></span><button class=mini data-a=login>Iniciar sesión</button></div>`
-    : on.length ? on.slice(0, 4).map(f => `<div class=hbr><i class=dot></i><span><b>${esc(f.name)}</b><small>${frInv(f.name) ? 'Te invitó a su sala' : 'En línea'}</small></span>${frInv(f.name) ? `<button class="mini s" data-a=finvj data-v="${esc(f.name)}">${I.play} Unirse a la sala</button>` : `<button class=mini data-a=create>Crear sala</button>`}</div>`).join('')
+    : on.length ? on.slice(0, 4).map(f => `<div class=hbr><i class=dot></i><span><b>${esc(f.name)}</b><small>${frInv(f.name) ? 'Te invitó a su sala' : 'En línea'}</small></span>${frInv(f.name) ? `<button class="mini s" data-a=finvj data-v="${esc(f.name)}">${I.play} Unirse a la sala</button>` : `<button class=mini data-a=party>Salas</button>`}</div>`).join('')
     : `<div class=hbr>${I.users}<span><b>${FR.friends.length ? 'Ningún amigo en línea' : 'Todavía no agregaste amigos'}</b><small>${FR.friends.length ? 'Cuando entren los vas a ver acá' : 'Agregalos por su nombre de usuario'}</small></span><button class=mini data-a=friends>Amigos</button></div>`}`;
 }
 let menuPlay = false;   // menú principal mostrando los modos (después de tocar Jugar)
@@ -4035,7 +4038,7 @@ function main(msg){
         <!-- inicio: Jugar y lo demás -->
         <div class=nhome>
           <button class=playb data-a=play>${I.play}<span><b>Jugar</b><small>Mazmorras, Arena PvP, Campaña y Supervivencia · solo o con amigos</small></span></button>
-          <button class="mb crb" data-a=party>${I.users}<span><b>Crear o unirse a una sala</b><small>Elegí modo, jugadores, dificultad y contra quién · o entrá con un código</small></span></button>
+          <button class="mb crb" data-a=party>${I.users}<span><b>Salas</b><small>Creá una sala, entrá a una pública o con el código de un amigo</small></span></button>
           <div class=nrow>
             <button class=mb data-a=shop>${I.cart}<span><b>Tienda</b><small>Armas y equipo</small></span></button>
             <button class=mb data-a=loads>${I.save}<span><b>Cargar</b><small>Partidas guardadas</small></span></button>
@@ -4076,22 +4079,6 @@ function main(msg){
         <button data-a=avatar>${I.pencil} Personalizar</button>
       </div>
 
-      <div class=info>
-        <div class=info-title>CONTROLES</div>
-        ${touchOn() ? `<div><span>Mover</span><kbd>Joystick izq.</kbd></div>
-        <div><span>Apuntar y disparar</span><kbd>Joystick der.</kbd></div>
-        <div><span>Roll</span><kbd>Botón</kbd></div>
-        <div><span>Cambiar arma</span><kbd>Botón</kbd></div>
-        <div><span>Revivir</span><kbd>Mantener</kbd></div>
-        <div><span>Pausa</span><kbd>II</kbd></div>` : `<div><span>Mover</span><kbd>WASD</kbd></div>
-        <div><span>Disparar</span><kbd>Click</kbd></div>
-        <div><span>Cambiar arma</span><kbd>1-0</kbd></div>
-        <div><span>Roll</span><kbd>Espacio</kbd></div>
-        <div><span>Tienda</span><kbd>B</kbd></div>
-        <div><span>Minimapa</span><kbd>M</kbd></div>
-        <div><span>Pantalla completa</span><kbd>F</kbd></div>
-        <div><span>Pausa</span><kbd>Esc</kbd></div>`}
-      </div>
     </div>
     <div class=tick id=tick>${TIPS[tipI++ % TIPS.length]}</div>
   </div>`, 1);
@@ -4147,11 +4134,23 @@ function over(){
 const clearMenu = () => endingMenu();
 
 const CROSS = ['#ffffff', '#ff3b3b', '#38ff6b', '#7df9ff', '#ffe66d', '#ff4dff', '#ff9d3d', '#000000'];
-function settings(){
+let setTab = 0;
+// teclas y controles táctiles (antes estaban en el inicio)
+const KEYS = [['Mover', 'WASD o flechas'], ['Apuntar', 'Mouse'], ['Disparar', 'Click'], ['Roll (esquivar)', 'Espacio'], ['Hablar · tienda · banco · comerciar', 'E'], ['Revivir a un amigo', 'Mantener E'],
+  ['Elegir arma', '1 al 0'], ['Tienda (campaña y supervivencia)', 'B'], ['Minimapa', 'M'], ['Pantalla completa', 'F'], ['Pausa', 'Esc']];
+const TOUCH_KEYS = [['Mover', 'Joystick izquierdo'], ['Apuntar y disparar', 'Joystick derecho'], ['Roll (esquivar)', 'Botón ROLL'], ['Cambiar arma', 'Botón ARMA'], ['Hablar · tienda · banco · comerciar', 'Botón abajo al centro'], ['Revivir a un amigo', 'Mantener el botón'], ['Pausa', 'Botón II']];
+function settings(tb){
+  if(tb !== undefined) setTab = +tb;
   const pv = (v, a, b) => ((v - a) / (b - a) * 100) + '%';
   const lb = (ic, t, d) => `<span><span>${ic}${t}</span>${d ? `<small>${d}</small>` : ''}</span>`;
   const tg = (on, a) => `<button class="tg${on ? ' on' : ''}" data-a=${a}>${on ? 'Activado' : 'Desactivado'}</button>`;
-  panel(`<h2>Ajustes</h2>
+  const tabs = `<div class=tabs>${['General', 'Controles'].map((n, i) => `<button class="tab${i === setTab ? ' on' : ''}" data-a=stab data-v=${i}>${n}</button>`).join('')}</div>`;
+  const kl = l => l.map(([a, k]) => `<div class=row><span><span>${a}</span></span><kbd>${k}</kbd></div>`).join('');
+  if(setTab === 1) return panel(`<h2>Ajustes</h2>${tabs}
+  <div class=r><small>TECLADO Y MOUSE</small></div><div class="set keys">${kl(KEYS)}</div>
+  <div class=r><small>CELULAR Y TABLET</small></div><div class="set keys">${kl(TOUCH_KEYS)}</div>
+  <button class=s data-a=back>${I.back} Volver</button>`);
+  panel(`<h2>Ajustes</h2>${tabs}
   <div class=set>
     <div class=row>${lb(I.target, 'Sensibilidad')}<span><input type=range min=.3 max=2.5 step=.1 value=${S.sens} data-k=sens style="--v:${pv(S.sens, .3, 2.5)}"><b>${S.sens}</b></span></div>
     <div class=row>${lb(I.music, 'Música')}<span><input type=range min=0 max=1 step=.05 value=${S.mus} data-k=mus style="--v:${pv(S.mus, 0, 1)}"><b>${Math.round(S.mus * 100)}%</b></span></div>
@@ -4342,7 +4341,7 @@ function players(md){
   <div class=r><small>Premio al escapar: ${DIFS[vd].bonus} monedas${vd === 2 ? ' · ' : ''}${vd === 2 ? 'empezás con 1 corazón' : ''}</small></div>` : ''}
   <div class=duo style="grid-template-columns:1fr 1fr">
     <button class="big s" data-a=np data-v=1>${I.user}<b>Solo</b><small>Jugás vos solo</small></button>
-    <button class=big data-a=onl>${I.globe}<b>Online</b><small>Unite a una sala o creá una para jugar con otros</small></button>
+    <button class=big data-a=onl>${I.globe}<b>Online</b><small>Salas de este modo: entrá a una o creá la tuya</small></button>
   </div>
   <button data-a=back>${I.back} Volver</button>`);
 }
@@ -4517,7 +4516,7 @@ function duelMenu(msg){
   ${msg ? `<div class="msg bad">${esc(msg)}</div>` : ''}
   <div class=actions>
     <button class=s data-a=dfind>${I.swords} Buscar partida</button>
-    <button data-a=dpriv>${I.users} Sala privada</button>
+    <button data-a=dpriv>${I.users} Salas</button>
     <button data-a=dbots>${I.target} Contra bots <small>Sin rating</small></button>
     <button data-a=dtop>${I.trophy} Ranking</button>
     <button data-a=home>${I.back} Volver</button>
@@ -5120,23 +5119,48 @@ function lanJoin(addr){
 let FR = { friends: [], req: [], open: false, inv: {} };
 const frInv = n => FR.inv[String(n).toLowerCase()] || null;   // invitación pendiente de ese amigo
 const partyCode = () => { const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let r = ''; for(let i = 0; i < 5; i++) r += c[rnd(0, c.length - 1)]; return r; };
-function partyMenu(msg){
+// ---- SALAS: el único lugar para crear una sala, entrar con código o unirse a una pública.
+// Se abre desde el inicio, desde "Online" de cada modo (filtrada por ese modo) y desde el Arena PvP.
+const PM = { md: null, from: null, rooms: null, err: '', t: null };
+function partyMenu(msg, md, from){
+  if(md !== undefined){ PM.md = md || null; PM.from = from || null; PM.rooms = null; PM.err = ''; }
   ret = partyMenu;   // "Volver" de Crear sala vuelve acá
-  panel(`<h2>Salas</h2>
-  <div class=r>Creá una sala eligiendo el modo (también PvP contra bots) o entrá a la de un amigo con su código.</div>
+  const mn = PM.md ? lanName(PM.md) : '';
+  panel(`<h2>Salas${mn ? ' · ' + esc(mn) : ''}</h2>
   ${msg ? `<div class="msg bad">${esc(msg)}</div>` : ''}
-  <div class=duo style="grid-template-columns:1fr 1fr">
-    <button class="big s" data-a=create>${I.plus}<b>Crear sala</b><small>Elegí el modo y te damos un código para compartir</small></button>
-    <div class=big style="display:flex;flex-direction:column;gap:.6cqw;justify-content:center">${I.link}<b>Unirse con código</b>
-      <div class=mk><input type=text id=pcode maxlength=8 placeholder="Código" style="text-transform:uppercase;text-align:center"><button data-a=pjoin>Unirse</button></div></div>
+  <div class=stop>
+    <button class=s data-a=create>${I.plus} Crear sala${mn ? ' de ' + esc(mn) : ''}</button>
+    <span class=mk><input type=text id=pcode maxlength=8 placeholder="Código" style="text-transform:uppercase;text-align:center;width:11cqw"><button data-a=pjoin>${I.link} Unirse</button></span>
   </div>
-  <div class=actions><button data-a=friends>${I.users} Amigos${FR.req.length ? ' (' + FR.req.length + ')' : ''}</button><button data-a=phome>${I.back} Volver</button></div>`);
+  <div class=r><small>SALAS PÚBLICAS${mn ? ' DE ' + esc(mn.toUpperCase()) : ''}</small></div>
+  <div id=pl class=plist2>${partyList()}</div>
+  <div class=actions><button data-a=friends>${I.users} Amigos${FR.req.length ? ' (' + FR.req.length + ')' : ''}</button><button data-a=pback>${I.back} Volver</button></div>`);
+  partyFetch();
+}
+function partyList(){
+  if(PM.err) return `<div class=r><small>${esc(PM.err)}</small></div>`;
+  if(!PM.rooms) return '<div class=load><i></i><i></i><i></i><i></i></div>';
+  const l = PM.rooms.filter(r => !PM.md || r[3] === PM.md);
+  if(!l.length) return `<div class=r><small>No hay salas públicas${PM.md ? ' de este modo' : ''} ahora. ¡Creá una!</small></div>`;
+  return l.map(([n, c, mx, md, ttl]) => { const full = c >= mx, ic = (LAN_MODES.find(x => x[0] === md) || [])[2];
+    return `<div class="rm${full ? ' full' : ''}"><span class=rn>${esc(ttl || 'Sala ' + n.slice(2))}<br><span class=sm>${ic ? I[ic] : ''} ${esc(lanName(md))}</span></span>
+    <span class=pp>${'●'.repeat(c)}${'○'.repeat(Math.max(0, mx - c))}</span>
+    <button ${full ? 'disabled' : ''} class="${full ? '' : 's'}" data-a=pjoinr data-v="${esc(n.slice(2))}">${full ? 'Llena' : 'Unirse'}</button></div>`; }).join('');
+}
+// la lista se pide al servidor por HTTP y se actualiza sola mientras la pantalla está abierta
+async function partyFetch(){
+  clearTimeout(PM.t);
+  try{ PM.rooms = await api('/api/rooms'); PM.err = ''; }
+  catch(e){ PM.err = e.message; }
+  const el = $('#pl'); if(!el) return;
+  el.innerHTML = partyList();
+  PM.t = setTimeout(() => { if($('#pl')) partyFetch(); }, 5000);
 }
 // ---- Crear sala: modo, jugadores, dificultad (mazmorras) y, en PvP, contra quién se juega
 const CR = { md: 'dung', n: 4, dif: 0, pub: false, rival: 'in', title: '' };
 const RIVALS = [['in', 'Entre ustedes', 'Se reparten los equipos dentro de la sala'], ['pub', 'Contra otras personas', 'La sala aparece en la lista para que entren rivales'], ['bots', 'Contra bots', 'Ustedes contra bots · no cambia el ranking']];
 function createMenu(){
-  if(ret !== createMenu) CR.from = ret;   // a dónde vuelve "Volver"
+  if(ret !== createMenu){ CR.from = ret; if(ret === partyMenu && PM.md) CR.md = PM.md; }   // a dónde vuelve "Volver" (y desde las Salas de un modo, ya viene elegido)
   ret = createMenu;
   const md = CR.md, pvp = lanPvp(md), coop = !pvp;
   if(CR.rival === 'pub') CR.pub = true;
@@ -5178,7 +5202,7 @@ function friendsMenu(msg, ok){
   ${FR.req.length ? `<div class=r><small>SOLICITUDES</small></div><div class=lb>${FR.req.map(n => `<div class=lbr><span>${I.user}</span><span class=nm>${esc(n)}</span><button class="mini s" data-a=facc data-v="${esc(n)}">Aceptar</button><button class=mini data-a=frem data-v="${esc(n)}">Rechazar</button></div>`).join('')}</div>` : ''}
   <div class=r><small>TUS AMIGOS · ${FR.friends.length}</small></div>
   <div class=lb>${FR.friends.length ? FR.friends.slice().sort((a, b) => b.online - a.online).map(row).join('') : '<div class=r><small>Todavía no agregaste a nadie.</small></div>'}</div>
-  ${inParty ? '' : '<div class=r><small>Para invitar, creá una sala desde "Crear o unirse a una sala" en el inicio.</small></div>'}
+  ${inParty ? '' : '<div class=r><small>Para invitar, creá una sala desde Salas.</small></div>'}
   <div class=actions><button data-a=${back}>${I.back} Volver</button></div>`);
 }
 // cada unos segundos: amigos en línea, solicitudes e invitaciones (y te marca como en línea)
@@ -5255,7 +5279,7 @@ function lobbyMenu(){
   <div class=lbmode>${ic ? I[ic] : ''}<span><b>${esc(lanName(L.md))}</b><small>${extra || (pvp ? 'PvP' : 'Cooperativo')}</small></span>${net.host ? `<button class=mini data-a=lbed>${I.swap} Cambiar modo</button>` : '<small>ELIGE EL ANFITRIÓN</small>'}</div>
   ${tv ? teams : `<div class=lb>${L.p.map(row).join('')}</div>`}
   ${net.host && pvp ? `<div class=r>Bots: <button class=mini data-a=lbbot data-v=-1 ${nb ? '' : 'disabled'}>${I.x} Quitar</button> <b>${nb}</b> <button class=mini data-a=lbbot data-v=1 ${n < 8 ? '' : 'disabled'}>${I.plus} Agregar</button> <button class=mini data-a=lbfill ${n < b ? '' : 'disabled'}>Completar con bots</button><br><small>Los bots no cambian el rating.</small></div>` : ''}
-  <div class=r><small>${need}${LAN.hub ? ' ' + lanHint() : code ? ' Tus amigos entran con el código desde "Crear o unirse a una sala", o invitalos.' : ''}</small></div>
+  <div class=r><small>${need}${LAN.hub ? ' ' + lanHint() : code ? ' Tus amigos entran con el código desde Salas, o invitalos.' : ''}</small></div>
   <div class=actions><button class="${rd ? '' : 's'}" data-a=lbrd ${tv && myTm < 0 ? 'disabled' : ''}>${rd ? I.x + ' Ya no estoy listo' : I.check + ' Listo'}</button>${code ? `<button data-a=friends>${I.users} Invitar amigos</button>` : ''}<button data-a=quit>${I.exit} Salir</button></div>`);
 }
 // todos listos: cada uno arranca el modo elegido (en PvP el motor manda enseguida la ruleta)
@@ -5387,13 +5411,14 @@ const A = {
     net.max = +v; online();
   },
   np2: () => players(net.mode),
-  onl: () => { net.max = Math.max(2, Math.min(MAXP, V.np || 4)); net.autoRoom = null; connect(V.srv || DEFAULT_SERVER); },
+  onl: () => partyMenu(null, net.mode, () => players(net.mode)),
   stp: v => { net.max = V.np = Math.max(2, Math.min(MAXP, (net.max || 4) + (+v))); const e = $('#stpn'); if(e) e.textContent = net.max; },
   loads: () => savesMenu(),
-  party: () => partyMenu(),
-  phome: () => { menuPlay = false; main(); },
+  party: () => partyMenu(null, null, null),
+  pback: () => { clearTimeout(PM.t); const f = PM.from; PM.from = null; if(f) return f(); menuPlay = false; main(); },
+  pjoinr: v => { clearTimeout(PM.t); partyJoin(v); },
   pnew: () => partyJoin(partyCode()),
-  pjoin: () => partyJoin(($('#pcode') || {}).value),
+  pjoin: () => { clearTimeout(PM.t); partyJoin(($('#pcode') || {}).value); },
   friends: () => { friendsPoll(); friendsMenu(); },
   lobbyx: () => { FR.open = false; lobbyMenu(); },
   fadd: async () => { const n = ($('#fadd') || {}).value; if(!n || !n.trim()) return; try{ const d = await api('/api/friends/add', { name: n.trim() }); await friendsPoll(); friendsMenu(d.msg, true); }catch(e){ friendsMenu(e.message); } },
@@ -5417,7 +5442,7 @@ const A = {
   duel: () => duelMenu(),
   pvm: v => { if(PVM[v]){ pvMode = v; duelMenu(); } },
   dfind: () => { net.mode = 'duel'; net.max = PVM[pvMode].max; net.q = true; DU.wait = null; connect(V.srv || DEFAULT_SERVER); },
-  dpriv: () => { net.mode = 'duel'; net.max = PVM[pvMode].max; DU.wait = null; online(); },
+  dpriv: () => partyMenu(null, pvMode, duelMenu),
   dgo: () => raw({ t: 'duel_go' }),
   veto: v => { if(state === 'veto' && DU.veto && DU.veto.turn === net.id){ raw({ t: 'veto', w: +v }); DU.veto.turn = -1; vetoPanel(); } },
   dtop: () => duelTop(),
@@ -5505,7 +5530,7 @@ const A = {
       A.eqi(v, k);
     }
   },
-  avatar, shop, set: settings, back: () => ret(),
+  avatar, shop, set: () => settings(0), stab: v => settings(v), back: () => ret(),
   next: () => start('camp', lvl + 1),
   // al morir solo se vuelve a donde se guardó; sin guardado se empieza desde el principio
   retry: () => { const s = mySave(); s ? applySave(s) : start(mode, 1, mapIdx); },

@@ -233,7 +233,7 @@
     }, 1000);
 
     const hub = {
-      rooms,
+      rooms, list,
       open(ws) { ws.id = nextId++; },
       message(ws, raw) {
         let m;
