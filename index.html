@@ -295,6 +295,9 @@ input[readonly]{color:var(--muted);cursor:default}
 #tcPause{top:calc(2cqw + max(28px,3cqw));right:1cqw;width:max(32px,3.4cqw);height:max(32px,3.4cqw);border-radius:var(--r)}
 #tcRev{display:none;left:50%;bottom:4cqw;transform:translateX(-50%);width:auto;height:auto;padding:1cqw 2cqw;border-radius:2cqw;background:rgba(62,207,142,.3);border-color:var(--ok)}
 #tcRev.on{display:flex}
+#tcTalk{display:none;left:50%;bottom:12cqw;transform:translateX(-50%);width:auto;height:auto;padding:1.2cqw 2.6cqw;border-radius:2cqw;background:rgba(242,179,61,.3);border-color:var(--acc);font-size:max(13px,1.4cqw)}
+#tcTalk.on{display:flex}
+#tcTalk.down{transform:translateX(-50%)}
 #tcRev.down{transform:translateX(-50%)}
 #rot{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;text-align:center;background:var(--bg);font-size:20px;font-weight:800}
 #rot small{display:block;margin-top:8px;font-size:13px;font-weight:500}
@@ -353,6 +356,7 @@ a.aguest{display:inline-block;margin-top:.6cqw;padding:.75cqw 1.4cqw;color:var(-
     <button class=tcb id=tcWeap data-k=weap tabindex=-1 aria-label="Cambiar arma"></button>
     <button class=tcb id=tcRoll data-k=roll tabindex=-1 aria-label="Roll"></button>
     <button class=tcb id=tcRev data-k=rev tabindex=-1>Mantené para revivir</button>
+    <button class=tcb id=tcTalk data-k=talk tabindex=-1>Hablar</button>
     <button class=tcb id=tcMap data-k=map tabindex=-1 aria-label="Mapa"></button>
   </div>
   <div id="rot"><div>Girá el celular<small>El juego se juega en horizontal</small></div></div>
@@ -1033,10 +1037,10 @@ function dungTile(px, py){
   const isDoorH = (tx === Math.floor(r.w / 2) || tx === Math.floor(r.w / 2) - 1);
   const isDoorV = (ty === Math.floor(r.h / 2));
 
-  if(ty === 0 && r.doors.n && isDoorH) return r.cleared ? 0 : 1;
-  if(ty === r.h - 1 && r.doors.s && isDoorH) return r.cleared ? 0 : 1;
-  if(tx === 0 && r.doors.w && isDoorV) return r.cleared ? 0 : 1;
-  if(tx === r.w - 1 && r.doors.e && isDoorV) return r.cleared ? 0 : 1;
+  if(ty === 0 && r.doors.n && isDoorH) return roomOpen(r) ? 0 : 1;
+  if(ty === r.h - 1 && r.doors.s && isDoorH) return roomOpen(r) ? 0 : 1;
+  if(tx === 0 && r.doors.w && isDoorV) return roomOpen(r) ? 0 : 1;
+  if(tx === r.w - 1 && r.doors.e && isDoorV) return roomOpen(r) ? 0 : 1;
 
   if(tx === 0 || ty === 0 || tx >= r.w - 1 || ty >= r.h - 1) return 1;
   // Obstáculos y objetos destructibles
@@ -1097,9 +1101,11 @@ function enterRoom(k, first){
   }
 }
 
+// las puertas se abren con la sala despejada; la del personaje, además, cuando terminan de hablar con él
+const roomOpen = r => r.cleared && !(r.type === 'npc' && !r.talk);
 function checkDungDoors(){
   const r = dung.curRoom;
-  if(!r || !r.cleared || p.dead) return;
+  if(!r || !roomOpen(r) || p.dead) return;
   const isMidX = Math.abs(p.x - (r.w / 2) * T) < 18;
   const isMidY = Math.abs(p.y - (r.h / 2) * T) < 18;
 
@@ -1293,26 +1299,51 @@ const npcRoom = () => Object.values(dung.rooms).find(r => r.type === 'npc') || n
 function npcDone(r){
   if(r.talk) return;
   r.talk = true;
+  if(dung.curRoom === r){ sDoorUnlock(); banner('¡PUERTAS ABIERTAS!'); }
   if(net.on) snd({ t: 'd_talk', k: Object.keys(dung.rooms).find(k => dung.rooms[k] === r) });
 }
 const npcPos = r => ({ x: r.w * T / 2, y: r.h * T / 2 - 4 });
 const npcHere = () => mode === 'dung' && dung.curRoom && dung.curRoom.type === 'npc' && state === 'play';
-let npcTalk = null;   // { r, i: línea actual }
-function npcTick(){
-  if(!npcHere()) return;
-  const r = dung.curRoom, q = npcPos(r), near = !p.dead && Math.hypot(p.x - q.x, p.y - q.y) < 22;
-  if(!near){ r.near = false; return; }
-  if(r.near || paused) return;
-  r.near = true; paused = true; ret = A.resume; npcTalk = { r, i: 0 }; npcMenu();
+// En cooperativo la charla le aparece a todos y cada línea (y el "Gracias") avanza cuando tocaron todos.
+let npcTalk = null;   // { k: sala, r, i: línea actual, rd: { línea: ids que ya tocaron } }
+// cerca del personaje se habla con la E (o con el botón HABLAR en el celular)
+const npcNear = () => npcHere() && !p.dead && !paused && Math.hypot(p.x - npcPos(dung.curRoom).x, p.y - npcPos(dung.curRoom).y) < 26;
+function npcOpen(){
+  if(!npcNear()) return false;
+  npcStart(dung.curRoomKey);
+  if(net.on) snd({ t: 'n_open', k: dung.curRoomKey });
+  return true;
+}
+function npcStart(k){
+  const r = dung.rooms[k];
+  if(npcTalk || !r || r.type !== 'npc' || state !== 'play') return;
+  paused = true; npcTalk = { k, r, i: 0, rd: {} }; npcMenu();
+}
+const npcIds = () => [myId()].concat(net.on ? Object.keys(net.rem).map(Number) : []);
+const npcRd = i => npcTalk.rd[i] || (npcTalk.rd[i] = new Set());
+// tocar Seguir / Gracias: se avisa a los demás y se avanza cuando tocaron todos
+function npcReady(){
+  const T_ = npcTalk; if(!T_ || npcRd(T_.i).has(myId())) return;
+  npcRd(T_.i).add(myId());
+  if(net.on) snd({ t: 'n_rd', k: T_.k, i: T_.i });
+  npcCheck();
+}
+function npcCheck(){
+  const T_ = npcTalk; if(!T_) return;
+  if(!npcIds().every(id => npcRd(T_.i).has(id))) return npcMenu();
+  if(T_.i >= (NPCS[T_.r.npc] || NPCS[0]).l.length - 1){ npcGift(T_.r); npcDone(T_.r); npcTalk = null; A.resume(); return; }
+  T_.i++; npcMenu();
 }
 function npcMenu(){
   const T_ = npcTalk; if(!T_) return;
-  const N = NPCS[T_.r.npc] || NPCS[0], last = T_.i >= N.l.length - 1;
-  ret = A.resume;
+  const N = NPCS[T_.r.npc] || NPCS[0], last = T_.i >= N.l.length - 1, ids = npcIds(), rd = npcRd(T_.i), mine = rd.has(myId());
+  ret = npcMenu;
+  const wait = ids.length > 1 ? `<div class=r><small>${mine ? 'Esperando a ' + ids.filter(id => !rd.has(id)).map(id => esc((net.rem[id] && net.rem[id].name) || 'tu amigo')).join(', ') + '…' : rd.size + ' de ' + ids.length + ' listos'}</small></div>` : '';
   panel(`<h2>${esc(N.n)}</h2>
   <div class=npcw><canvas id=npcc width=28 height=34></canvas><div class=say>${esc(N.l[T_.i])}</div></div>
   <div class=r><small>${T_.i + 1} / ${N.l.length}</small></div>
-  <div class=actions>${last ? `<button class=s data-a=npcx>${I.check} ${T_.r.used ? 'Chau' : 'Gracias'}</button>` : `<button class=s data-a=npcn>${I.play} Seguir</button><button data-a=npcx>${I.x} Cerrar</button>`}</div>`);
+  ${wait}
+  <div class=actions><button class=s data-a=npcn ${mine ? 'disabled' : ''}>${last ? I.check + ' ' + (T_.r.used ? 'Chau' : 'Gracias') : I.play + ' Seguir'}</button>${net.on ? '' : `<button data-a=npcx>${I.x} Cerrar</button>`}</div>`);
   const cv = $('#npcc'), x = cv.getContext('2d');
   if(N.ghost) x.globalAlpha = .75;
   drawChar(x, 14, 30, { ang: Math.PI / 2, walk: 0, moving: false, w: -1 }, Object.assign({ ec: '#111111', acc: 0 }, N.av));
@@ -1338,6 +1369,7 @@ function drawNpcHud(){
   if(!npcHere()) return;
   const r = dung.curRoom, N = NPCS[r.npc] || NPCS[0], q = npcPos(r), X = q.x - camx, Y = q.y - camy;
   TX(N.n.split(',')[0].toUpperCase(), X, Y - 28, 3, '#e9d5ff', 'center');
+  if(npcNear()) TX(touchOn() ? 'TOCÁ HABLAR' : '[E] HABLAR', X, Y + 8, 3.2, '#f2b33d', 'center');
   if(!r.talk) TX('!', X, Y - 34 + Math.sin(t * 6) * 1.5, 5, '#f2b33d', 'center');
 }
 
@@ -2381,6 +2413,7 @@ function update(dt){
   }
   p.ang = Math.atan2(my + camy - (p.y - 6), mx + camx - p.x);
   p.cd -= dt; p.inv -= dt; p.kick = Math.max(0, p.kick - dt * 40);
+  if(npcTalk) p.inv = Math.max(p.inv, .2);   // mientras dura la charla compartida no te pueden pegar
 
   if(p.dead > 1000){ if(mdown && !p.mm) spec++; p.mm = mdown; }
   if(p.dead > 0){
@@ -2428,7 +2461,7 @@ function update(dt){
         const tx_ = Math.floor(p.x / T), ty_ = Math.floor(p.y / T);
         for(const s_ of rr.spk) if(s_.x === tx_ && s_.y === ty_ && spkState(s_) === 2){ hurt(); break; }
       }
-      benchTick(dt); stallTick(); npcTick();
+      benchTick(dt); stallTick();
       if(rr.type === 'fountain' && !rr.used && !p.dead && Math.hypot(p.x - rr.w * T / 2, p.y - rr.h * T / 2) < 20){
         rr.used = true; p.hp = p.maxHp || 5; burst(p.x, p.y - 8, '#7dd3fc', 18); banner('¡VIDA RESTAURADA!'); sCoin();
       }
@@ -2646,7 +2679,9 @@ function onNet(d){
   else if(d.t === 'd_pd' && mode === 'dung' && dung.curRoomKey === d.k){
     const q = dung.curRoom.props[d.i]; if(q && !q.dead) propFx(q, false, d.o);
   }
-  else if(d.t === 'd_talk' && mode === 'dung' && dung.rooms[d.k]) dung.rooms[d.k].talk = true;
+  else if(d.t === 'd_talk' && mode === 'dung' && dung.rooms[d.k]){ if(dung.rooms[d.k] === dung.curRoom && !dung.curRoom.talk) sDoorUnlock(); dung.rooms[d.k].talk = true; }
+  else if(d.t === 'n_open' && mode === 'dung') npcStart(d.k);
+  else if(d.t === 'n_rd' && mode === 'dung' && npcTalk && npcTalk.k === d.k){ npcRd(d.i).add(d.from); if(d.i === npcTalk.i) npcCheck(); }
   else if(d.t === 'd_next' && net.host && mode === 'dung'){ if(!dung.descending){ dung.descending = true; descend(); } }
   else if(d.t === 'd_win' && mode === 'dung') winDung();
   else if(d.t === 'd_over' && mode === 'dung') dungOver();
@@ -2689,7 +2724,7 @@ function onNet(d){
   else if(d.t === 'lob') lobbyEnter(d);
   else if(d.t === 'lob_go') lobbyGo(d);
   else if(d.t === 'duel_room' && !LOB && net.mode === 'duel' && state !== 'play' && state !== 'roulette' && state !== 'veto' && state !== 'duelend'){ net.host = d.host === net.id; duelWaiting(d); }
-  else if(d.t === 'left'){ delete net.rem[d.id]; if(net.wl) delete net.wl[d.id]; if(net.wait) waitRoom(); }
+  else if(d.t === 'left'){ delete net.rem[d.id]; if(npcTalk) setTimeout(npcCheck, 0); if(net.wl) delete net.wl[d.id]; if(net.wait) waitRoom(); }
   else if(d.t === 'host'){
     net.host = true; nid = enemies.reduce((a, e) => Math.max(a, e.id), 0) + 1;
     if(net.wl && net.wl[net.id]) net.wl[net.id].h = 1;
@@ -2716,7 +2751,7 @@ function apkOffer(){
   <div class=r><small>Cuando termine la descarga, abrí el archivo. Si Android lo pide, permití instalar apps de esta fuente.</small></div>`);
 }
 // Versión del protocolo online: tiene que coincidir con GAME_V del servidor (subir las dos juntas)
-const GAME_V = 4;
+const GAME_V = 5;
 // Recarga la página salteando la caché del navegador (GitHub Pages la guarda hasta 10 minutos)
 const freshReload = () => location.replace(location.pathname + '?v=' + Date.now() + location.hash);
 // quien tenía guardado el servidor viejo (sin cuentas) pasa al nuevo
@@ -3185,10 +3220,10 @@ function drawDungeonRoom(){
       }
     }
   };
-  if(r.doors.n) drawDoorFrame(midX - 16, 0, true, r.cleared, dung.rooms[`${r.x},${r.y - 1}`]?.type);
-  if(r.doors.s) drawDoorFrame(midX - 16, rh - 16, true, r.cleared, dung.rooms[`${r.x},${r.y + 1}`]?.type);
-  if(r.doors.w) drawDoorFrame(0, midY - 16, false, r.cleared, dung.rooms[`${r.x - 1},${r.y}`]?.type);
-  if(r.doors.e) drawDoorFrame(rw - 16, midY - 16, false, r.cleared, dung.rooms[`${r.x + 1},${r.y}`]?.type);
+  if(r.doors.n) drawDoorFrame(midX - 16, 0, true, roomOpen(r), dung.rooms[`${r.x},${r.y - 1}`]?.type);
+  if(r.doors.s) drawDoorFrame(midX - 16, rh - 16, true, roomOpen(r), dung.rooms[`${r.x},${r.y + 1}`]?.type);
+  if(r.doors.w) drawDoorFrame(0, midY - 16, false, roomOpen(r), dung.rooms[`${r.x - 1},${r.y}`]?.type);
+  if(r.doors.e) drawDoorFrame(rw - 16, midY - 16, false, roomOpen(r), dung.rooms[`${r.x + 1},${r.y}`]?.type);
 
   // Pinchos
   for(const s_ of r.spk){
@@ -4865,8 +4900,8 @@ const A = {
   },
   np2: () => players(net.mode),
   loads: () => savesMenu(),
-  npcn: () => { if(npcTalk){ npcTalk.i++; npcMenu(); } },
-  npcx: () => { const T_ = npcTalk; if(T_ && T_.i >= (NPCS[T_.r.npc] || NPCS[0]).l.length - 1){ npcGift(T_.r); npcDone(T_.r); } npcTalk = null; A.resume(); },
+  npcn: () => npcReady(),
+  npcx: () => { npcTalk = null; A.resume(); },   // solo jugando solo: cerrar a mitad (hay que volver a hablarle)
   lobby: () => { if(net.on && net.lan) raw({ t: 'lobby', md: lanCurMd() }); },
   lbmd: v => { if(LOB && net.host && v !== LOB.md) raw({ t: 'lob_md', md: v }); },
   lbtm: v => { if(LOB) raw({ t: 'lob_tm', tm: +v }); },
@@ -5021,6 +5056,7 @@ function tcSync(){
   if(on !== tcShown){ tcShown = on; tc.classList.toggle('on', on); if(!on){ stick = aimStick = null; stickId = aimId = null; mdown = false; } }
   if(!on) return;
   tcRev.classList.toggle('on', !!p.rvTgt);
+  document.getElementById('tcTalk').classList.toggle('on', npcNear());
   tcMap.classList.toggle('on', mode === 'camp' || mode === 'surv');
   tcMap.classList.toggle('act', miniTouch);
   tcRoll.classList.toggle('cd', p.rlc > 0 || p.roll > 0);
@@ -5062,6 +5098,7 @@ document.querySelectorAll('.tcb').forEach(b => {
     if(k === 'roll') keys[' '] = true;
     else if(k === 'rev') keys.e = true;
     else if(k === 'weap') nextWeapon();
+    else if(k === 'talk') npcOpen();
     else if(k === 'pause'){ if(state === 'play') pauseMenu(); }
     else if(k === 'map') miniTouch = !miniTouch;
   });
@@ -5083,6 +5120,7 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase(); keys[k] = true;
   const pl = state === 'play' && !open();
   if(pl && k === 'm') mini = !mini;
+  if(pl && k === 'e' && npcOpen()) keys.e = false;
   if(k === 'f' && !(e.target && e.target.tagName === 'INPUT')) toggleFS();
   if(k === ' ' && pl) e.preventDefault();
   if(k === 'escape' && state === 'play'){ paused ? A.resume() : pauseMenu(); }
