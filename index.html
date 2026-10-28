@@ -311,6 +311,11 @@ input[readonly]{color:var(--muted);cursor:default}
 .acct>.ico{color:var(--acc2)}
 .acct span{display:flex;flex-direction:column;line-height:1.2}.acct small{font-size:max(8px,.7cqw);font-weight:700;letter-spacing:.1em}.acct b{font-size:max(11px,1.1cqw)}
 .acct button{margin:0}
+.hright{display:flex;align-items:stretch;gap:.8cqw}
+a.hdl{display:flex;align-items:center;gap:.8cqw;padding:.4cqw 1.2cqw .4cqw 1cqw;border:1px solid rgba(242,179,61,.5);border-radius:var(--r);background:rgba(242,179,61,.1);color:var(--acc);text-decoration:none;transition:background .15s,border-color .15s}
+a.hdl:hover{background:rgba(242,179,61,.18);border-color:var(--acc)}
+a.hdl .ico{margin:0;color:currentColor}
+a.hdl span{display:flex;flex-direction:column;line-height:1.2}a.hdl small{font-size:max(8px,.7cqw);font-weight:700;letter-spacing:.1em;color:var(--muted)}a.hdl b{font-size:max(11px,1.1cqw);color:var(--text)}
 .msg .mini{margin-left:.6cqw}
 .lbr small{margin-right:1cqw}
 
@@ -2979,6 +2984,9 @@ const ANDROID_WEB = !IS_APP && (/Android/i.test(navigator.userAgent) || (/Linux/
 const IS_PC = /PixelShooterPC/.test(navigator.userAgent);
 const EXE_URL = 'https://github.com/lorennswaggerboi-lab/test/releases/latest/download/PixelShooter-Setup.exe';
 const WIN_WEB = !IS_PC && /Windows/i.test(navigator.userAgent);
+// botón chico del menú principal para bajar la app (solo en el navegador de Windows o Android)
+const appDl = () => ANDROID_WEB ? `<a class=hdl href="${APK_URL}" download>${I.download}<span><small>APP PARA ANDROID</small><b>Descargar</b></span></a>`
+  : WIN_WEB ? `<a class=hdl href="${EXE_URL}" download>${I.download}<span><small>JUEGO PARA PC</small><b>Descargar</b></span></a>` : '';
 const apkLink = () => ANDROID_WEB ? `<a class=apk href="${APK_URL}" download>${I.download} Descargar la app para Android</a>`
   : WIN_WEB ? `<a class=apk href="${EXE_URL}" download>${I.download} Descargar el juego para PC</a>` : '';
 let apkAsked = false;
@@ -4032,7 +4040,8 @@ function main(msg){
         <h1 class=logo><span class=l1>${spl('PIXEL')}</span><span class=l2>${spl('SHOOTER')}</span></h1>
         <div class=sub>MAZMORRAS PROCEDURALES · RELIQUIAS · COOPERATIVO ONLINE</div>
       </div>
-      <div>
+      <div class=hright>
+        ${appDl()}
         ${AU.token ? `<div class=acct>${I.user}<span><small>SESIÓN INICIADA</small><b>${esc(AU.name)}</b></span><button class=mini data-a=logout title="Cerrar sesión">${I.exit}</button></div>`
           : `<button data-a=login>${I.user} Iniciar sesión</button>`}
       </div>
@@ -4064,7 +4073,7 @@ function main(msg){
           <button class=mb data-a=duel>${I.target}<span><b>Arena PvP</b><small>1v1, 2v2, 3v3, 4v4 y todos contra todos · ranking</small></span></button>
           <button class=mb data-a=camp>${I.flag}<span><b>Campaña clásica</b><small>Niveles y misiones · 1-8 jugadores</small></span></button>
           <button class=mb data-a=surv>${I.swords}<span><b>Supervivencia</b><small>Oleadas sin fin · 1-8 jugadores</small></span></button>
-          ${NB ? `<button class=mb data-a=local>${I.link}<span><b>Partida local</b><small>Wi-Fi o Bluetooth, sin internet</small></span></button>` : ''}
+          ${NB ? `<button class=mb data-a=local>${I.link}<span><b>Partida local</b><small>${IS_PC ? 'Red local' : 'Wi-Fi o Bluetooth'}, sin internet</small></span></button>` : ''}
           <button class="mb back" data-a=playx>${I.back}<span><b>Atrás</b></span></button>
         </div>
       </div>
