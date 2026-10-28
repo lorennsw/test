@@ -1655,7 +1655,8 @@ function start(md, lv, mp, sdd){
 }
 
 const tier = () => mode === 'camp' ? lvl : mode === 'dung' ? dung.floor : 1 + Math.floor(kills / 10);
-const hpMul = () => mode === 'camp' ? 1 + .2 * (lvl - 1) : mode === 'dung' ? 1.4 + .5 * (dung.floor - 1) : 1 + .07 * (tier() - 1);
+// en la mazmorra la vida se multiplica por el número de piso (piso 2 = el doble, piso 3 = el triple…)
+const hpMul = () => mode === 'camp' ? 1 + .2 * (lvl - 1) : mode === 'dung' ? dung.floor : 1 + .07 * (tier() - 1);
 const isBossLvl = () => mode === 'camp' && lvl % 5 === 0;
 const bossFor = () => BOSS[(lvl / 5 - 1) % 4];
 const goalDone = () => isBossLvl() ? bd : kills >= goal();
@@ -1675,7 +1676,7 @@ const coopN = () => net.on && mode !== 'duel' ? 1 + Object.keys(net.rem).length 
 function mk(k, x, y, opt){
   const d = EN[k];
   if(mode === 'dung' && !d.nc) [x, y] = freeNear(x, y, d.r > 8 ? 6 : 4);
-  let hm = d.boss ? (mode === 'camp' ? 1 + .15 * (lvl - 1) : mode === 'dung' ? 1.25 + .3 * (dung.floor - 1) : 1 + .2 * (tier() - 1)) : hpMul();
+  let hm = d.boss ? (mode === 'camp' ? 1 + .15 * (lvl - 1) : mode === 'dung' ? Math.max(1.25, dung.floor) : 1 + .2 * (tier() - 1)) : hpMul();
   const el = mode === 'dung' && !d.boss && !(opt && opt.noElite) && Math.random() < Math.min(.5, .08 + dung.floor * .07);
   if(el) hm *= 2;
   hm *= coopN();   // en cooperativo cada jugador suma la vida de un enemigo entero (2 jugadores = el doble)
