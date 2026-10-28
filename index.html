@@ -4818,9 +4818,9 @@ function botTick(dt){
         const rx = b.x - q.x, ry = b.y - 6 - q.y, sp = Math.hypot(q.vx, q.vy) || 1, along = (rx * q.vx + ry * q.vy) / sp;
         if(along < 0 || along > sp * .22) continue;
         const side = (rx * q.vy - ry * q.vx) / sp;
-        if(Math.abs(side) > 9 || Math.random() > .75) continue;
+        if(Math.abs(side) > 9 || Math.random() > .45) continue;   // no siempre llegan a esquivar
         const ra = Math.atan2(q.vy, q.vx) + (side >= 0 ? -1 : 1) * Math.PI / 2;
-        b.roll = ROLL_T; b.rlc = ROLL_CD + Math.random() * .4; b.rdx = Math.cos(ra); b.rdy = Math.sin(ra);
+        b.roll = ROLL_T; b.rlc = ROLL_CD + .4 + Math.random() * .6; b.rdx = Math.cos(ra); b.rdy = Math.sin(ra);
         botSend(b, { t: 'rl', s: b.rdx < 0 ? -1 : 1 });
         break;
       }
@@ -4849,13 +4849,14 @@ function botTick(dt){
     if(tg){
       const v = b.tv[tg.id], ex = b.x + Math.cos(b.ang) * 9, ey = b.y - 6 + Math.sin(b.ang) * 9;
       const th = Math.hypot(tg.x - ex, tg.y - 6 - ey) / w.s;
-      const ax = tg.x + (v ? v.vx : 0) * th, ay = tg.y - 6 + (v ? v.vy : 0) * th;
-      const aim = Math.atan2(ay - (b.y - 6), ax - b.x) + (Math.random() - .5) * .05;
+      // apuntan adonde vas a estar, pero no del todo y con algo de error
+      const ax = tg.x + (v ? v.vx : 0) * th * .75, ay = tg.y - 6 + (v ? v.vy : 0) * th * .75;
+      const aim = Math.atan2(ay - (b.y - 6), ax - b.x) + (Math.random() - .5) * .14;
       let da = aim - b.ang; while(da > Math.PI) da -= 2 * Math.PI; while(da < -Math.PI) da += 2 * Math.PI;
-      b.ang += Math.max(-12 * dt, Math.min(12 * dt, da));
+      b.ang += Math.max(-8 * dt, Math.min(8 * dt, da));
       b.seeT = tvis ? b.seeT + dt : 0;
       const dist = Math.hypot(tg.x - b.x, tg.y - b.y);
-      if(tvis && b.seeT > .2 && b.fz <= 0 && b.roll <= 0 && b.cd <= 0 && dist < range && Math.abs(da) < .12) botShoot(b, w);
+      if(tvis && b.seeT > .35 && b.fz <= 0 && b.roll <= 0 && b.cd <= 0 && dist < range && Math.abs(da) < .12) botShoot(b, w);
     }
     // sus balas: los impactos los decide el que dispara, como con las personas
     for(const q of b.bul){
@@ -4877,7 +4878,7 @@ function botTick(dt){
   }
 }
 function botShoot(b, w){
-  b.cd = w.cd * 1.08;
+  b.cd = w.cd * 1.2;
   for(let i = 0; i < w.pel; i++){
     const a = b.ang + (w.pel > 1 ? (i - (w.pel - 1) / 2) * 0.16 : (Math.random() - .5) * w.sp);
     const vx = Math.cos(a) * w.s, vy = Math.sin(a) * w.s, x = b.x + Math.cos(b.ang) * 9, y = b.y - 6 + Math.sin(b.ang) * 9, l = w.pel > 1 ? .38 : 1.1;
