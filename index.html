@@ -4007,7 +4007,7 @@ function homeBox(){
     <div class=hbr>${I.save}<span><b>${MN[sv.mode] ? MN[sv.mode].charAt(0) + MN[sv.mode].slice(1).toLowerCase() : sv.mode} · ${esc(saveDesc(sv))}</b><small>${sv.multi ? 'Multijugador' : 'Solitario'} · ${esc(new Date(sv.at).toLocaleDateString())}</small></span><button class="mini s" data-a=sload data-v=0>${I.play} Continuar</button></div>` : ''}
   <div class=hbh><small>AMIGOS${AU.token ? ' EN LÍNEA · ' + on.length : ''}</small>${AU.token ? `<button class=mini data-a=friends>Ver todos${FR.req.length ? ' (' + FR.req.length + ')' : ''}</button>` : ''}</div>
   ${!AU.token ? `<div class=hbr>${I.user}<span><b>Jugá con tus amigos</b><small>Iniciá sesión para agregarlos e invitarlos a tus salas</small></span><button class=mini data-a=login>Iniciar sesión</button></div>`
-    : on.length ? on.slice(0, 4).map(f => `<div class=hbr><i class=dot></i><span><b>${esc(f.name)}</b><small>En línea</small></span><button class=mini data-a=create>Crear sala</button></div>`).join('')
+    : on.length ? on.slice(0, 4).map(f => `<div class=hbr><i class=dot></i><span><b>${esc(f.name)}</b><small>${frInv(f.name) ? 'Te invitó a su sala' : 'En línea'}</small></span>${frInv(f.name) ? `<button class="mini s" data-a=finvj data-v="${esc(f.name)}">${I.play} Unirse a la sala</button>` : `<button class=mini data-a=create>Crear sala</button>`}</div>`).join('')
     : `<div class=hbr>${I.users}<span><b>${FR.friends.length ? 'Ningún amigo en línea' : 'Todavía no agregaste amigos'}</b><small>${FR.friends.length ? 'Cuando entren los vas a ver acá' : 'Agregalos por su nombre de usuario'}</small></span><button class=mini data-a=friends>Amigos</button></div>`}`;
 }
 let menuPlay = false;   // menú principal mostrando los modos (después de tocar Jugar)
@@ -5116,10 +5116,10 @@ function lanJoin(addr){
 // ---------- AMIGOS Y SALA CON AMIGOS (online, con cuenta) ----------
 // La sala con amigos es una sala "P|código" del servidor que arranca en la sala: el anfitrión elige
 // el modo, pueden sumar bots para el PvP y se invita a los amigos (les aparece un aviso).
-let FR = { friends: [], req: [], open: false };
+let FR = { friends: [], req: [], open: false, inv: {} };
+const frInv = n => FR.inv[String(n).toLowerCase()] || null;   // invitación pendiente de ese amigo
 const partyCode = () => { const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let r = ''; for(let i = 0; i < 5; i++) r += c[rnd(0, c.length - 1)]; return r; };
 function partyMenu(msg){
-  ret = partyMenu;
   panel(`<h2>Sala con amigos</h2>
   <div class=r>Armá una sala online, elegí el modo (también PvP contra bots) e invitá a tus amigos.</div>
   ${msg ? `<div class="msg bad">${esc(msg)}</div>` : ''}
@@ -5128,12 +5128,13 @@ function partyMenu(msg){
     <div class=big style="display:flex;flex-direction:column;gap:.6cqw;justify-content:center">${I.link}<b>Unirse con código</b>
       <div class=mk><input type=text id=pcode maxlength=8 placeholder="Código" style="text-transform:uppercase;text-align:center"><button data-a=pjoin>Unirse</button></div></div>
   </div>
-  <div class=actions><button data-a=friends>${I.users} Amigos${FR.req.length ? ' (' + FR.req.length + ')' : ''}</button><button data-a=back>${I.back} Volver</button></div>`);
+  <div class=actions><button data-a=friends>${I.users} Amigos${FR.req.length ? ' (' + FR.req.length + ')' : ''}</button><button data-a=home>${I.back} Volver</button></div>`);
 }
 // ---- Crear sala: modo, jugadores, dificultad (mazmorras) y, en PvP, contra quién se juega
 const CR = { md: 'dung', n: 4, dif: 0, pub: false, rival: 'in', title: '' };
 const RIVALS = [['in', 'Entre ustedes', 'Se reparten los equipos dentro de la sala'], ['pub', 'Contra otras personas', 'La sala aparece en la lista para que entren rivales'], ['bots', 'Contra bots', 'Ustedes contra bots · no cambia el ranking']];
 function createMenu(){
+  if(ret !== createMenu) CR.from = ret;   // a dónde vuelve "Volver"
   ret = createMenu;
   const md = CR.md, pvp = lanPvp(md), coop = !pvp;
   if(CR.rival === 'pub') CR.pub = true;
@@ -5146,7 +5147,7 @@ function createMenu(){
   <div class="r mk"><input type=text id=crt maxlength=17 placeholder="Nombre de la sala (opcional)" value="${esc(CR.title)}">
     <span class=stp style="font-size:.85em"><button class="${CR.pub ? 's' : ''}" data-a=crpub data-v=1 style="border-left:0;font-size:1em;padding:0 1.2cqw">Pública</button><button class="${CR.pub ? '' : 's'}" data-a=crpub data-v=0 style="font-size:1em;padding:0 1.2cqw" ${CR.rival === 'pub' ? 'disabled' : ''}>Privada</button></span></div>
   <div class=r><small>${CR.pub ? 'Aparece en la lista de salas del modo para que entre cualquiera.' : 'Solo entran tus amigos (invitándolos) o con el código.'}</small></div>
-  <div class=actions><button class=s data-a=crgo>${I.plus} Crear sala</button><button data-a=back>${I.back} Volver</button></div>`);
+  <div class=actions><button class=s data-a=crgo>${I.plus} Crear sala</button><button data-a=crback>${I.back} Volver</button></div>`);
 }
 const crKeep = () => { const e = $('#crt'); if(e) CR.title = e.value; };
 function partyJoin(code, cfg){
@@ -5168,7 +5169,7 @@ function friendsMenu(msg, ok){
     return;
   }
   const row = f => `<div class=lbr><span style="color:${f.online ? 'var(--ok)' : 'var(--muted)'}">●</span><span class=nm>${esc(f.name)} <small>${f.online ? 'EN LÍNEA' : 'DESCONECTADO'}</small></span>
-    ${inParty ? `<button class="mini s" data-a=finv data-v="${esc(f.name)}" ${f.online ? '' : 'disabled'}>Invitar</button>` : ''}<button class=mini data-a=frem data-v="${esc(f.name)}" title="Quitar">${I.x}</button></div>`;
+    ${frInv(f.name) && !inParty ? `<button class="mini s" data-a=finvj data-v="${esc(f.name)}">Unirse a la sala</button>` : ''}${inParty ? `<button class="mini s" data-a=finv data-v="${esc(f.name)}" ${f.online ? '' : 'disabled'}>Invitar</button>` : ''}<button class=mini data-a=frem data-v="${esc(f.name)}" title="Quitar">${I.x}</button></div>`;
   panel(`<h2>Amigos</h2>
   ${msg ? `<div class="msg ${ok ? 'ok' : 'bad'}">${esc(msg)}</div>` : ''}
   <div class="r mk"><input type=text id=fadd maxlength=12 placeholder="Usuario de tu amigo"><button class=s data-a=fadd>${I.plus} Agregar</button></div>
@@ -5186,7 +5187,8 @@ async function friendsPoll(){
   try{
     const d = await api('/api/friends');
     FR.friends = d.friends || []; FR.req = d.req || [];
-    for(const iv of d.inv || []) showInvite(iv);
+    for(const iv of d.inv || []){ showInvite(iv); FR.inv[iv.from.toLowerCase()] = Object.assign({ got: Date.now() }, iv); }
+    for(const k in FR.inv) if(Date.now() - FR.inv[k].got > 120000) delete FR.inv[k];
     if(FR.open && $('#fadd') && !(document.activeElement && document.activeElement.id === 'fadd')) friendsMenu();
     const bd = $('#frb'); if(bd) bd.textContent = FR.req.length || '';
     const hb = $('#hbox'); if(hb) hb.innerHTML = homeBox();
@@ -5384,6 +5386,7 @@ const A = {
   frem: async v => { try{ await api('/api/friends/remove', { name: v }); await friendsPoll(); friendsMenu(); }catch(e){ friendsMenu(e.message); } },
   finv: async v => { try{ await api('/api/friends/invite', { name: v, room: net.roomName, md: LOB ? LOB.md : '' }); friendsMenu('Invitación enviada a ' + v, true); }catch(e){ friendsMenu(e.message); } },
   invj: () => { const iv = invNow; document.getElementById('invt').classList.remove('on'); if(!iv) return; if(net.on){ botStop(); net.on = false; try{ net.ws.close(); }catch(e){} } partyJoin(iv.room.slice(2)); },
+  finvj: v => { const iv = frInv(v); if(!iv) return; delete FR.inv[v.toLowerCase()]; invNow = iv; A.invj(); },
   invx: () => document.getElementById('invt').classList.remove('on'),
   dif: v => { V.dif = Math.max(0, Math.min(2, +v)); save(); players(net.mode); },
   merchb: v => merchBuy(+v),
@@ -5503,6 +5506,7 @@ const A = {
   conn: () => { V.srv = $('#su').value.trim(); save(); connect(V.srv); },
   join: v => { if(String(v).startsWith('P|')){ try{ net.ws.close(); }catch(e){} return partyJoin(v.slice(2)); } net.roomName = v; raw({ t: 'join', room: v, max: net.max, n: V.av.name }); },
   create: () => { CR.dif = V.dif | 0; CR.n = V.np || 4; createMenu(); },
+  crback: () => { const f = CR.from; CR.from = null; ret = main; (f && f !== createMenu ? f : main)(); },
   crmd: v => { crKeep(); CR.md = v; createMenu(); },
   crn: v => { CR.n = V.np = Math.max(2, Math.min(MAXP, CR.n + (+v))); const e = $('#crnv'); if(e) e.textContent = CR.n; },
   crdif: v => { crKeep(); CR.dif = +v; createMenu(); },
