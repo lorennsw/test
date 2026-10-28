@@ -120,6 +120,15 @@ kbd{display:inline-block;min-width:1.6em;text-align:center;background:rgba(255,2
 .badge-ver{display:inline-block;white-space:nowrap;color:var(--muted);font-size:max(9px,.9cqw);font-weight:600;letter-spacing:.12em;padding:.45cqw .9cqw;border:1px solid var(--line2);border-radius:2cqw}
 .cols{display:grid;grid-template-columns:42cqw 24cqw 1fr;gap:1.6cqw;margin:1.8cqw 0 1.4cqw;flex:1;min-height:0;align-items:stretch}
 .nav{display:flex;flex-direction:column;gap:.7cqw;min-height:0}
+.nhome,.nplay{flex:1;display:flex;flex-direction:column;gap:.7cqw;min-height:0;animation:pin .18s ease-out}
+.nav.play>.nhome,.nav:not(.play)>.nplay{display:none}
+.playb{flex:3;display:flex;align-items:center;justify-content:flex-start;gap:1.6cqw;width:100%;margin:0;padding:1cqw 2.4cqw;text-align:left;background:linear-gradient(120deg,#f6c453,var(--acc) 55%,#d99a1f);border-color:#ffd27a;color:var(--acc-ink);box-shadow:0 .6cqw 2cqw rgba(242,179,61,.25)}
+.playb:hover{filter:brightness(1.06);background:linear-gradient(120deg,#f6c453,var(--acc) 55%,#d99a1f);border-color:#fff3c4}
+.playb>.ico{width:4.6cqw;height:4.6cqw;color:var(--acc-ink)}
+.playb span{display:flex;flex-direction:column}
+.playb b{font-size:max(20px,3.4cqw);font-weight:900;letter-spacing:.04em;line-height:1}
+.playb small{margin-top:.5cqw;font-size:max(10px,1cqw);font-weight:600;color:rgba(29,20,5,.75)}
+.mb.back{flex:.7}.mb.back::after{display:none}
 .nrow{flex:1;display:flex;gap:.7cqw;min-height:0}.nrow .mb{flex:1}
 .hero-mode{position:relative;flex:1.6;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(120deg,rgba(242,179,61,.16),rgba(242,179,61,.03) 60%),var(--panel);border:1px solid rgba(242,179,61,.45);padding:1cqw 1.6cqw;cursor:pointer;border-radius:var(--r);transition:border-color .15s,background .15s,transform .08s}
 .hero-mode:hover{border-color:var(--acc);background:linear-gradient(120deg,rgba(242,179,61,.24),rgba(242,179,61,.05) 60%),var(--panel)}
@@ -168,6 +177,12 @@ kbd{display:inline-block;min-width:1.6em;text-align:center;background:rgba(255,2
 .stats>div{background:var(--panel2);border:1px solid var(--line);padding:.8cqw 1.4cqw;min-width:8cqw;border-radius:var(--r);text-align:left}
 .stats small{display:block;margin-bottom:.2cqw;font-weight:600;letter-spacing:.08em;font-size:.72em}
 .stats b{font-size:1.5em;color:#fff;font-weight:700;font-variant-numeric:tabular-nums}
+.gemc{display:inline-flex;align-items:center;gap:.6cqw;background:var(--panel2);border:1px solid #7dd3fc66;padding:.3cqw 1.1cqw;color:#b9ecff;font-weight:700;border-radius:2cqw;margin-bottom:.6cqw}
+/* diamante dibujado en píxeles (la misma figura que en el juego) */
+.dia{display:inline-block;width:1.15em;height:1em;vertical-align:-.12em;background:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 8' shape-rendering='crispEdges'><rect x='0' y='2' width='1' height='1' fill='%230b2a3f'/><rect x='0' y='3' width='1' height='1' fill='%230b2a3f'/><rect x='1' y='1' width='1' height='1' fill='%230b2a3f'/><rect x='1' y='2' width='1' height='1' fill='%237dd3fc'/><rect x='1' y='3' width='1' height='1' fill='%237dd3fc'/><rect x='1' y='4' width='1' height='1' fill='%230b2a3f'/><rect x='2' y='0' width='1' height='1' fill='%230b2a3f'/><rect x='2' y='1' width='1' height='1' fill='%237dd3fc'/><rect x='2' y='2' width='1' height='1' fill='%23e8fbff'/><rect x='2' y='3' width='1' height='1' fill='%237dd3fc'/><rect x='2' y='4' width='1' height='1' fill='%237dd3fc'/><rect x='2' y='5' width='1' height='1' fill='%230b2a3f'/><rect x='3' y='0' width='1' height='1' fill='%230b2a3f'/><rect x='3' y='1' width='1' height='1' fill='%237dd3fc'/><rect x='3' y='2' width='1' height='1' fill='%23e8fbff'/><rect x='3' y='3' width='1' height='1' fill='%237dd3fc'/><rect x='3' y='4' width='1' height='1' fill='%237dd3fc'/><rect x='3' y='5' width='1' height='1' fill='%237dd3fc'/><rect x='3' y='6' width='1' height='1' fill='%230b2a3f'/><rect x='4' y='0' width='1' height='1' fill='%230b2a3f'/><rect x='4' y='1' width='1' height='1' fill='%237dd3fc'/><rect x='4' y='2' width='1' height='1' fill='%237dd3fc'/><rect x='4' y='3' width='1' height='1' fill='%237dd3fc'/><rect x='4' y='4' width='1' height='1' fill='%237dd3fc'/><rect x='4' y='5' width='1' height='1' fill='%237dd3fc'/><rect x='4' y='6' width='1' height='1' fill='%232b8fc4'/><rect x='4' y='7' width='1' height='1' fill='%230b2a3f'/><rect x='5' y='0' width='1' height='1' fill='%230b2a3f'/><rect x='5' y='1' width='1' height='1' fill='%237dd3fc'/><rect x='5' y='2' width='1' height='1' fill='%237dd3fc'/><rect x='5' y='3' width='1' height='1' fill='%237dd3fc'/><rect x='5' y='4' width='1' height='1' fill='%237dd3fc'/><rect x='5' y='5' width='1' height='1' fill='%232b8fc4'/><rect x='5' y='6' width='1' height='1' fill='%230b2a3f'/><rect x='6' y='0' width='1' height='1' fill='%230b2a3f'/><rect x='6' y='1' width='1' height='1' fill='%237dd3fc'/><rect x='6' y='2' width='1' height='1' fill='%232b8fc4'/><rect x='6' y='3' width='1' height='1' fill='%237dd3fc'/><rect x='6' y='4' width='1' height='1' fill='%232b8fc4'/><rect x='6' y='5' width='1' height='1' fill='%230b2a3f'/><rect x='7' y='1' width='1' height='1' fill='%230b2a3f'/><rect x='7' y='2' width='1' height='1' fill='%237dd3fc'/><rect x='7' y='3' width='1' height='1' fill='%237dd3fc'/><rect x='7' y='4' width='1' height='1' fill='%230b2a3f'/><rect x='8' y='2' width='1' height='1' fill='%230b2a3f'/><rect x='8' y='3' width='1' height='1' fill='%230b2a3f'/></svg>") center/contain no-repeat;image-rendering:pixelated}
+canvas.mac{width:3.6cqw;height:3.6cqw;image-rendering:pixelated}
+.p.vglow{border-color:var(--acc);animation:pin .18s ease-out,vglow 1.1s ease-in-out infinite}
+@keyframes vglow{0%,100%{box-shadow:0 0 0 1px var(--acc),0 0 1.2cqw rgba(242,179,61,.4),0 2cqw 5cqw rgba(0,0,0,.55)}50%{box-shadow:0 0 0 2px var(--acc),0 0 3.6cqw rgba(242,179,61,.85),0 2cqw 5cqw rgba(0,0,0,.55)}}
 .npcw{display:flex;align-items:center;gap:1.4cqw;max-width:62cqw;margin:0 auto 1cqw;text-align:left}
 .npcw canvas{width:7cqw;height:8.5cqw;image-rendering:pixelated;flex:none;background:var(--panel2);border:1px solid var(--line2);border-radius:.6cqw}
 .say{flex:1;background:var(--panel2);border:1px solid var(--line2);border-radius:.6cqw;padding:1cqw 1.4cqw;font-size:1.05em;line-height:1.4}
@@ -461,7 +476,10 @@ const WP = [
   // Nuevas armas legendarias para mazmorras y tienda
   { n: 'Lanzallamas', d: 1, cd: .05, s: 190, pel: 2, sp: .26, pr: 450, col: '#ff5722' },
   { n: 'Arco Tesla', d: 3, cd: .32, s: 350, pel: 3, sp: .18, pr: 620, col: '#38bdf8' },
-  { n: 'Daga Sombría', d: 3, cd: .20, s: 330, pel: 2, sp: .10, pr: 1200, col: '#c084fc', prc: true }
+  { n: 'Daga Sombría', d: 3, cd: .20, s: 330, pel: 2, sp: .10, pr: 1200, col: '#c084fc', prc: true },
+  // exclusivas del comerciante errante (se pagan con diamantes; no están en la tienda ni en el PvP)
+  { n: 'Ballesta de Cristal', d: 5, cd: .55, s: 430, pel: 1, sp: .01, pr: 1500, col: '#7dd3fc', prc: true, gem: 1 },
+  { n: 'Cañón de Diamante', d: 2, cd: .13, s: 320, pel: 3, sp: .14, pr: 2000, col: '#9be7ff', gem: 1 }
 ];
 // Armas que aparecen en la mazmorra según el piso: de la más floja a la más fuerte, y cada piso
 // habilita una franja (piso 1: subfusil o escopeta … piso 5: las legendarias, recién ahí la daga)
@@ -531,7 +549,23 @@ const WSPR = [
     'kmmk.kkkkkk.',
     'kWWkkCCCCCCk',
     'kmmk.kccccck',
-    '.kk...kkkk..'] }
+    '.kk...kkkk..'] },
+  { h: [4, 4], r: [   // Ballesta de Cristal
+    '..........kk..',
+    '.........kCk..',
+    'kkkkkkkkkkCkkk',
+    'kWWWWwwwwwkllc',
+    'kwwkgkkkkkCkkk',
+    '.kk.kgk..kCk..',
+    '.....kk...kk..'] },
+  { h: [4, 4], r: [   // Cañón de Diamante
+    '...kkkkkkkk...',
+    '..kCCcCCccck..',
+    '.kmmcCccccCkkk',
+    'kkmmccccccccCc',
+    'kdkkgkddddddkk',
+    '...kgk.kkkk...',
+    '...kk.........'] }
 ];
 const WPAL = { k: '#16141f', d: '#3b3f4d', m: '#6b7285', l: '#aeb6c8', w: '#6e4522', W: '#a0673a', g: '#2a2733' };
 // Dibuja el arma girada hacia ang con la mano en (X, Y). Cada píxel se muestrea 4 veces para que
@@ -623,7 +657,8 @@ const MAPS = [
 const ARM = [
   { n: 'Cuero', a: 1, pr: 70, col: '#a0642d' },
   { n: 'Malla', a: 2, pr: 180, col: '#b8c0cc' },
-  { n: 'Placa', a: 3, pr: 350, col: '#e8edf5' }
+  { n: 'Placa', a: 3, pr: 350, col: '#e8edf5' },
+  { n: 'Coraza de Diamante', a: 4, pr: 2000, col: '#7dd3fc', gem: 1 }   // exclusiva del comerciante errante
 ];
 const PETS = [
   { n: 'Perrito', pr: 150, d: 'Atrae monedas de lejos' },
@@ -824,11 +859,19 @@ const DIRS = [
   { k: 'e', dx: 1, dy: 0, opp: 'w' }
 ];
 
+// ---- dificultades de la mazmorra (en cooperativo la elige el anfitrión y se la pasa a todos)
+const DIFS = [
+  { n: 'Normal', d: 'Como siempre.', hp: 1, rooms: 0, mh: 5, bonus: 150, col: '#3ecf8e' },
+  { n: 'Difícil', d: 'Más salas por piso y enemigos con +60% de vida.', hp: 1.6, rooms: 3, mh: 5, bonus: 300, col: '#f2b33d' },
+  { n: 'Hardcore', d: 'Como difícil, pero con un solo corazón.', hp: 1.6, rooms: 3, mh: 1, bonus: 600, col: '#ef5b6b' }
+];
+let dif = 0;   // dificultad de la mazmorra en curso
+const DF = () => DIFS[dif] || DIFS[0];
 function genDungeon(floor, sd){
   const pr = mulberry32(sd);
   const thIdx = (floor - 1) % DUN_THEMES.length;
   const th = DUN_THEMES[thIdx];
-  const numRooms = 8 + floor * 3; // Muchas habitaciones: 11 en P1, 14 en P2, 17 en P3...
+  const numRooms = 8 + floor * 3 + DF().rooms; // Muchas habitaciones: 11 en P1, 14 en P2, 17 en P3... (más en difícil)
   const rooms = {};
   
   // Sala inicial
@@ -908,6 +951,8 @@ function genDungeon(floor, sd){
     r.type = 'npc'; r.npc = (floor - 1) % NPCS.length; r.cleared = true; r.rug = true;
     r.obs = []; r.props = []; r.spk = []; r.eps = []; r.ep = []; r.waves = 0;
   }
+  // comerciante errante: en 3 de cada 4 pisos, en una sala de combate cualquiera
+  if(armCand.length && ar() < .75) armCand[Math.floor(ar() * armCand.length)].merch = 1;
 
   dung = {
     active: true, floor, seed: sd, rooms, curRoomKey: '0,0',
@@ -1074,10 +1119,12 @@ function enterRoom(k, first){
   const r = dung.rooms[k];
   if(!r) return;
   V.coins += coins.length;   // las monedas sueltas se recogen al salir de la sala
+  if(gems.length) gemGot(gems.length); gems = [];
   dung.curRoomKey = k;
   dung.curRoom = r;
   r.visited = true;
   enemies = []; bullets = []; eb = []; shw = []; coins = []; hearts = []; dung.pedestals = []; dung.trapdoor = null;
+  if(r.merch && !r.mpos) r.mpos = freeNear(r.w * T / 2 + 40, r.h * T / 2 - 16, 6);
   boss = null;
   const lead = !net.on || net.host;
 
@@ -1167,6 +1214,7 @@ function roomCleared(r, rel, hd, cn){
     V.bestDung = Math.max(V.bestDung || 1, dung.floor + 1);
     save();
   }
+  if(r.merch) setTimeout(() => banner('¡APARECIÓ UN COMERCIANTE ERRANTE!'), 900);
   if(r.type === 'boss' || r.type === 'challenge'){
     dung.pedestals.push({ id: 'rw', x: (r.w / 2) * T, y: (r.h / 2 - 2) * T, item: { t: 'relic', i: rel >= 0 ? rel : relicPick(Math.random()) } });
     sFan();
@@ -1246,11 +1294,7 @@ function shopGlyph(it, X, Y){
 // (en la mazmorra se empieza sin nada: monedas y armas son solo de la run)
 const STALL = { x: (RW - 4) * T, y: 2 * T + 12 };
 const nearStall = () => benchHere() && !p.dead && Math.abs(p.x - STALL.x) < 15 && Math.abs(p.y - STALL.y) < 10;
-function stallTick(){
-  if(!nearStall()){ p.stallDone = false; return; }
-  if(p.stallDone || paused || state !== 'play') return;
-  p.stallDone = true; paused = true; ret = A.resume; shop(0);
-}
+function stallOpen(){ if(!nearStall() || paused) return false; paused = true; ret = A.resume; shop(0); return true; }
 function drawStall(){
   const R = tileR(STALL.x - T, STALL.y - 12), glow = nearStall();
   R(0, 15, 32, 3, 'rgba(0,0,0,.35)');
@@ -1267,7 +1311,8 @@ function drawStall(){
 }
 function drawStallHud(){
   if(!benchHere() || state !== 'play') return;
-  TX('TIENDA', STALL.x - camx, STALL.y - camy + 16, 3, 'rgba(56,214,107,.85)', 'center');
+  const near = nearStall() && !paused;
+  TX(near ? (touchOn() ? 'TOCÁ TIENDA' : '[E] TIENDA') : 'TIENDA', STALL.x - camx, STALL.y - camy + 16, near ? 3.2 : 3, near ? '#38d66b' : 'rgba(56,214,107,.85)', 'center');
 }
 
 // ---- personajes de la historia: uno por piso, en una sala tranquila. Al acercarte te hablan,
@@ -1314,6 +1359,109 @@ const npcHere = () => mode === 'dung' && dung.curRoom && dung.curRoom.type === '
 let npcTalk = null;   // { k: sala, r, i: línea actual, rd: { línea: ids que ya tocaron } }
 // cerca del personaje se habla con la E (o con el botón HABLAR en el celular)
 const npcNear = () => npcHere() && !p.dead && !paused && Math.hypot(p.x - npcPos(dung.curRoom).x, p.y - npcPos(dung.curRoom).y) < 26;
+// ---- diamantes: cada enemigo tiene un 10% de dejar uno (solo uno). Son para siempre y se cambian
+// con el comerciante errante por cosas exclusivas (también para siempre).
+let gems = [];   // diamantes en el piso
+const GEM_P = ['.XXXXX.', 'XooXXdX', 'XXXXXXX', '.XXXXd.', '..XXd..', '...d...'];
+const GEM_I = ['.XXX.', 'XoXXX', '.XXX.', '..X..'];
+function gemDrop(x, y, own){
+  if(own === myId()) gems.push({ x, y, vx: rnd(-30, 30), vy: rnd(-30, 30) });
+  else snd({ t: 'gem', to: own, x, y });
+}
+function gemTick(dt){
+  for(const q of gems){
+    q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= .92; q.vy *= .92;
+    const d = Math.hypot(p.x - q.x, p.y - 6 - q.y);
+    if(d < 40){ q.x += (p.x - q.x) * dt * 6; q.y += (p.y - 6 - q.y) * dt * 6; }
+    if(d < 8 && !p.dead){ q.got = 1; gemGot(1); }
+  }
+  gems = gems.filter(q => !q.got);
+}
+function gemGot(n){
+  V.gems = (V.gems || 0) + n;
+  num(p.x, p.y - 22, '+' + n + ' DIAMANTE', '#9be7ff'); tone('triangle', 900, 1500, .18, .1, sg); burst(p.x, p.y - 8, '#7dd3fc', 8);
+  if(!V.gemSeen){ V.gemSeen = 1; banner('¡UN DIAMANTE! SE CAMBIA CON EL COMERCIANTE ERRANTE'); }
+  save();
+}
+function drawGemPick(q){
+  const X = q.x - camx, Y = q.y - camy, b = Math.round(Math.sin(t * 4 + q.x) * 1.5), k = .5 + .5 * Math.sin(t * 5 + q.y);
+  g.fillStyle = 'rgba(125,211,252,' + (.15 + .15 * k) + ')'; g.beginPath(); g.arc(X, Y - 6 + b, 6 + k * 2, 0, 6.283); g.fill();
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(Math.round(X - 3), Math.round(Y), 7, 1);
+  pxPat(GEM_P, X - 3, Y - 10 + b, { X: '#7dd3fc', o: '#e8fbff', d: '#2b8fc4' }, '#0b2a3f');
+  if(k > .85){ g.fillStyle = '#fff'; g.fillRect(Math.round(X + 3), Math.round(Y - 12 + b), 1, 3); g.fillRect(Math.round(X + 2), Math.round(Y - 11 + b), 3, 1); }
+}
+
+// ---- comerciante errante: puede aparecer en cualquier sala de combate del piso (cuando la despejás)
+const MERCH = [
+  { k: 'w', i: 8, g: 6, d: 'Atraviesa enemigos · mucho daño' },
+  { k: 'w', i: 9, g: 10, d: '3 proyectiles muy rápidos' },
+  { k: 'a', i: 3, g: 8, d: 'Absorbe 4 golpes' },
+  { k: 'c', i: 7, g: 3, d: 'Accesorio para tu personaje' },
+  { k: 'c', i: 8, g: 4, d: 'Accesorio para tu personaje' },
+  { k: 'c', i: 9, g: 6, d: 'Accesorio para tu personaje' }
+];
+const MERCH_AV = { skin: '#c68642', hair: '#2a1a12', shirt: '#6b3fa0', pn: '#3a2a4a', ec: '#111111', hs: 0, os: 3, acc: 0 };
+const merchHere = () => mode === 'dung' && dung.curRoom && dung.curRoom.merch && dung.curRoom.cleared && dung.curRoom.mpos && state === 'play';
+const merchNear = () => merchHere() && !p.dead && !paused && Math.hypot(p.x - dung.curRoom.mpos[0], p.y - dung.curRoom.mpos[1]) < 24;
+const merchOwn = o => o.k === 'w' ? (DB || V).owned.includes(o.i) : o.k === 'a' ? (DB || V).armo.includes(o.i) : (V.acco || []).includes(o.i);
+const merchName = o => o.k === 'w' ? WP[o.i].n : o.k === 'a' ? ARM[o.i].n : ACN[o.i];
+function merchOpen(){ if(!merchNear()) return false; paused = true; merchMenu(); return true; }
+function merchMenu(msg){
+  ret = merchMenu;
+  panel(`<h2>Comerciante errante</h2>
+  <div class=npcw><canvas id=npcc width=28 height=34></canvas><div class=say>${msg ? esc(msg) : '¡Ah, un cliente! Las monedas comunes no me sirven... solo diamantes. Y lo que te llevás es tuyo para siempre, no solo para esta mazmorra.'}</div></div>
+  <div class=gemc><i class=dia></i>${V.gems || 0} diamantes</div>
+  <div class=grid>${MERCH.map((o, j) => {
+    const own = merchOwn(o), can = (V.gems || 0) >= o.g;
+    return `<div class=it style="--rc:#7dd3fc"><span class=rb>EXCLUSIVO</span>
+      <canvas class="${o.k === 'c' ? 'mac' : 'ic'}" data-k=${o.k} data-i=${o.i} width=24 height=24></canvas>
+      <b class=nm>${esc(merchName(o))}</b><span class=ds>${o.d}</span>
+      ${own ? `<button disabled>${I.check} Ya lo tenés</button>` : `<button class=s data-a=merchb data-v=${j} ${can ? '' : 'disabled'}>Cambiar · ${o.g} <i class=dia></i></button>`}
+    </div>`;
+  }).join('')}</div>
+  <button class=s data-a=resume>${I.play} Seguir jugando</button>`);
+  const x = $('#npcc').getContext('2d');
+  drawChar(x, 14, 30, { ang: Math.PI / 2, walk: 0, moving: false, w: -1 }, MERCH_AV);
+  document.querySelectorAll('.it canvas.ic').forEach(cv => icon(cv.getContext('2d'), cv.dataset.k, +cv.dataset.i, 0, 0));
+  document.querySelectorAll('.it canvas.mac').forEach(cv => { const c_ = cv.getContext('2d'); c_.clearRect(0, 0, 24, 24); drawChar(c_, 12, 23, { ang: Math.PI / 2, walk: 0, moving: false, w: -1 }, Object.assign({}, V.av, { acc: +cv.dataset.i })); });
+}
+// lo que se compra va al inventario de verdad (y, si estás en la mazmorra, también al de esta partida)
+function merchBuy(j){
+  const o = MERCH[j], R = DB || V;
+  if(!o || merchOwn(o) || (V.gems || 0) < o.g) return;
+  V.gems -= o.g;
+  if(o.k === 'w'){ R.owned.push(o.i); if(R !== V) V.owned.push(o.i); V.eq = o.i; }
+  else if(o.k === 'a'){ R.armo.push(o.i); if(R !== V) V.armo.push(o.i); V.arm = o.i; if(state === 'play') p.ar = Math.max(p.ar || 0, ARM[o.i].a); }
+  else { V.acco = (V.acco || []).concat(o.i); V.av.acc = o.i; }
+  sFan(); save();
+  merchMenu('¡Trato hecho! ' + merchName(o) + (o.k === 'c' ? ' ya está puesto en tu personaje.' : ' ya es tuyo.'));
+}
+function drawMerch(){
+  const r = dung.curRoom, [x, y] = r.mpos, X = Math.round(x - camx), Y = Math.round(y - camy);
+  // mochila grande con cosas colgando, atrás del personaje
+  g.fillStyle = '#14101e'; g.fillRect(X - 7, Y - 24, 14, 15);
+  g.fillStyle = '#7a4e24'; g.fillRect(X - 6, Y - 23, 12, 13); g.fillStyle = '#a0673a'; g.fillRect(X - 6, Y - 23, 12, 2);
+  g.fillStyle = '#c0392b'; g.fillRect(X - 7, Y - 26, 14, 3); g.fillStyle = '#7dd3fc'; g.fillRect(X + 4, Y - 18, 2, 3);
+  drawChar(g, X, Y, { ang: Math.atan2(p.y - y, p.x - x), walk: 0, moving: false, w: -1 }, MERCH_AV);
+  g.fillStyle = '#ffd23f'; g.fillRect(X + 6, Y - 12 + Math.round(Math.sin(t * 3)), 2, 3);   // farolito
+}
+function drawMerchHud(){
+  if(!merchHere()) return;
+  const [x, y] = dung.curRoom.mpos, X = x - camx, Y = y - camy;
+  TX('COMERCIANTE', X, Y - 30, 3, '#9be7ff', 'center');
+  if(merchNear()) TX(touchOn() ? 'TOCÁ COMERCIAR' : '[E] COMERCIAR', X, Y + 8, 3.2, '#f2b33d', 'center');
+}
+
+// acción del lugar donde estás (E o el botón del celular): hablar, tienda, sentarse o levantarse
+function ctxAct(){
+  if(state !== 'play' || paused) return null;
+  if(npcNear()) return { n: 'Hablar', f: npcOpen };
+  if(merchNear()) return { n: 'Comerciar', f: merchOpen };
+  if(p.seated) return { n: 'Levantarse', f: benchStand };
+  if(nearStall()) return { n: 'Tienda', f: stallOpen };
+  if(nearBench() && !enemies.length) return { n: 'Sentarse', f: benchSit };
+  return null;
+}
 function npcOpen(){
   if(!npcNear()) return false;
   npcStart(dung.curRoomKey);
@@ -1465,18 +1613,27 @@ function drawEnding(x, E){
 const BENCH = { x: 4 * T, y: 2 * T + 12, sitT: .9 };   // centro del asiento (2 casillas, arriba a la izquierda)
 const benchHere = () => mode === 'dung' && dung.curRoom && dung.curRoom.type === 'start';
 const nearBench = () => benchHere() && !p.dead && Math.abs(p.x - BENCH.x) < 14 && Math.abs(p.y - BENCH.y) < 9;
+// con E (o el botón del celular) te sentás en el banco y al ratito se guarda; moviéndote te levantás
+function benchSit(){
+  if(!nearBench() || enemies.length || p.seated || paused) return false;
+  p.seated = true; p.sitT = 0; p.benchDone = false; p.roll = 0;
+  return true;
+}
+function benchStand(){ if(!p.seated) return; p.seated = false; p.y = BENCH.y + 14; }
 function benchTick(dt){
-  if(!nearBench() || enemies.length){ p.sit = 0; if(!nearBench()) p.benchDone = false; return; }
-  if(p.moving || p.roll > 0 || p.benchDone){ p.sit = 0; return; }
-  p.sit = (p.sit || 0) + dt;
-  if(p.sit >= BENCH.sitT){
-    p.benchDone = true; p.sit = 0;
+  if(!p.seated) return;
+  if(p.dead || !benchHere()){ p.seated = false; return; }
+  p.x = BENCH.x; p.y = BENCH.y + 3; p.moving = false;
+  if(p.benchDone) return;
+  p.sitT = (p.sitT || 0) + dt;
+  if(p.sitT >= BENCH.sitT){
+    p.benchDone = true;
     const ok = saveGame(true);
     banner(ok ? 'PARTIDA GUARDADA' : 'NO SE PUDO GUARDAR'); if(ok){ sFan(); burst(BENCH.x, BENCH.y - 8, '#f2b33d', 14); }
   }
 }
 function drawBench(){
-  const R = tileR(BENCH.x - T, BENCH.y - 12), glow = nearBench() && !p.benchDone;
+  const R = tileR(BENCH.x - T, BENCH.y - 12), glow = nearBench() && !p.seated;
   R(1, 14, 30, 3, 'rgba(0,0,0,.35)');
   R(3, 10, 2, 6, '#3b2414'); R(27, 10, 2, 6, '#3b2414');            // patas
   R(1, 7, 30, 4, '#8a5a2b'); R(1, 7, 30, 1, '#b07a3e');              // asiento
@@ -1487,12 +1644,16 @@ function drawBench(){
 function drawBenchHud(){
   if(!benchHere() || state !== 'play') return;
   const X = BENCH.x - camx, Y = BENCH.y - camy + 14;   // abajo del banco (arriba está el HUD)
-  if(nearBench() && !p.benchDone){
+  if(p.seated){
+    TX(p.benchDone ? 'PARTIDA GUARDADA' : 'GUARDANDO...', X, Y - 4, 3.2, '#f2b33d', 'center');
+    if(!p.benchDone){
+      g.fillStyle = '#000'; g.fillRect(Math.round(X - 13), Math.round(Y), 26, 4);
+      g.fillStyle = '#f2b33d'; g.fillRect(Math.round(X - 12), Math.round(Y + 1), Math.round(24 * Math.min(1, (p.sitT || 0) / BENCH.sitT)), 2);
+    } else TX('MOVETE PARA LEVANTARTE', X, Y + 2, 2.8, '#e8ebf3', 'center');
+  } else if(nearBench()){
     if(enemies.length) return TX('NO SE PUEDE GUARDAR CON ENEMIGOS', X, Y, 3.2, '#ff8a96', 'center');
-    TX(p.sit > 0 ? 'GUARDANDO...' : 'QUEDATE QUIETO PARA GUARDAR', X, Y - 4, 3.2, '#f2b33d', 'center');
-    g.fillStyle = '#000'; g.fillRect(Math.round(X - 13), Math.round(Y), 26, 4);
-    g.fillStyle = '#f2b33d'; g.fillRect(Math.round(X - 12), Math.round(Y + 1), Math.round(24 * Math.min(1, (p.sit || 0) / BENCH.sitT)), 2);
-  } else if(!nearBench()) TX('BANCO', X, Y + 2, 3, 'rgba(242,179,61,.8)', 'center');
+    TX(touchOn() ? 'TOCÁ SENTARSE' : '[E] SENTARSE', X, Y, 3.2, '#f2b33d', 'center');
+  } else TX('BANCO', X, Y + 2, 3, 'rgba(242,179,61,.8)', 'center');
 }
 
 function drawGrave(x, y){
@@ -1569,7 +1730,7 @@ function descend(){
 function newFloor(fl, sdv){
   genDungeon(fl, sdv);
   p.x = RW * T / 2; p.y = RH * T / 2;
-  if(p.dead > 1000){ p.dead = 0; p.hp = 2; p.inv = 3; }
+  if(p.dead > 1000){ p.dead = 0; p.hp = Math.min(2, p.maxHp || 5); p.inv = 3; }
   banner('PISO ' + fl + ': ' + dung.floorTheme.n.toUpperCase());
 }
 // Al pasarse la mazmorra se borra la partida guardada: ya no hay a dónde volver
@@ -1577,15 +1738,16 @@ function newFloor(fl, sdv){
 const winDung = () => {
   if(state === 'clear') return;
   state = 'clear'; dropSave();
-  END = { coins: V.coins, bonus: 150, kills, mates: Object.values(net.rem).filter(r => r.av).map(r => r.av) };
+  END = { coins: V.coins, bonus: DF().bonus, dif, kills, mates: Object.values(net.rem).filter(r => r.av).map(r => r.av) };
   if(DB) DB.coins += END.coins + END.bonus; else V.coins += END.bonus;
   V.bestKills = Math.max(V.bestKills || 0, kills);
   save(); sFan();
   clearMenu();
 };
 const dungOver = () => { state = 'over'; V.bestKills = Math.max(V.bestKills || 0, kills); save(); over(); };
-function beginDung(fl, sdv, rk, cl, rs){
+function beginDung(fl, sdv, rk, cl, rs, df){
   net.wait = false;
+  dif = df != null ? df | 0 : V.dif | 0;   // el anfitrión (o el que juega solo) usa la que eligió
   start('dung', fl || 1, 0, sdv);
   applyRS(rs);
   if(rk && dung.rooms[rk]){
@@ -1869,7 +2031,7 @@ function start(md, lv, mp, sdd){
     x: MW * T / 2, y: MH * T / 2,
     hp: 5, maxHp: 5, cd: 0, inv: 0, ang: 0, walk: 0, moving: false, kick: 0, dead: 0
   };
-  bullets = []; enemies = []; hearts = []; coins = []; parts = []; nums = []; eb = []; shw = [];
+  bullets = []; enemies = []; hearts = []; coins = []; gems = []; parts = []; nums = []; eb = []; shw = [];
   kills = 0; spawnT = 1; boss = null; bd = false; key = false; nb = 30; rt = 300; net.sc = {};
   lsb = []; spec = 0; vote = null; pet = null; lastBossId = -1; bossNear = false;
   state = 'play'; paused = false; close();
@@ -1877,12 +2039,13 @@ function start(md, lv, mp, sdd){
 
   if(md === 'dung'){
     ms = null;
+    p.maxHp = p.hp = DF().mh;
     genDungeon(lvl, sdd || rnd(1, 99999));
     p.x = RW * T / 2; p.y = RH * T / 2;
     banner('PISO ' + lvl + ': ' + dung.floorTheme.n.toUpperCase());
   } else if(md === 'duel'){
     genArena(mapIdx); buildMini(); ms = null;
-    V.owned = WP.map((w, i) => i); V.eq = 0;
+    V.owned = WP.map((w, i) => i).filter(i => !WP[i].gem); V.eq = 0;
   } else if(md === 'camp'){
     genMap(lvl * 7, Math.floor((lvl - 1) / 2) % 3, true);
     buildMini();
@@ -1899,7 +2062,7 @@ function start(md, lv, mp, sdd){
 
 const tier = () => mode === 'camp' ? lvl : mode === 'dung' ? dung.floor : 1 + Math.floor(kills / 10);
 // en la mazmorra la vida se multiplica por el número de piso (piso 2 = el doble, piso 3 = el triple…)
-const hpMul = () => mode === 'camp' ? 1 + .2 * (lvl - 1) : mode === 'dung' ? dung.floor : 1 + .07 * (tier() - 1);
+const hpMul = () => mode === 'camp' ? 1 + .2 * (lvl - 1) : mode === 'dung' ? dung.floor * DF().hp : 1 + .07 * (tier() - 1);
 const isBossLvl = () => mode === 'camp' && lvl % 5 === 0;
 const bossFor = () => BOSS[(lvl / 5 - 1) % 4];
 const goalDone = () => isBossLvl() ? bd : kills >= goal();
@@ -1919,7 +2082,7 @@ const coopN = () => net.on && mode !== 'duel' ? 1 + Object.keys(net.rem).length 
 function mk(k, x, y, opt){
   const d = EN[k];
   if(mode === 'dung' && !d.nc) [x, y] = freeNear(x, y, d.r > 8 ? 6 : 4);
-  let hm = d.boss ? (mode === 'camp' ? 1 + .15 * (lvl - 1) : mode === 'dung' ? Math.max(1.25, dung.floor) : 1 + .2 * (tier() - 1)) : hpMul();
+  let hm = d.boss ? (mode === 'camp' ? 1 + .15 * (lvl - 1) : mode === 'dung' ? Math.max(1.25, dung.floor) * DF().hp : 1 + .2 * (tier() - 1)) : hpMul();
   const el = mode === 'dung' && !d.boss && !(opt && opt.noElite) && Math.random() < Math.min(.5, .08 + dung.floor * .07);
   if(el) hm *= 2;
   hm *= coopN();   // en cooperativo cada jugador suma la vida de un enemigo entero (2 jugadores = el doble)
@@ -2019,6 +2182,7 @@ function dmg(e, d, own){
     }
     if(own === myId()){ coinFx(e.x, e.y, n); vampHeal(); }
     else snd({ t: 'c', to: own, n, k: e.k, x: e.x, y: e.y });
+    if(mode !== 'duel' && !e.sm && Math.random() < .1) gemDrop(e.x, e.y, own);   // 10%: un diamante, para quien lo mató
     if(Math.random() < (e.el ? .35 : .14)){ hearts.push({ x: e.x, y: e.y }); if(net.on) snd({ t: 'hr', x: e.x, y: e.y }); }
   }
 }
@@ -2195,7 +2359,8 @@ function pathAng(e, tg){
   if(bx === x && by === y) return null;
   return Math.atan2(by * T + 8 - e.y, bx * T + 8 - e.x);
 }
-// se da cuenta del jugador: grita "!", se lanza un momento más rápido y avisa a los que están cerca
+// se da cuenta del jugador: grita "!", se frena un instante por la sorpresa y avisa a los que están cerca
+// (después te persigue a su velocidad normal; antes arrancaba con un pique más rápido que era injusto)
 function wake(e, rush){
   if(e.aw) return;
   e.aw = 1; e.ex = .7; e.rush = rush; e.at = Math.max(e.at, .6);
@@ -2209,7 +2374,7 @@ function aiMove(e, dt, sm, tg){
   const a = Math.atan2(dy, dx);
   if(e.rush > 0) e.rush -= dt;
   if(e.ex > 0) e.ex -= dt;
-  const sp = d.sp * dt * sm * (e.el ? 1.15 : 1) * (1 + Math.sin(t * 6 + e.ph) * .4) * (e.rush > 0 ? 2.3 : 1);
+  const sp = d.sp * dt * sm * (e.el ? 1.15 : 1) * (1 + Math.sin(t * 6 + e.ph) * .4) * (e.rush > 0 ? .15 : 1);
   const rr = d.r > 8 ? 6 : 4;
 
   // en la mazmorra, si no te ve directo (hay algo en el medio), sigue el camino que rodea los obstáculos
@@ -2292,9 +2457,16 @@ function aiMove(e, dt, sm, tg){
     e.at -= dt * CDM;
     if(e.at <= 0 && dist < 200){ for(let i = -1; i <= 1; i++) shootE(e.x, e.y - 6, a + i * .3, 80, 3, '#e2e8f0'); e.at = 3; }
   } else if(d.bomb){
-    // Kamikaze corre hacia el jugador y explota
-    go(a, sp * 1.5);
-    if(dist < 18){ shock(e.x, e.y, 40); e.dead = true; if(tg === p) hurt(); }
+    // Kamikaze: corre hacia vos (un poco más lento que vos) y al llegar cerca se frena y titila
+    // como una mecha antes de explotar, así hay tiempo de alejarse o de rodar
+    if(e.fuse > 0){
+      e.fuse -= dt; e.tl = 1;
+      if(e.fuse <= 0){ shock(e.x, e.y, 40); burst(e.x, e.y - 6, '#ff9d3d', 16); e.dead = true; }
+    } else {
+      // velocidad pareja (sin el vaivén de los demás) y apenas menor que la tuya en todos los pisos
+      go(a, d.sp * dt * Math.min(sm, 1.1) * (e.rush > 0 ? .15 : 1));
+      if(dist < 26) e.fuse = .75;
+    }
   } else if(d.ranged){
     // Esqueleto tirador
     if(dist > 110) go(a, sp);
@@ -2400,6 +2572,7 @@ function update(dt){
 
   const fz = mode === 'duel' && DU.fz > 0;
   if(fz){ DU.fz -= dt; dx = dy = 0; }
+  if(p.seated){ if(Math.hypot(dx, dy) > .3 || keys[' ']) benchStand(); else dx = dy = 0; }
   const l = Math.hypot(dx, dy);
   p.moving = l > .1 && !p.dead && !paused;
   let spMod = 75;
@@ -2434,7 +2607,7 @@ function update(dt){
   if(p.dead > 0){
     p.dead -= dt;
     if(p.dead <= 0){ p.dead = 0; if(mode === 'duel'){ const sp = pvSpawnPoint(); p.x = sp.x; p.y = sp.y; p.hp = p.maxHp; p.inv = 1.2; p.lastHit = 0; } else { p.hp = 5; p.inv = 3; safeSpot(); } }
-  } else if(!paused && !fz && !(p.roll > 0) && mdown && p.cd <= 0) shoot();
+  } else if(!paused && !fz && !(p.roll > 0) && !p.seated && mdown && p.cd <= 0) shoot();
 
   // Revivir compañeros caídos: mantené E cerca de su cuerpo
   if(net.on && (mode === 'dung' || mode === 'camp') && !p.dead){
@@ -2476,7 +2649,7 @@ function update(dt){
         const tx_ = Math.floor(p.x / T), ty_ = Math.floor(p.y / T);
         for(const s_ of rr.spk) if(s_.x === tx_ && s_.y === ty_ && spkState(s_) === 2){ hurt(); break; }
       }
-      benchTick(dt); stallTick();
+      benchTick(dt);
       if(rr.type === 'fountain' && !rr.used && !p.dead && Math.hypot(p.x - rr.w * T / 2, p.y - rr.h * T / 2) < 20){
         rr.used = true; p.hp = p.maxHp || 5; burst(p.x, p.y - 8, '#7dd3fc', 18); banner('¡VIDA RESTAURADA!'); sCoin();
       }
@@ -2596,6 +2769,7 @@ function update(dt){
     if(d < 7){ q.got = 1; V.coins++; missionEvent('coin'); sCoin(); }
   }
   coins = coins.filter(q => !q.got);
+  gemTick(dt);
 
   for(const q of parts){ q.x += q.vx * dt; q.y += q.vy * dt; q.l -= dt; }
   parts = parts.filter(q => q.l > 0);
@@ -2618,7 +2792,7 @@ function update(dt){
     net.pt = (net.pt || 0) - dt;
     if(net.pt <= 0){
       net.pt = .066;
-      snd({ t: 'p', x: p.x, y: p.y, a: p.ang, n: V.av.name, av: V.av, ar: V.arm, dd: p.dead > 1000 || (mode === 'duel' && p.dead > 0) ? 1 : 0, rk: dung.curRoomKey, hp: p.hp, w: V.eq });
+      snd({ t: 'p', x: p.x, y: p.y, a: p.ang, n: V.av.name, av: V.av, ar: V.arm, dd: p.dead > 1000 || (mode === 'duel' && p.dead > 0) ? 1 : 0, rk: dung.curRoomKey, hp: p.hp, w: V.eq, st: p.seated ? 1 : 0 });
     }
     if(net.host){
       net.et = (net.et || 0) - dt;
@@ -2644,7 +2818,7 @@ function update(dt){
 function onNet(d){
   if(d.t === 'p'){
     const r = net.rem[d.from] || (net.rem[d.from] = { x: d.x, y: d.y, walk: 0, moving: false, kick: 0 });
-    r.tx = d.x; r.ty = d.y; r.ang = d.a; r.av = d.av; r.name = d.n; r.arm = d.ar; r.dd = d.dd; r.lt = t; r.rk = d.rk; r.hp = d.hp; r.w = d.w;
+    r.tx = d.x; r.ty = d.y; r.ang = d.a; r.av = d.av; r.name = d.n; r.arm = d.ar; r.dd = d.dd; r.lt = t; r.rk = d.rk; r.hp = d.hp; r.w = d.w; r.sit = d.st ? 1 : 0;
   }
   else if(d.t === 'rl'){ const r = net.rem[d.from]; if(r){ r.roll = ROLL_T; r.rsg = d.s < 0 ? -1 : 1; } }
   else if(d.t === 's') bullets.push({ x: d.x, y: d.y, vx: d.vx, vy: d.vy, l: d.l, d: 0, rm: 1, col: d.col, own: d.from });
@@ -2712,13 +2886,14 @@ function onNet(d){
     if(!d.r) snd({ t: 'w_hi', to: d.from, n: V.av.name, av: V.av, h: net.host ? 1 : 0, r: 1 });
     if(net.wait) waitRoom();
     else if(net.host && mode === 'dung' && state === 'play')
-      snd({ t: 'd_go', to: d.from, fl: dung.floor, sd: dung.seed, rk: dung.curRoomKey, cl: Object.keys(dung.rooms).filter(k => dung.rooms[k].cleared), rs: dungRS() });
+      snd({ t: 'd_go', to: d.from, fl: dung.floor, sd: dung.seed, rk: dung.curRoomKey, cl: Object.keys(dung.rooms).filter(k => dung.rooms[k].cleared), rs: dungRS(), dif });
   }
-  else if(d.t === 'd_go'){ if(net.wait) beginDung(d.fl, d.sd, d.rk, d.cl, d.rs); }
+  else if(d.t === 'd_go'){ if(net.wait) beginDung(d.fl, d.sd, d.rk, d.cl, d.rs, d.dif); }
   else if(d.t === 'h' && net.host){
     const e = enemies.find(q => q.id === d.id);
     if(e && !e.dead) dmg(e, d.d, d.from);
   }
+  else if(d.t === 'gem') gems.push({ x: d.x, y: d.y, vx: rnd(-30, 30), vy: rnd(-30, 30) });
   else if(d.t === 'c'){
     vampHeal();   // la moneda llega cuando matás un enemigo
     V.coins += d.n; num(d.x, d.y - 10, '+' + d.n, '#ffd23f');
@@ -2854,11 +3029,13 @@ function drawRolling(X, Y, st, av, k, sg){
 }
 function drawChar(cx, X, Y, st, av){
   const Q = (dx, dy, w, h, col) => { cx.fillStyle = col; cx.fillRect(Math.round(X + dx), Math.round(Y + dy), w, h); };
-  const tt = typeof t === 'number' ? t : 0, mv = !!st.moving, ang = st.ang || 0, sn = Math.sin(ang), cs = Math.cos(ang);
+  const tt = typeof t === 'number' ? t : 0, mv = !!st.moving && !st.sit, ang = st.sit ? Math.PI / 2 : st.ang || 0, sn = Math.sin(ang), cs = Math.cos(ang);
   const back = sn < -.35, front = sn > .35, side = !back && !front, fx = cs > 0 ? 1 : -1;
   const ph = st.walk || 0, step = mv ? Math.sin(ph) : 0, kk = st.kick || 0;
   const bob = mv ? Math.round(Math.abs(Math.sin(ph)) * 1.4) : Math.round((Math.sin(tt * 3) + 1) * .45);
-  const by = -4 - bob, hh = by - 13;
+  // sentado (en el banco) el cuerpo baja y no lleva el arma; con arma, los dos brazos van a la empuñadura
+  const sit = !!st.sit, hold = st.w !== -1 && !sit;
+  const by = (sit ? -1 : -4) - bob, hh = by - 13;
   const skin = av.skin || '#f2c18d', hair = av.hair || '#5a3a22', shirt = av.shirt || '#3b82f6', pants = av.pn || '#3a3a5c', eyec = av.ec || '#111111';
   const hs = av.hs | 0, os = av.os | 0, acc = av.acc | 0, OL = '#14101e';
   const eb = shd(hair, -.25), mouth = shd(skin, -.45), hl = shd(hair, .3), stub = shd(skin, -.3), boot = shd(pants, -.55);
@@ -2869,10 +3046,11 @@ function drawChar(cx, X, Y, st, av){
   // ---- piezas con contorno oscuro (piernas, cuerpo, cabeza)
   if(!side){
     lA = step > .3 ? -1 : 0; lB = step < -.3 ? -1 : 0;
-    P1.push([-3, -4 + lA, 3, 4, pants], [0, -4 + lB, 3, 4, pants]);
+    if(sit) P1.push([-3, -2, 3, 2, pants], [0, -2, 3, 2, pants]);
+    else P1.push([-3, -4 + lA, 3, 4, pants], [0, -4 + lB, 3, 4, pants]);
     if(hs === 1) P1.push([-5, hh + 2, 1, 8, hair], [4, hh + 2, 1, 8, hair]);
     P1.push([-4, by - 6, 8, 6, shirt]);
-    P1.push([-5, by - 5 + (mv ? Math.round(-step) : 0), 1, 4, shd(shirt, -.2)], [4, by - 5 + (mv ? Math.round(step) : 0), 1, 4, shd(shirt, -.2)]);
+    if(!hold) P1.push([-5, by - 5 + (mv ? Math.round(-step) : 0), 1, 4, shd(shirt, -.2)], [4, by - 5 + (mv ? Math.round(step) : 0), 1, 4, shd(shirt, -.2)]);
     P2.push([-4, hh, 8, 7, skin]);
   } else {
     a1 = Math.round(step * 2);
@@ -2902,8 +3080,8 @@ function drawChar(cx, X, Y, st, av){
   Q(bx, by - 1, bw, 1, '#4b2e14'); if(front) Q(-1, by - 1, 2, 1, '#ffd23f');
   if(!side){
     Q(3, by - 5, 1, 4, shd(shirt, -.18));
-    Q(-5, by - 1 + (mv ? Math.round(-step) : 0), 1, 1, skin); Q(4, by - 1 + (mv ? Math.round(step) : 0), 1, 1, skin);
-  } else Q(-1, by - 5, 2, 3, shd(shirt, -.2));
+    if(!hold){ Q(-5, by - 1 + (mv ? Math.round(-step) : 0), 1, 1, skin); Q(4, by - 1 + (mv ? Math.round(step) : 0), 1, 1, skin); }
+  } else if(!hold) Q(-1, by - 5, 2, 3, shd(shirt, -.2));
   if(am){
     Q(bx, by - 6, bw, 6, am.col);
     if(side) Q(-2, by - 7, 3, 3, am.col); else { Q(-5, by - 7, 2, 3, am.col); Q(3, by - 7, 2, 3, am.col); }
@@ -2911,8 +3089,14 @@ function drawChar(cx, X, Y, st, av){
   }
   // ---- arma (si miras hacia arriba va detras de la cabeza)
   const gun = () => {
-    if(st.w === -1) return;   // personajes sin arma (los de la historia y el final)
+    if(!hold) return;   // sin arma (los de la historia, el final) o sentado
     const hx = Math.round(X + cs * 3), hy = Math.round(Y + by - 3 + sn * 3);
+    // brazos: de cada hombro hasta la empuñadura (de costado se ve uno solo)
+    const sleeve = am ? shd(am.col, -.15) : shd(shirt, -.2);
+    for(const sx of side ? [fx > 0 ? 0 : -1] : [-4, 3]){
+      const ax = X + sx, ay = Y + by - 5, n = Math.max(1, Math.ceil(Math.hypot(hx - ax, hy - ay)));
+      for(let i = 0; i <= n; i++) Q(sx + (hx - ax) * i / n, by - 5 + (hy - ay) * i / n, 2, 2, i > n - 2 ? skin : sleeve);
+    }
     drawWeapon(cx, hx, hy, st.w | 0, ang, kk);
     cx.fillStyle = skin; cx.fillRect(hx - 1, hy - 1, 2, 2);   // la mano sobre la empuñadura
   };
@@ -2970,6 +3154,21 @@ function drawChar(cx, X, Y, st, av){
   if(acc === 6){
     Q(xx, hh + 1, ww, 1, '#ff4d9d');
     if(side) Q(fx > 0 ? -5 : 4, hh + 1, 2, 3, '#ff4d9d'); else Q(4, hh + 1, 2, 2, '#ff4d9d');
+  }
+  if(acc === 7){   // aureola: aro dorado que flota sobre la cabeza
+    const f_ = Math.round(Math.sin(tt * 3)), y_ = hh - 6 + f_;
+    Q(-3, y_, 6, 1, '#fff3a0'); Q(-4, y_ + 1, 1, 1, '#ffd23f'); Q(3, y_ + 1, 1, 1, '#ffd23f'); Q(-3, y_ + 2, 6, 1, '#d4a017');
+  }
+  if(acc === 8){   // cuernos de demonio
+    const hc = '#b91c1c', ht = '#f87171';
+    if(side){ Q(fx > 0 ? -1 : 0, hh - 2, 2, 2, hc); Q(fx > 0 ? -2 : 2, hh - 4, 1, 2, ht); }
+    else { Q(-4, hh - 2, 2, 2, hc); Q(2, hh - 2, 2, 2, hc); Q(-5, hh - 4, 1, 2, ht); Q(4, hh - 4, 1, 2, ht); }
+  }
+  if(acc === 9){   // corona de diamante: más alta, con tres diamantes
+    const g0 = '#ffd23f', c0 = side ? -3 : -4, w0 = side ? 7 : 8;
+    Q(c0, hh - 3, w0, 3, g0); Q(c0, hh - 1, w0, 1, '#d4a017');
+    for(let i = 0; i < w0; i += 2) Q(c0 + i, hh - 5, 1, 2, g0);
+    Q(c0 + 1, hh - 2, 1, 1, '#7dd3fc'); Q(c0 + (w0 >> 1), hh - 3, 1, 2, '#7dd3fc'); Q(c0 + w0 - 2, hh - 2, 1, 1, '#7dd3fc'); Q(c0 + (w0 >> 1), hh - 3, 1, 1, '#e8fbff');
   }
   if(!back) gun();
 }
@@ -3498,6 +3697,7 @@ function draw(){
   for(const e of enemies) dr.push({ y: e.y, f: () => drawEnemy(e) });
   if(benchHere()){ dr.push({ y: BENCH.y + 2, f: drawBench }); dr.push({ y: STALL.y + 2, f: drawStall }); }
   if(npcHere()) dr.push({ y: npcPos(dung.curRoom).y, f: drawNpc });
+  if(merchHere()) dr.push({ y: dung.curRoom.mpos[1], f: drawMerch });
   if(mode === 'dung' && dung.curRoom) for(const q of dung.curRoom.props) if(!q.dead) dr.push({ y: q.y * T + T, f: () => drawProp(q) });
   if(net.on) for(const id in net.rem){
     const r = net.rem[id];
@@ -3506,19 +3706,9 @@ function draw(){
   if(p.dead > 1000) dr.push({ y: p.y, f: () => drawGrave(p.x, p.y) });
   if(pet) dr.push({ y: pet.y, f: () => drawPet(g, Math.round(pet.x - camx), Math.round(pet.y - camy), pet.ty, pet.t) });
 
-  for(const q of coins) dr.push({
-    y: q.y, f: () => {
-      const w = 2 + Math.abs(Math.sin(t * 6 + q.x)) * 2, b = Math.round(Math.sin(t * 5 + q.y));
-      R(q.x - w / 2, q.y - 4 + b, w, 4, '#ffd23f');
-    }
-  });
-
-  for(const h of hearts) dr.push({
-    y: h.y, f: () => {
-      const b = Math.sin(t * 5) * 1.5;
-      R(h.x - 3, h.y - 7 + b, 6, 5, '#e43b44');
-    }
-  });
+  for(const q of coins) dr.push({ y: q.y, f: () => drawCoinPick(q) });
+  for(const q of gems) dr.push({ y: q.y, f: () => drawGemPick(q) });
+  for(const h of hearts) dr.push({ y: h.y, f: () => drawHeartPick(h) });
 
   for(const id in net.rem){
     const r = net.rem[id];
@@ -3539,8 +3729,8 @@ function draw(){
 
   if(state !== 'menu' && !p.dead && !(p.inv > 0 && Math.floor(t * 20) % 2)){
     dr.push({ y: p.y, f: () => p.roll > 0
-      ? drawRolling(Math.round(p.x - camx), Math.round(p.y - camy), { ...p, arm: V.arm, w: V.eq }, V.av, 1 - p.roll / ROLL_T, p.rsg)
-      : drawChar(g, Math.round(p.x - camx), Math.round(p.y - camy), { ...p, arm: V.arm, w: V.eq }, V.av) });
+      ? drawRolling(Math.round(p.x - camx), Math.round(p.y - camy), { ...p, arm: V.arm, w: V.eq, sit: p.seated }, V.av, 1 - p.roll / ROLL_T, p.rsg)
+      : drawChar(g, Math.round(p.x - camx), Math.round(p.y - camy), { ...p, arm: V.arm, w: V.eq, sit: p.seated }, V.av) });
   }
 
   dr.sort((a, b) => a.y - b.y).forEach(d => d.f());
@@ -3559,17 +3749,20 @@ function draw(){
 
   // Vida, armadura y monedas sobre un fondo semitransparente
   const maxHearts = Math.max(5, p.maxHp || 5), nIc = maxHearts + (p.ar || 0);
-  g.fillStyle = 'rgba(6,8,14,.55)'; g.fillRect(2, 2, nIc * 9 + 3, 24);
+  const cw = String(V.coins).length * 4.2, gx_ = 16 + cw, showG = mode !== 'duel' && (V.gems > 0 || mode === 'dung');
+  g.fillStyle = 'rgba(6,8,14,.55)'; g.fillRect(2, 2, Math.max(nIc * 9 + 3, showG ? gx_ + 12 + String(V.gems || 0).length * 4.2 + (mode === 'dung' ? 12 : 0) : 0), 24);
   for(let i = 0; i < maxHearts; i++) pxIcon(HEART, 4 + i * 9, 4, i < p.hp ? '#ef4b5a' : '#3a1d27', i < p.hp ? '#ff9aa4' : null);
   for(let i = 0; i < (p.ar || 0); i++) pxIcon(SHIELD, 4 + (maxHearts + i) * 9, 4, '#56c8e0', '#c4f1fb');
   if(mode !== 'duel'){ pxIcon(COIN, 4, 13, '#f2b33d', '#ffe9a8'); TX(V.coins, 12, 18.5, 4.2, '#fff'); }
-  if(mode === 'dung' && npcRoom() && hasKey()) pxIcon(KEY, 36, 14, '#f2b33d', '#ffe9a8');   // llave del jefe
+  if(showG){ pxIcon(GEM_I, gx_, 14, '#7dd3fc', '#e8fbff'); TX(V.gems || 0, gx_ + 7, 18.5, 4.2, '#b9ecff'); }
+  if(mode === 'dung' && npcRoom() && hasKey()) pxIcon(KEY, showG ? gx_ + 11 + String(V.gems || 0).length * 4.2 : 36, 14, '#f2b33d', '#ffe9a8');   // llave del jefe
   // recarga del roll
   g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(4, 22, 20, 2);
   g.fillStyle = p.rlc > 0 ? '#56c8e0' : '#3ecf8e'; g.fillRect(4, 22, Math.round(20 * Math.min(1, 1 - Math.max(0, p.rlc) / ROLL_CD)), 2);
 
   if(mode === 'dung'){
     TX('PISO ' + dung.floor + ': ' + dung.floorTheme.n.toUpperCase(), W / 2, 9, 4.2, '#ffd23f', 'center');
+    if(dif) TX(DF().n.toUpperCase(), W / 2, 23.5, 3, DF().col, 'center');
     const rr_ = dung.curRoom;
     if(rr_ && !rr_.cleared) TX('ENEMIGOS: ' + enemies.length + (rr_.waves > 1 ? '   OLEADA ' + Math.max(1, rr_.wave) + '/' + rr_.waves : ''), W / 2, 17, 3.6, '#ff9d9d', 'center');
     if(dung.passives.length > 0){
@@ -3622,7 +3815,7 @@ function draw(){
   }
 
   drawReviveHud();
-  drawBenchHud(); drawStallHud(); drawNpcHud(); drawLockHud();
+  drawBenchHud(); drawStallHud(); drawNpcHud(); drawLockHud(); drawMerchHud();
   if(touchOn() && state === 'play' && !paused) drawSticks();
   if(state === 'play' && !paused){
     g.fillStyle = S.cross || '#fff';
@@ -3636,6 +3829,38 @@ const HEART = ['.XX.XX.', 'XoXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...']
 const SHIELD = ['XXXXXXX', 'XoXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'];
 const COIN = ['.XXX.', 'XoXXX', 'XXXXX', 'XXXXX', '.XXX.'];
 const KEY = ['.XX.....', 'Xo.XXXXX', 'X..X.X.X', '.XX.....'];
+// ---- objetos en el piso: que se note qué son (moneda que gira, corazón que late)
+const COIN_F = [['..XXX..', '.XoXXX.', 'XoXdXXX', 'XoXdXXX', 'XXXdXXX', '.XXXXX.', '..XXX..'],
+  ['.XXX.', 'XoXXX', 'XoXdX', 'XXXdX', 'XXXdX', 'XXXXX', '.XXX.'], ['.X.', 'XoX', 'XdX', 'XdX', 'XdX', 'XXX', '.X.'], ['X', 'X', 'X', 'X', 'X', 'X', 'X']];
+const COIN_SEQ = [0, 1, 2, 3, 2, 1];   // vuelta completa de la moneda
+const HEART_P = ['.XX.XX.', 'XooXXXX', 'XoXXXXX', 'XXXXXXd', '.XXXXd.', '..XXd..', '...d...'];
+// dibuja un patrón con contorno oscuro; pal: color de cada letra
+function pxPat(pat, x, y, pal, ol){
+  x = Math.round(x); y = Math.round(y);
+  g.fillStyle = ol;
+  for(let r = 0; r < pat.length; r++) for(let q = 0; q < pat[r].length; q++) if(pat[r][q] !== '.')
+    for(const [a, b] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.fillRect(x + q + a, y + r + b, 1, 1);
+  for(let r = 0; r < pat.length; r++) for(let q = 0; q < pat[r].length; q++){
+    const ch = pat[r][q]; if(ch === '.') continue;
+    g.fillStyle = pal[ch]; g.fillRect(x + q, y + r, 1, 1);
+  }
+}
+function drawCoinPick(q){
+  const X = q.x - camx, Y = q.y - camy, ph = COIN_SEQ[Math.floor((t * 10 + q.x * .1) % 6)], f = COIN_F[ph], w = f[0].length;
+  const b = Math.round(Math.sin(t * 5 + q.y) * 1.2);
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(Math.round(X - 3), Math.round(Y), 7, 1);   // sombra
+  pxPat(f, X - Math.floor(w / 2), Y - 9 + b, ph === 3 ? { X: '#c98a1c', o: '#ffe9a8', d: '#c98a1c' } : { X: '#f2b33d', o: '#ffe9a8', d: '#c98a1c' }, '#5a3d06');
+  if(ph === 0 && Math.sin(t * 2 + q.x) > .6){ g.fillStyle = '#fff'; g.fillRect(Math.round(X - 1), Math.round(Y - 8 + b), 1, 1); g.fillRect(Math.round(X + 2), Math.round(Y - 10 + b), 1, 1); }   // brillito
+}
+function drawHeartPick(h){
+  const X = h.x - camx, Y = h.y - camy, b = Math.round(Math.sin(t * 4) * 1.5), k = .5 + .5 * Math.sin(t * 6);
+  g.fillStyle = 'rgba(228,59,68,' + (.12 + .12 * k) + ')'; g.beginPath(); g.arc(X, Y - 6 + b, 7 + k * 2, 0, 6.283); g.fill();   // resplandor que late
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(Math.round(X - 3), Math.round(Y), 7, 1);
+  pxPat(HEART_P, X - 3, Y - 10 + b, { X: '#e43b44', o: '#ff9aa4', d: '#a61e2b' }, '#3a0d14');
+  // destellos alrededor
+  const s_ = Math.floor(t * 3) % 3, sp = [[-6, -9], [5, -11], [6, -3]][s_];
+  g.fillStyle = 'rgba(255,220,225,' + k + ')'; g.fillRect(Math.round(X + sp[0]), Math.round(Y + sp[1] + b), 1, 3); g.fillRect(Math.round(X + sp[0] - 1), Math.round(Y + sp[1] + 1 + b), 3, 1);
+}
 function pxIcon(pat, x, y, col, hl){
   for(let r = 0; r < pat.length; r++) for(let q = 0; q < pat[r].length; q++){
     const ch = pat[r][q]; if(ch === '.') continue;
@@ -3732,6 +3957,7 @@ const I = {
 };
 const spl = t => [...t].map((c, i) => `<span style="--i:${i}">${c}</span>`).join('');
 
+let menuPlay = false;   // menú principal mostrando los modos (después de tocar Jugar)
 function main(msg){
   dungIso(false); net.wait = false; dung.passives = [];
   if(mode === 'dung'){ mode = 'surv'; genMap(3, 0, false); buildMini(); }
@@ -3749,25 +3975,30 @@ function main(msg){
     </div>
     ${msg ? `<div class="msg bad" style="margin:1cqw 0 0">${esc(msg)}</div>` : ''}
     <div class=cols>
-      <div class=nav>
-        <!-- MODO MAZMORRAS DESTACADO -->
-        <div class=hero-mode data-a=dung>
-          <b>${I.key} Modo Mazmorras</b>
-          <small>Estilo Isaac: muchas habitaciones, cámara fija, reliquias acumulables, trampillas y jefes temibles.</small>
-          <div class=hero-tags>
-            <span>1-8 jugadores</span><span>Roguelike</span><span>Reliquias</span>
+      <div class="nav${menuPlay ? ' play' : ''}">
+        <!-- inicio: Jugar y lo demás -->
+        <div class=nhome>
+          <button class=playb data-a=play>${I.play}<span><b>Jugar</b><small>Mazmorras, Arena PvP, Campaña y Supervivencia · solo o con amigos</small></span></button>
+          <div class=nrow>
+            <button class=mb data-a=shop>${I.cart}<span><b>Tienda</b><small>Armas y equipo</small></span></button>
+            <button class=mb data-a=loads>${I.save}<span><b>Cargar</b><small>Partidas guardadas</small></span></button>
+            <button class=mb data-a=set>${I.sliders}<span><b>Ajustes</b><small>Audio, video, controles</small></span></button>
           </div>
         </div>
-
-        <button class="mb s" data-a=online>${I.globe}<span><b>Cooperativo online</b><small>Salas públicas y privadas</small></span></button>
-        <button class=mb data-a=duel>${I.target}<span><b>Arena PvP</b><small>1v1, 2v2, 3v3, 4v4 y todos contra todos · ranking</small></span></button>
-        <button class=mb data-a=camp>${I.flag}<span><b>Campaña clásica</b><small>Niveles y misiones · 1-8 jugadores</small></span></button>
-        <button class=mb data-a=surv>${I.swords}<span><b>Supervivencia</b><small>Oleadas sin fin · 1-8 jugadores</small></span></button>
-        <div class=nrow>
-          ${NB ? `<button class=mb data-a=local>${I.link}<span><b>Local</b><small>Sin internet</small></span></button>` : ''}
-          <button class=mb data-a=shop>${I.cart}<span><b>Tienda</b><small>Armas y equipo</small></span></button>
-          <button class=mb data-a=loads>${I.save}<span><b>Cargar</b><small>Partidas guardadas</small></span></button>
-          <button class=mb data-a=set>${I.sliders}<span><b>Ajustes</b><small>Audio, video, controles</small></span></button>
+        <!-- al tocar Jugar: los modos (el online se elige en cada uno con la cantidad de jugadores) -->
+        <div class=nplay>
+          <div class=hero-mode data-a=dung>
+            <b>${I.key} Modo Mazmorras</b>
+            <small>Estilo Isaac: muchas habitaciones, cámara fija, reliquias acumulables, trampillas y jefes temibles.</small>
+            <div class=hero-tags>
+              <span>1-8 jugadores</span><span>Roguelike</span><span>3 dificultades</span>
+            </div>
+          </div>
+          <button class=mb data-a=duel>${I.target}<span><b>Arena PvP</b><small>1v1, 2v2, 3v3, 4v4 y todos contra todos · ranking</small></span></button>
+          <button class=mb data-a=camp>${I.flag}<span><b>Campaña clásica</b><small>Niveles y misiones · 1-8 jugadores</small></span></button>
+          <button class=mb data-a=surv>${I.swords}<span><b>Supervivencia</b><small>Oleadas sin fin · 1-8 jugadores</small></span></button>
+          ${NB ? `<button class=mb data-a=local>${I.link}<span><b>Partida local</b><small>Wi-Fi o Bluetooth, sin internet</small></span></button>` : ''}
+          <button class="mb back" data-a=playx>${I.back}<span><b>Atrás</b></span></button>
         </div>
       </div>
 
@@ -3795,7 +4026,7 @@ function main(msg){
         <div><span>Revivir</span><kbd>Mantener</kbd></div>
         <div><span>Pausa</span><kbd>II</kbd></div>` : `<div><span>Mover</span><kbd>WASD</kbd></div>
         <div><span>Disparar</span><kbd>Click</kbd></div>
-        <div><span>Cambiar arma</span><kbd>1-8</kbd></div>
+        <div><span>Cambiar arma</span><kbd>1-0</kbd></div>
         <div><span>Roll</span><kbd>Espacio</kbd></div>
         <div><span>Tienda</span><kbd>B</kbd></div>
         <div><span>Minimapa</span><kbd>M</kbd></div>
@@ -3884,17 +4115,17 @@ const sbar = (l, v) => `<div class=sr><small>${l}</small><div class=st><i style=
 function shop(tb){
   if(tb !== undefined) shopTab = +tb;
   const tabs = ['Armas', 'Armaduras', 'Mascotas'].map((n, i) => `<button class="tab${i == shopTab ? ' on' : ''}" data-a=tab data-v=${i}>${n}</button>`).join('');
-  const items = shopTab == 0 ? WP.map((w, i) => ({
+  const items = (shopTab == 0 ? WP.map((w, i) => ({
     k: 'w', i, n: w.n, d: w.pel > 1 ? 'Dispara ' + w.pel + ' proyectiles' : 'Disparo veloz',
     st: sbar('DAÑO', w.d * w.pel / 6) + sbar('CADENCIA', 1 / w.cd / 11),
     pr: w.pr, own: V.owned.includes(i), eq: V.eq == i
   })) : shopTab == 1 ? ARM.map((a, i) => ({
     k: 'a', i, n: a.n, d: 'Absorbe ' + a.a + (a.a > 1 ? ' golpes' : ' golpe'),
-    st: `<div class=sr><small>ABSORBE</small><div class=pips>${'■'.repeat(a.a)}${'□'.repeat(3 - a.a)}</div></div>`,
+    st: `<div class=sr><small>ABSORBE</small><div class=pips>${'■'.repeat(a.a)}${'□'.repeat(Math.max(0, 3 - a.a))}</div></div>`,
     pr: a.pr, own: V.armo.includes(i), eq: V.arm == i
   })) : PETS.map((q, i) => ({
     k: 'p', i, n: q.n, d: q.d, st: '', pr: q.pr, own: V.peto.includes(i), eq: V.pet == i
-  }));
+  }))).filter(it => !(it.k === 'w' ? WP : it.k === 'a' ? ARM : PETS)[it.i].gem || it.own);
 
   const card = it => {
     const [rn, rc] = RAR[rar(it.pr)];
@@ -4012,7 +4243,10 @@ const SH = ['#3b82f6', '#e43b44', '#38b764', '#ffe66d', '#8e44ad', '#f5f5f5', '#
 const EC = ['#111111', '#3b82f6', '#38b764', '#a855f7', '#ef4444', '#06b6d4'];
 const PN = ['#3a3a5c', '#222222', '#1e40af', '#7c4a1e', '#14532d', '#d6d3c8', '#6b21a8'];
 const HSN = ['Corto', 'Largo', 'Púas', 'Rapado', 'Cola'], OSN = ['Remera', 'Rayas', 'Chaqueta', 'Buzo'];
-const ACN = ['Ninguno', 'Gorra', 'Corona', 'Gafas', 'Casco', 'Orejas', 'Bandana'];
+const ACN = ['Ninguno', 'Gorra', 'Corona', 'Gafas', 'Casco', 'Orejas', 'Bandana', 'Aureola', 'Cuernos', 'Corona de diamante'];
+const ACC_GEM = { 7: 1, 8: 1, 9: 1 };   // accesorios que se consiguen con el comerciante errante
+const accOwn = i => !ACC_GEM[i] || (V.acco || []).includes(i);
+const accOpts = () => ACN.map((n, i) => `<button class="mini${(V.av.acc | 0) === i ? ' s' : ''}" data-a=avn data-k=acc data-v=${i} ${accOwn(i) ? '' : 'disabled title="Se consigue con el comerciante errante"'}>${ACC_GEM[i] ? '<i class=dia></i> ' : ''}${n}</button>`).join('');
 const optb = (k, names) => names.map((n, i) => `<button class="mini${(V.av[k] | 0) === i ? ' s' : ''}" data-a=avn data-k=${k} data-v=${i}>${n}</button>`).join('');
 const sw = (k, l) => l.map(x => `<span class="sw${V.av[k] == x ? ' s' : ''}" style="background:${x}" data-a=col data-k=${k} data-v="${x}"></span>`).join('');
 
@@ -4029,7 +4263,7 @@ function avatar(){
       <div class=orow><small>ROPA</small><div>${sw('shirt', SH)}</div></div>
       <div class=orow><small>ESTILO</small><div>${optb('os', OSN)}</div></div>
       <div class=orow><small>PANTALÓN</small><div>${sw('pn', PN)}</div></div>
-      <div class=orow><small>ACCESORIO</small><div>${optb('acc', ACN)}</div></div>
+      <div class=orow><small>ACCESORIO</small><div>${accOpts()}</div></div>
     </div>
   </div>
   <div class=actions><button data-a=rnd>${I.shuffle} Aleatorio</button><button class=s data-a=back>${I.check} Listo</button></div>`);
@@ -4042,22 +4276,14 @@ const MN = { dung: 'MAZMORRAS', camp: 'CAMPAÑA', surv: 'SUPERVIVENCIA', duel: '
 // Elegir cuántos jugadores: 1 = solitario, 2+ = sala online para esa cantidad
 function players(md, onlineOnly){
   net.mode = md;
-  const ns = []; for(let n = onlineOnly ? 2 : 1; n <= MAXP; n++) ns.push(n);
+  const ns = [], vd = V.dif | 0; for(let n = onlineOnly ? 2 : 1; n <= MAXP; n++) ns.push(n);
   panel(`<h2>${MN[md]}</h2>
+  ${md === 'dung' ? `<div class=r>Dificultad</div>
+  <div class=pcount style="grid-template-columns:repeat(3,1fr)">${DIFS.map((D, i) => `<button class="${i === vd ? 's' : ''}" data-a=dif data-v=${i} style="${i === vd ? '' : 'border-color:' + D.col + '66'}"><b style="color:${i === vd ? 'inherit' : D.col}">${D.n}</b><small>${D.d}</small></button>`).join('')}</div>
+  <div class=r><small>Premio al escapar: ${DIFS[vd].bonus} monedas${vd === 2 ? ' · ' : ''}${vd === 2 ? 'empezás con 1 corazón' : ''}</small></div>` : ''}
   <div class=r>¿Cuántos jugadores?</div>
   <div class=pcount>${ns.map(n => `<button class="${n === 1 ? 's' : ''}" data-a=np data-v=${n}>${n}<small>${n === 1 ? 'SOLITARIO' : 'ONLINE'}</small></button>`).join('')}</div>
   <div class=r><small>Con 2 o más se crea una sala online cooperativa para esa cantidad de jugadores.</small></div>
-  <button data-a=back>${I.back} Volver</button>`);
-}
-
-function modeSel(){
-  panel(`<h2>Cooperativo online</h2>
-  <div class=r>Elegí el modo para jugar con amigos</div>
-  <div class=duo>
-    <button class="big s" data-a=om data-v=dung>${I.key}<b>Mazmorras</b><small>Exploren habitaciones estilo Isaac y luchen juntos contra los jefes.</small></button>
-    <button class=big data-a=om data-v=camp>${I.flag}<b>Campaña</b><small>Niveles continuos con puertas y misiones.</small></button>
-    <button class=big data-a=om data-v=surv>${I.swords}<b>Supervivencia</b><small>Rondas de 5 minutos con ranking de bajas y votación de mapas.</small></button>
-  </div>
   <button data-a=back>${I.back} Volver</button>`);
 }
 
@@ -4119,7 +4345,7 @@ async function api(path, body){
 }
 
 // Lo que se guarda en la cuenta: monedas, compras, equipo, récords y personaje
-const CLOUD = ['coins', 'owned', 'eq', 'arm', 'armo', 'pet', 'peto', 'bestDung', 'bestKills', 'av'];
+const CLOUD = ['coins', 'owned', 'eq', 'arm', 'armo', 'pet', 'peto', 'bestDung', 'bestKills', 'av', 'gems', 'acco'];
 const cloudData = () => { const src = DB ? Object.assign({}, V, DB) : V, o = {}; CLOUD.forEach(k => o[k] = src[k]); return o; };
 let cloudLast = '', cloudT = 0;
 function cloudPush(force){
@@ -4133,7 +4359,7 @@ function applyAccount(u){
   AU.name = u.name; AU.stats = u.stats || null; saveAU();
   if(u.data){
     const dst = DB || V;   // en medio de una mazmorra o duelo, el progreso real está en DB
-    for(const k of CLOUD) if(k !== 'av' && u.data[k] !== undefined) dst[k] = u.data[k];
+    for(const k of CLOUD) if(k !== 'av' && u.data[k] !== undefined) (k === 'gems' || k === 'acco' ? V : dst)[k] = u.data[k];
     for(const k in u.data.av || {}) if(u.data.av[k] != null) V.av[k] = u.data.av[k];
     cloudLast = JSON.stringify(cloudData());
   } else cloudPush(true);   // cuenta nueva: sube el progreso que ya tenías en este navegador
@@ -4309,7 +4535,7 @@ function vetoPanel(){
   panel(`<h2>Veto de armas</h2>
   <div class=r>${!v ? 'Preparando el veto…' : mine ? '<b style="color:var(--acc)">Te toca: elegí un arma para sacarla</b>' : `Veta <b style="color:${whoCol(v.turn)}">${esc(pvName(v.turn))}</b>…`}
     ${v ? ` · <b id=vtm class=vt>${Math.max(0, Math.ceil((v.until - Date.now()) / 1000))}</b>s` : ''}</div>
-  <div class="grid vgrid">${WP.map((w, i) => {
+  <div class="grid vgrid">${WP.map((w, i) => { if(w.gem) return '';
     const out = vetoed[i], live = v && v.left.includes(i);
     return `<button class="it vw${out ? ' out' : ''}${mine && live ? ' pick' : ''}" ${mine && live ? `data-a=veto data-v=${i}` : 'disabled'}>
       <canvas class=ic data-k=w data-i=${i} width=24 height=24></canvas><b class=nm>${w.n}</b>
@@ -4317,8 +4543,9 @@ function vetoPanel(){
       ${out ? `<small class=vby style="color:${whoCol(out[0])}">✕ ${esc(pvName(out[0]))}${out[1] ? ' (tiempo)' : ''}</small>` : ''}
     </button>`;
   }).join('')}</div>
-  <div class=r><small>Quedan ${v ? v.left.length : WP.length} armas · la última se usa en todas las rondas</small></div>`);
+  <div class=r><small>Quedan ${v ? v.left.length : WP.filter(w => !w.gem).length} armas · la última se usa en todas las rondas</small></div>`);
   document.querySelectorAll('.vgrid .ic').forEach(cv => icon(cv.getContext('2d'), 'w', +cv.dataset.i, 0, 0));
+  uic.querySelector('.p').classList.toggle('vglow', !!mine);   // te toca vetar: la ventana brilla
   clearInterval(vetoTick);
   vetoTick = setInterval(() => {
     const e = $('#vtm');
@@ -4832,7 +5059,7 @@ function lobbyGo(d){
   if(net.mode === 'dung'){
     net.wait = true; net.wl = {};
     if(!net.host) return wait('Mazmorras');
-    const sdv = rnd(1, 99999); snd({ t: 'd_go', fl: 1, sd: sdv }); beginDung(1, sdv); return;
+    const sdv = rnd(1, 99999); snd({ t: 'd_go', fl: 1, sd: sdv, dif: V.dif | 0 }); beginDung(1, sdv); return;
   }
   start(net.mode, 1);
 }
@@ -4872,7 +5099,7 @@ function snapGame(){
     hp: p.hp > 0 ? p.hp : 2, mh: p.maxHp || 5, ar: p.ar || 0
   };
   if(mode === 'dung') s.d = {
-    fl: dung.floor, sd: dung.seed, rk: dung.curRoomKey, rs: dungRS(), pas: dung.passives.slice(),
+    fl: dung.floor, sd: dung.seed, rk: dung.curRoomKey, rs: dungRS(), pas: dung.passives.slice(), dif,
     inv: { coins: V.coins, owned: V.owned.slice(), eq: V.eq }
   };
   return s;
@@ -4889,7 +5116,7 @@ function saveGame(fromBench){
   return ok;
 }
 function applySave(s){
-  if(s.mode === 'dung') beginDung(s.d.fl, s.d.sd, s.d.rk, null, s.d.rs);
+  if(s.mode === 'dung') beginDung(s.d.fl, s.d.sd, s.d.rk, null, s.d.rs, s.d.dif | 0);
   else start(s.mode, s.lvl, s.mp);
   restorePlayer(s);
 }
@@ -4910,7 +5137,7 @@ function loadGame(i){
   net.autoRoom = pref() + (s.room || 'Partida');
   connect(V.srv || DEFAULT_SERVER);
 }
-const saveDesc = s => s.mode === 'dung' ? 'PISO ' + (s.d ? s.d.fl : s.lvl) : s.mode === 'camp' ? 'NIVEL ' + s.lvl : 'OLEADA ' + (1 + Math.floor((s.kills || 0) / 10));
+const saveDesc = s => s.mode === 'dung' ? 'PISO ' + (s.d ? s.d.fl : s.lvl) + (s.d && s.d.dif ? ' · ' + DIFS[s.d.dif].n.toUpperCase() : '') : s.mode === 'camp' ? 'NIVEL ' + s.lvl : 'OLEADA ' + (1 + Math.floor((s.kills || 0) / 10));
 function savesMenu(msg){
   const l = getSaves();
   panel(`<h2>Partidas guardadas</h2>
@@ -4929,11 +5156,13 @@ const A = {
   surv: () => players('surv'),
   np: v => {
     curSave = null; net.load = null; net.autoRoom = null;
-    if(+v === 1) return start(net.mode, 1);
+    if(+v === 1){ if(net.mode === 'dung') dif = V.dif | 0; return start(net.mode, 1); }
     net.max = +v; online();
   },
   np2: () => players(net.mode),
   loads: () => savesMenu(),
+  dif: v => { V.dif = Math.max(0, Math.min(2, +v)); save(); players(net.mode); },
+  merchb: v => merchBuy(+v),
   npcn: () => npcReady(),
   npcx: () => { npcTalk = null; A.resume(); },   // solo jugando solo: cerrar a mitad (hay que volver a hablarle)
   lobby: () => { if(net.on && net.lan) raw({ t: 'lobby', md: lanCurMd() }); },
@@ -4971,7 +5200,8 @@ const A = {
   sload: v => loadGame(+v),
   sdel: v => { const l = getSaves(); l.splice(+v, 1); putSaves(l); savesMenu(); },
   gsave: () => saveGame(false),
-  online: () => modeSel(),
+  play: () => { menuPlay = true; const n = $('.nav'); if(n) n.classList.add('play'); },
+  playx: () => { menuPlay = false; const n = $('.nav'); if(n) n.classList.remove('play'); },
   rnd: () => {
     V.av.skin = SK[rnd(0, SK.length - 1)];
     V.av.hair = HR[rnd(0, HR.length - 1)];
@@ -4980,10 +5210,10 @@ const A = {
     V.av.pn = PN[rnd(0, PN.length - 1)];
     V.av.hs = rnd(0, HSN.length - 1);
     V.av.os = rnd(0, OSN.length - 1);
-    V.av.acc = rnd(0, ACN.length - 1);
+    V.av.acc = rnd(0, 6);
     save(); avatar();
   },
-  avn: (v, k) => { V.av[k] = +v; save(); avatar(); },
+  avn: (v, k) => { if(k === 'acc' && !accOwn(+v)) return; V.av[k] = +v; save(); avatar(); },
   crt: () => {
     S.crt = S.crt === false; save();
     document.getElementById('w').classList.toggle('crt', S.crt !== false);
@@ -5001,15 +5231,15 @@ const A = {
     if(net.host) vote.votes[net.id] = +v; else snd({ t: 'vt', i: +v });
     updVote();
   },
-  om: v => players(v, true),
+
   dstart: () => {
     if(!net.on || !net.host || !net.wait) return;
     const L = net.load; net.load = null;
     if(L && L.d){
-      snd({ t: 'd_go', fl: L.d.fl, sd: L.d.sd, rk: L.d.rk, rs: L.d.rs });
-      beginDung(L.d.fl, L.d.sd, L.d.rk, null, L.d.rs); restorePlayer(L); return;
+      snd({ t: 'd_go', fl: L.d.fl, sd: L.d.sd, rk: L.d.rk, rs: L.d.rs, dif: L.d.dif | 0 });
+      beginDung(L.d.fl, L.d.sd, L.d.rk, null, L.d.rs, L.d.dif | 0); restorePlayer(L); return;
     }
-    const sdv = rnd(1, 99999); snd({ t: 'd_go', fl: 1, sd: sdv }); beginDung(1, sdv);
+    const sdv = rnd(1, 99999); snd({ t: 'd_go', fl: 1, sd: sdv, dif: V.dif | 0 }); beginDung(1, sdv);
   },
   wquit: () => A.quit(),
   tab: v => shop(v),
@@ -5090,7 +5320,9 @@ function tcSync(){
   if(on !== tcShown){ tcShown = on; tc.classList.toggle('on', on); if(!on){ stick = aimStick = null; stickId = aimId = null; mdown = false; } }
   if(!on) return;
   tcRev.classList.toggle('on', !!p.rvTgt);
-  document.getElementById('tcTalk').classList.toggle('on', npcNear());
+  const ca = ctxAct(), tt_ = document.getElementById('tcTalk');
+  tt_.classList.toggle('on', !!ca);
+  if(ca && tt_.textContent !== ca.n) tt_.textContent = ca.n;
   tcMap.classList.toggle('on', mode === 'camp' || mode === 'surv');
   tcMap.classList.toggle('act', miniTouch);
   tcRoll.classList.toggle('cd', p.rlc > 0 || p.roll > 0);
@@ -5132,7 +5364,7 @@ document.querySelectorAll('.tcb').forEach(b => {
     if(k === 'roll') keys[' '] = true;
     else if(k === 'rev') keys.e = true;
     else if(k === 'weap') nextWeapon();
-    else if(k === 'talk') npcOpen();
+    else if(k === 'talk'){ const c = ctxAct(); if(c) c.f(); }
     else if(k === 'pause'){ if(state === 'play') pauseMenu(); }
     else if(k === 'map') miniTouch = !miniTouch;
   });
@@ -5154,11 +5386,11 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase(); keys[k] = true;
   const pl = state === 'play' && !open();
   if(pl && k === 'm') mini = !mini;
-  if(pl && k === 'e' && npcOpen()) keys.e = false;
+  if(pl && k === 'e'){ const c = ctxAct(); if(c){ c.f(); keys.e = false; } }
   if(k === 'f' && !(e.target && e.target.tagName === 'INPUT')) toggleFS();
   if(k === ' ' && pl) e.preventDefault();
   if(k === 'escape' && state === 'play'){ paused ? A.resume() : pauseMenu(); }
-  if(pl && k >= '1' && k <= '8'){ const i = +k - 1; if(V.owned.includes(i)) V.eq = i; }
+  if(pl && k >= '0' && k <= '9'){ const i = k === '0' ? 9 : +k - 1; if(V.owned.includes(i)) V.eq = i; }
   if(pl && k === 'b' && mode !== 'dung' && mode !== 'duel'){ paused = true; ret = pauseMenu; shop(); }
 });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
