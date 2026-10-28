@@ -79,12 +79,13 @@ class PgStore {
       name_lower TEXT PRIMARY KEY, name TEXT NOT NULL, salt TEXT NOT NULL, hash TEXT NOT NULL,
       data JSONB, stats JSONB NOT NULL DEFAULT '{}', created BIGINT NOT NULL)`);
     await this.pool.query('CREATE TABLE IF NOT EXISTS ps_meta (k TEXT PRIMARY KEY, v TEXT NOT NULL)');
+    await this.pool.query('ALTER TABLE ps_users ADD COLUMN IF NOT EXISTS social JSONB');   // amigos y solicitudes
   }
   async secret() {
     await this.pool.query('INSERT INTO ps_meta (k, v) VALUES ($1, $2) ON CONFLICT DO NOTHING', ['secret', crypto.randomBytes(32).toString('hex')]);
     return (await this.pool.query('SELECT v FROM ps_meta WHERE k = $1', ['secret'])).rows[0].v;
   }
-  row(r) { return r ? { name: r.name, salt: r.salt, hash: r.hash, data: r.data, stats: { ...DEFAULT_STATS, ...r.stats }, created: +r.created } : null; }
+  row(r) { return r ? { name: r.name, salt: r.salt, hash: r.hash, data: r.data, stats: { ...DEFAULT_STATS, ...r.stats }, social: r.social || null, created: +r.created } : null; }
   async getUser(name) {
     return this.row((await this.pool.query('SELECT * FROM ps_users WHERE name_lower = $1', [String(name).toLowerCase()])).rows[0]);
   }
@@ -97,6 +98,7 @@ class PgStore {
   async updateUser(name, fields) {
     if ('data' in fields) await this.pool.query('UPDATE ps_users SET data = $2 WHERE name_lower = $1', [String(name).toLowerCase(), fields.data]);
     if ('stats' in fields) await this.pool.query('UPDATE ps_users SET stats = $2 WHERE name_lower = $1', [String(name).toLowerCase(), fields.stats]);
+    if ('social' in fields) await this.pool.query('UPDATE ps_users SET social = $2 WHERE name_lower = $1', [String(name).toLowerCase(), fields.social]);
   }
   async top(n) {
     const { rows } = await this.pool.query(`SELECT * FROM ps_users WHERE (stats->>'matches')::int > 0 ORDER BY (stats->>'rating')::int DESC LIMIT $1`, [n]);

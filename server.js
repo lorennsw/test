@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 8080;
 const NAME_RE = /^[A-Za-z0-9_]{3,12}$/;
 // Versión del protocolo: subirla junto con GAME_V del juego cada vez que cambian los mensajes.
 // Un juego viejo (por ejemplo, guardado en la caché del navegador) no puede entrar a salas nuevas.
-const GAME_V = 5;
+const GAME_V = 6;
 
 (async () => {
   const store = await createStore();
@@ -46,6 +46,14 @@ const GAME_V = 5;
     req.on('error', () => ok({}));
   });
   const authName = req => readToken(String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''));
+  const authUser = async (req, res) => {
+    const name = authName(req), u = name && await store.getUser(name);
+    if (!u) json(res, 401, { error: 'Sesión vencida, iniciá sesión de nuevo' });
+    return u || null;
+  };
+  // amigos: lista y solicitudes recibidas guardadas en la cuenta; en línea e invitaciones solo en memoria
+  const social = u => { const so = u.social || {}; return { friends: Array.isArray(so.friends) ? so.friends.slice(0, 100) : [], req: Array.isArray(so.req) ? so.req.slice(0, 30) : [] }; };
+  const seen = new Map(), invites = new Map();
 
   const routes = {
     'GET /': (req, res) => { res.writeHead(200, CORS); res.end('Pixel Shooter server OK'); },
@@ -87,6 +95,66 @@ const GAME_V = 5;
     },
     'GET /api/top': async (req, res) => {
       json(res, 200, (await store.top(10)).map(u => [u.name, u.stats.rating, u.stats.wins, u.stats.losses]));
+    },
+
+    // ---------- amigos: solicitudes, lista (con quién está en línea) e invitaciones a salas
+    'GET /api/friends': async (req, res) => {
+      const me = await authUser(req, res); if (!me) return;
+      seen.set(me.name.toLowerCase(), Date.now());   // consultar la lista cuenta como estar en línea
+      const so = social(me), now = Date.now();
+      const friends = await Promise.all(so.friends.map(async n => {
+        const u = await store.getUser(n);
+        return u ? { name: u.name, online: now - (seen.get(n.toLowerCase()) || 0) < 25000 } : null;
+      }));
+      const inv = (invites.get(me.name.toLowerCase()) || []).filter(i => now - i.t < 120000);
+      invites.delete(me.name.toLowerCase());
+      json(res, 200, { friends: friends.filter(Boolean), req: so.req, inv });
+    },
+    'POST /api/friends/add': async (req, res, ip) => {
+      if (limited(ip)) return json(res, 429, { error: 'Demasiados intentos, esperá un minuto' });
+      const me = await authUser(req, res); if (!me) return;
+      const { name } = await readBody(req), u = typeof name === 'string' && await store.getUser(name);
+      if (!u) return json(res, 404, { error: 'No existe ese usuario' });
+      if (u.name.toLowerCase() === me.name.toLowerCase()) return json(res, 400, { error: 'No te podés agregar a vos mismo' });
+      const a = social(me), b = social(u), has = (l, n) => l.some(x => x.toLowerCase() === n.toLowerCase());
+      if (has(a.friends, u.name)) return json(res, 200, { ok: true, msg: 'Ya son amigos' });
+      if (has(a.req, u.name)) {   // ya te había mandado solicitud: se hacen amigos directo
+        a.req = a.req.filter(x => x.toLowerCase() !== u.name.toLowerCase()); a.friends.push(u.name); b.friends.push(me.name);
+        await store.updateUser(me.name, { social: a }); await store.updateUser(u.name, { social: b });
+        return json(res, 200, { ok: true, msg: 'Ahora son amigos' });
+      }
+      if (!has(b.req, me.name)) { b.req.push(me.name); b.req = b.req.slice(-30); await store.updateUser(u.name, { social: b }); }
+      json(res, 200, { ok: true, msg: 'Solicitud enviada a ' + u.name });
+    },
+    'POST /api/friends/accept': async (req, res) => {
+      const me = await authUser(req, res); if (!me) return;
+      const { name } = await readBody(req), a = social(me);
+      if (typeof name !== 'string' || !a.req.some(x => x.toLowerCase() === name.toLowerCase())) return json(res, 404, { error: 'No hay solicitud de ese usuario' });
+      const u = await store.getUser(name);
+      a.req = a.req.filter(x => x.toLowerCase() !== name.toLowerCase());
+      if (u) { const b = social(u); a.friends.push(u.name); b.friends.push(me.name); b.req = b.req.filter(x => x.toLowerCase() !== me.name.toLowerCase()); await store.updateUser(u.name, { social: b }); }
+      await store.updateUser(me.name, { social: a });
+      json(res, 200, { ok: true });
+    },
+    'POST /api/friends/remove': async (req, res) => {   // quitar amigo o rechazar solicitud
+      const me = await authUser(req, res); if (!me) return;
+      const { name } = await readBody(req); if (typeof name !== 'string') return json(res, 400, { error: 'Faltan datos' });
+      const lo = name.toLowerCase(), a = social(me), not = x => x.toLowerCase() !== lo;
+      a.friends = a.friends.filter(not); a.req = a.req.filter(not);
+      await store.updateUser(me.name, { social: a });
+      const u = await store.getUser(name);
+      if (u) { const b = social(u), n2 = x => x.toLowerCase() !== me.name.toLowerCase(); b.friends = b.friends.filter(n2); await store.updateUser(u.name, { social: b }); }
+      json(res, 200, { ok: true });
+    },
+    'POST /api/friends/invite': async (req, res) => {
+      const me = await authUser(req, res); if (!me) return;
+      const { name, room, md } = await readBody(req);
+      if (typeof name !== 'string' || typeof room !== 'string' || !/^P\|[A-Z0-9]{4,8}$/.test(room)) return json(res, 400, { error: 'Datos inválidos' });
+      if (!social(me).friends.some(x => x.toLowerCase() === name.toLowerCase())) return json(res, 403, { error: 'Solo podés invitar a tus amigos' });
+      const k = name.toLowerCase(), l = (invites.get(k) || []).filter(i => i.from !== me.name);
+      l.push({ from: me.name, room, md: typeof md === 'string' ? md.slice(0, 8) : '', t: Date.now() });
+      invites.set(k, l.slice(-5));
+      json(res, 200, { ok: true });
     }
   };
 
