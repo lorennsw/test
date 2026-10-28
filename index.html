@@ -169,7 +169,8 @@ kbd{display:inline-block;min-width:1.6em;text-align:center;background:rgba(255,2
 .stats small{display:block;margin-bottom:.2cqw;font-weight:600;letter-spacing:.08em;font-size:.72em}
 .stats b{font-size:1.5em;color:#fff;font-weight:700;font-variant-numeric:tabular-nums}
 .relics{display:flex;flex-wrap:wrap;gap:.4cqw;justify-content:center;margin:0 0 1.4cqw}
-.relics span{display:inline-flex;align-items:center;gap:.4cqw;padding:.25cqw .7cqw;background:var(--panel2);border:1px solid var(--line2);border-left:3px solid var(--c);border-radius:.4cqw;font-size:.85em}
+.relics>span{display:inline-flex;align-items:center;gap:.6cqw;padding:.35cqw .8cqw;background:var(--panel2);border:1px solid var(--line2);border-left:3px solid var(--c);border-radius:.4cqw;font-size:.85em;text-align:left}
+.relics>span>span{display:flex;flex-direction:column;line-height:1.25}.relics>span small{font-size:.85em}
 .glitch{margin:0 0 .4cqw;font-size:max(22px,3.4cqw);font-weight:900;letter-spacing:.08em;color:var(--bad)}
 .nr{display:inline-block;color:var(--acc-ink);background:var(--acc);font-weight:800;font-size:.8em;letter-spacing:.12em;padding:.2cqw .8cqw;border-radius:.4cqw;margin:.4cqw 0 1.2cqw}
 .win{font-size:1.1em;font-weight:700;color:var(--acc);margin:0 0 1.2cqw}.win small{display:block;color:var(--muted);font-weight:500}
@@ -541,17 +542,20 @@ function drawWeapon(cx, X, Y, wi, ang, kick){
 // ---------- RELIQUIAS / HABILIDADES PASIVAS (ESTILO TBOI) ----------
 const RELICS = [
   { id: 'boots', n: 'Alas de Hermes', d: '+30% velocidad de movimiento', ic: '👟', col: '#7df9ff', sp: 1.3 },
-  { id: 'vamp', n: 'Diente Vampírico', d: 'Probabilidad de curar al matar', ic: '🩸', col: '#ff4d6d', vmp: 0.16 },
+  { id: 'vamp', n: 'Diente Vampírico', d: '10% de curar 1 corazón al matar (máx. 1 cada 6s)', ic: '🩸', col: '#ff4d6d', vmp: 0.1 },
   { id: 'shield', n: 'Burbuja Rúnica', d: 'Absorbe 1 impacto cada 18s', ic: '🛡️', col: '#3b82f6', shd: 1 },
   { id: 'lens', n: 'Ojo de Halcón', d: '+1 de daño y mayor alcance', ic: '🎯', col: '#ffd23f', dmg: 1 },
-  { id: 'bomb', n: 'Pólvora Volátil', d: 'Balas explotan con área de impacto', ic: '💥', col: '#ff9d3d', exp: 1 },
+  { id: 'bomb', n: 'Pólvora Volátil', d: 'Ya no aparece', ic: '💥', col: '#ff9d3d', off: 1 },   // quitada (se deja para no correr los números de las demás)
   { id: 'pierce', n: 'Balas Fantasma', d: 'Los disparos atraviesan enemigos', ic: '🌀', col: '#c77dff', prc: 1 },
   { id: 'frost', n: 'Cristal Gélido', d: 'Ralentiza enemigos impactados 40%', ic: '❄️', col: '#a8dadc', fst: 1 },
   { id: 'frenzy', n: 'Batería Arcana', d: '+45% velocidad de disparo', ic: '⚡', col: '#ffe66d', cdr: 0.65 },
   { id: 'greed', n: 'Bolsa Afortunada', d: 'Duplica las monedas obtenidas', ic: '🪙', col: '#ffd23f', dbl: 1 },
   { id: 'heart', n: 'Cáliz Sagrado', d: '+2 corazones máximos y cura', ic: '💖', col: '#ff5c8a', hp: 2 },
-  { id: 'triple', n: 'Corona Tríada', d: 'Dispara 2 proyectiles extra en abanico', ic: '👑', col: '#06d6a0', extra: 2 }
+  { id: 'triple', n: 'Corona Tríada', d: 'Dispara 1 proyectil extra por disparo', ic: '👑', col: '#06d6a0', extra: 1 }
 ];
+// reliquias que pueden salir (sin las quitadas); rn: número al azar entre 0 y 1
+const RELIC_ON = RELICS.map((r, i) => i).filter(i => !RELICS[i].off);
+const relicPick = rn => RELIC_ON[Math.floor(rn * RELIC_ON.length)];
 
 // ---------- ENEMIGOS Y JEFES ----------
 const EN = [
@@ -915,7 +919,7 @@ function setupRoomInterior(r, th, fl, pr){
   const cx = r.w >> 1, cy = r.h >> 1;
   if(r.type === 'start'){ r.rug = true; return; }
   if(r.type === 'treasure'){
-    r.item = pr() < 0.5 ? { t: 'relic', i: Math.floor(pr() * RELICS.length) } : { t: 'wp', i: floorWp(fl, pr) };
+    r.item = pr() < 0.5 ? { t: 'relic', i: relicPick(pr()) } : { t: 'wp', i: floorWp(fl, pr) };
     r.rug = true;
     if(pr() < .4){
       for(const [dx, dy] of [[-2,-1],[-2,0],[-2,1],[2,-1],[2,0],[2,1],[-1,-2],[0,-2],[1,-2],[-1,2],[0,2],[1,2]]) r.spk.push({ x: cx + dx, y: cy + dy });
@@ -927,7 +931,7 @@ function setupRoomInterior(r, th, fl, pr){
     r.shopItems = [
       { t: 'heart', pr: 15, n: 'Corazón' },
       { t: 'armor', pr: 25, n: 'Armadura' },
-      { t: 'relic', pr: 45, i: Math.floor(pr() * RELICS.length), n: 'Reliquia' }
+      { t: 'relic', pr: 45, i: relicPick(pr()), n: 'Reliquia' }
     ];
     r.rug = true;
     return;
@@ -1117,7 +1121,7 @@ function checkDungClear(){
   if(enemies.length > 0) return;                         // la puerta no abre hasta matar a todos
   if(r.wave < r.waves){ spawnWave(r); return; }          // siguiente oleada
   r.cleared = true;
-  const rel = (r.type === 'boss' || r.type === 'challenge') ? rnd(0, RELICS.length - 1) : -1;
+  const rel = (r.type === 'boss' || r.type === 'challenge') ? relicPick(Math.random()) : -1;
   const hd = Math.random() < .35 ? 1 : 0, cn = rnd(4, 9);
   if(net.on) snd({ t: 'd_clear', k: dung.curRoomKey, rel, hd, cn });
   roomCleared(r, rel, hd, cn);
@@ -1134,7 +1138,7 @@ function roomCleared(r, rel, hd, cn){
     save();
   }
   if(r.type === 'boss' || r.type === 'challenge'){
-    dung.pedestals.push({ id: 'rw', x: (r.w / 2) * T, y: (r.h / 2 - 2) * T, item: { t: 'relic', i: rel >= 0 ? rel : rnd(0, RELICS.length - 1) } });
+    dung.pedestals.push({ id: 'rw', x: (r.w / 2) * T, y: (r.h / 2 - 2) * T, item: { t: 'relic', i: rel >= 0 ? rel : relicPick(Math.random()) } });
     sFan();
   }
 }
@@ -1393,6 +1397,11 @@ function giveWp(i, msg){
   sFan();
 }
 
+// Diente Vampírico: solo al matar, con poca probabilidad y como mucho una vez cada 6 s
+function vampHeal(){
+  if(!dung.passives || !dung.passives.includes(1) || p.dead || p.hp >= (p.maxHp || 5) || t - (p.vampT || -99) < 6) return;
+  if(Math.random() < RELICS[1].vmp){ p.vampT = t; p.hp++; num(p.x, p.y - 14, '+1 HP', '#ff4d6d'); }
+}
 function obtainRelic(idx){
   const r = RELICS[idx];
   if(!r) return;
@@ -1764,12 +1773,6 @@ function dmg(e, d, own){
   sHit();
   burst(e.x, e.y - q.cy, '#ff5a5a', 3);
 
-  // Reliquias de vampiro / congelación
-  if(dung.passives && dung.passives.includes(1)){
-    if(Math.random() < 0.15 && p.hp < (p.maxHp || 5)){
-      p.hp++; num(p.x, p.y - 14, '+1 HP', '#ff4d6d');
-    }
-  }
 
   if(e.hp <= 0 && !e.dead){
     e.dead = true; kills++;
@@ -1781,7 +1784,7 @@ function dmg(e, d, own){
       boss = null; sFan(); if(mode === 'camp') bd = true;
       enemies.forEach(m => { if(m.sm === e.id && !m.dead){ m.dead = true; burst(m.x, m.y - EN[m.k].cy, '#ffffff', 6); } });
     }
-    if(own === myId()) coinFx(e.x, e.y, n);
+    if(own === myId()){ coinFx(e.x, e.y, n); vampHeal(); }
     else snd({ t: 'c', to: own, n, k: e.k, x: e.x, y: e.y });
     if(Math.random() < (e.el ? .35 : .14)){ hearts.push({ x: e.x, y: e.y }); if(net.on) snd({ t: 'hr', x: e.x, y: e.y }); }
   }
@@ -1794,7 +1797,7 @@ function shoot(){
   p.cd = cd; p.kick = 2;
 
   let extra = 0;
-  if(dung.passives && dung.passives.includes(10)) extra = 2; // Corona Tríada
+  if(dung.passives && dung.passives.includes(10)) extra = RELICS[10].extra; // Corona Tríada: +1 proyectil
   const pellets = w.pel + extra;
   const dmgAdd = (dung.passives && dung.passives.includes(3)) ? 1 : 0; // Ojo de Halcón
   const pierce = (dung.passives && dung.passives.includes(5)) || w.prc;
@@ -2309,8 +2312,6 @@ function update(dt){
         if(!b.pierce) b.l = 0;
         if(!b.rm) hit(e, b.d);
         burst(b.x, b.y, '#ff5a5a', 2);
-        // Pólvora volátil (explosión)
-        if(dung.passives && dung.passives.includes(4)) shock(b.x, b.y, 35);
       }
     }
     if(b.l <= 0) continue;
@@ -2480,6 +2481,7 @@ function onNet(d){
     if(e && !e.dead) dmg(e, d.d, d.from);
   }
   else if(d.t === 'c'){
+    vampHeal();   // la moneda llega cuando matás un enemigo
     V.coins += d.n; num(d.x, d.y - 10, '+' + d.n, '#ffd23f');
     sCoin(); missionEvent('kill', d.k); missionEvent('coin', 0, d.n);
   }
@@ -3046,6 +3048,12 @@ function drawDungeonRoom(){
       shopGlyph(ped.shop, px, py - 12 + bob);
       TX('$' + ped.shop.pr, px, py - 22, 3.5, '#ffd23f', 'center');
     }
+    // cerca de una reliquia se ve qué hace antes de agarrarla
+    const ri = ped.item && ped.item.t === 'relic' ? ped.item.i : ped.shop && ped.shop.t === 'relic' ? ped.shop.i : -1;
+    if(ri >= 0 && RELICS[ri] && Math.hypot(p.x - ped.x, p.y - ped.y) < 40){
+      TX(RELICS[ri].n.toUpperCase(), px, py + 12, 3.2, RELICS[ri].col, 'center');
+      TX(RELICS[ri].d, px, py + 17, 2.6, '#e8ebf3', 'center');
+    }
   }
 
   // Trampilla al siguiente piso
@@ -3537,6 +3545,12 @@ function main(msg){
   drawPv(); drawGear();
 }
 
+// reliquias de la partida con lo que hace cada una
+function relicList(){
+  const l = mode === 'dung' ? [...new Set(dung.passives)].filter(i => RELICS[i] && !RELICS[i].off) : [];
+  if(!l.length) return '';
+  return `<div class=r><small>RELIQUIAS ACTIVAS · ${l.length}</small></div><div class=relics>${l.map(i => `<span style="--c:${RELICS[i].col}">${RELICS[i].ic}<span><b>${RELICS[i].n}</b><small>${RELICS[i].d}</small></span></span>`).join('')}</div>`;
+}
 function pauseMenu(msg){
   paused = true; ret = pauseMenu;
   panel(`<h2>Pausa</h2>
@@ -3546,7 +3560,7 @@ function pauseMenu(msg){
     <div><small>MONEDAS</small><b>${V.coins}</b></div>
     <div><small>${mode === 'dung' ? 'PISO' : mode === 'camp' ? 'NIVEL' : mode === 'duel' ? 'RONDA' : 'OLEADA'}</small><b>${mode === 'dung' ? dung.floor : mode === 'camp' ? lvl : mode === 'duel' ? DU.n : 1 + Math.floor(kills / 10)}</b></div>
   </div>
-  ${mode === 'dung' && dung.passives.length ? `<div class=r><small>RELIQUIAS ACTIVAS · ${dung.passives.length}</small></div><div class=relics>${dung.passives.map(i => `<span style="--c:${RELICS[i].col}">${RELICS[i].ic} ${RELICS[i].n}</span>`).join('')}</div>` : ''}
+  ${relicList()}
   <div class=vlist>
     <button class=s data-a=resume>${I.play} Continuar</button>
     ${mode === 'duel' ? '' : mode === 'dung' ? `<button disabled>${I.save} Guardar partida <small>En el banco al inicio del piso</small></button>`
