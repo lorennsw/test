@@ -347,6 +347,10 @@ a.hdl span{display:flex;flex-direction:column;line-height:1.2}a.hdl small{font-s
 #w.app #tcMap{top:1cqw}
 #tcWeap{right:14.5cqw;bottom:26cqw}
 #tcWeap .ico{color:var(--wc,#fff)}
+#tcRel{right:3cqw;bottom:34cqw}
+#tcRel.cd{opacity:.4}
+#tcKn{right:25.5cqw;bottom:33cqw}
+#tcKn.on{background:rgba(216,222,233,.3);border-color:#d8dee9}
 #tcPause{top:calc(2cqw + max(28px,3cqw));right:1cqw;width:max(32px,3.4cqw);height:max(32px,3.4cqw);border-radius:var(--r)}
 #tcRev{display:none;left:50%;bottom:4cqw;transform:translateX(-50%);width:auto;height:auto;padding:1cqw 2cqw;border-radius:2cqw;background:rgba(62,207,142,.3);border-color:var(--ok)}
 #tcRev.on{display:flex}
@@ -410,6 +414,8 @@ a.aguest{display:inline-block;margin-top:.6cqw;padding:.75cqw 1.4cqw;color:var(-
     <button class=tcb id=tcPause data-k=pause tabindex=-1 aria-label="Pausa"></button>
     <button class=tcb id=tcWeap data-k=weap tabindex=-1 aria-label="Cambiar arma"></button>
     <button class=tcb id=tcRoll data-k=roll tabindex=-1 aria-label="Roll"></button>
+    <button class=tcb id=tcRel data-k=rel tabindex=-1 aria-label="Recargar"></button>
+    <button class=tcb id=tcKn data-k=kn tabindex=-1 aria-label="Faka"></button>
     <button class=tcb id=tcRev data-k=rev tabindex=-1>Mantené para revivir</button>
     <button class=tcb id=tcTalk data-k=talk tabindex=-1>Hablar</button>
     <button class=tcb id=tcMap data-k=map tabindex=-1 aria-label="Mapa"></button>
@@ -509,19 +515,24 @@ setInterval(save, 5000);
 
 // ---------- ARMAS ORIGINALES Y DE MAZMORRA ----------
 const WP = [
-  { n: 'Pistola', d: 1, cd: .26, s: 240, pel: 1, sp: .05, pr: 0, col: '#ffe66d' },
-  { n: 'Subfusil', d: 1, cd: .09, s: 260, pel: 1, sp: .16, pr: 60, col: '#ff9d3d' },
-  { n: 'Escopeta', d: 1, cd: .65, s: 230, pel: 5, sp: .38, pr: 120, col: '#ff6b6b' },
-  { n: 'Rifle', d: 4, cd: .5, s: 380, pel: 1, sp: .01, pr: 220, col: '#7df9ff' },
-  { n: 'Cañón láser', d: 3, cd: .12, s: 420, pel: 1, sp: .03, pr: 800, col: '#c77dff' },
+  { n: 'Pistola', mg: 12, rt: 1.0, d: 1, cd: .26, s: 240, pel: 1, sp: .05, pr: 0, col: '#ffe66d' },
+  { n: 'Subfusil', mg: 30, rt: 1.4, d: 1, cd: .09, s: 260, pel: 1, sp: .16, pr: 60, col: '#ff9d3d' },
+  { n: 'Escopeta', mg: 6, rt: 1.7, d: 1, cd: .65, s: 230, pel: 5, sp: .38, pr: 120, col: '#ff6b6b' },
+  { n: 'Rifle', mg: 5, rt: 1.6, d: 4, cd: .5, s: 380, pel: 1, sp: .01, pr: 220, col: '#7df9ff' },
+  { n: 'Cañón láser', mg: 40, rt: 1.6, d: 3, cd: .12, s: 420, pel: 1, sp: .03, pr: 800, col: '#c77dff' },
   // Nuevas armas legendarias para mazmorras y tienda
-  { n: 'Lanzallamas', d: 1, cd: .05, s: 190, pel: 2, sp: .26, pr: 450, col: '#ff5722' },
-  { n: 'Arco Tesla', d: 3, cd: .32, s: 350, pel: 3, sp: .18, pr: 620, col: '#38bdf8' },
-  { n: 'Daga Sombría', d: 3, cd: .20, s: 330, pel: 2, sp: .10, pr: 1200, col: '#c084fc', prc: true },
+  { n: 'Lanzallamas', mg: 60, rt: 1.9, d: 1, cd: .05, s: 190, pel: 2, sp: .26, pr: 450, col: '#ff5722' },
+  { n: 'Arco Tesla', mg: 10, rt: 1.4, d: 3, cd: .32, s: 350, pel: 3, sp: .18, pr: 620, col: '#38bdf8' },
+  { n: 'Daga Sombría', mg: 16, rt: 1.1, d: 3, cd: .20, s: 330, pel: 2, sp: .10, pr: 1200, col: '#c084fc', prc: true },
   // exclusivas del comerciante errante (se pagan con diamantes; no están en la tienda ni en el PvP)
-  { n: 'Ballesta de Cristal', d: 5, cd: .55, s: 430, pel: 1, sp: .01, pr: 1500, col: '#7dd3fc', prc: true, gem: 1 },
-  { n: 'Cañón de Diamante', d: 2, cd: .13, s: 320, pel: 3, sp: .14, pr: 2000, col: '#9be7ff', gem: 1 }
+  { n: 'Ballesta de Cristal', mg: 4, rt: 1.5, d: 5, cd: .55, s: 430, pel: 1, sp: .01, pr: 1500, col: '#7dd3fc', prc: true, gem: 1 },
+  { n: 'Cañón de Diamante', mg: 30, rt: 1.6, d: 2, cd: .13, s: 320, pel: 3, sp: .14, pr: 2000, col: '#9be7ff', gem: 1 }
 ];
+// Balas: cada arma tiene su cargador (mg) y una reserva grande (RES cargadores más). Es difícil
+// quedarse sin balas: los enemigos tiran cajas seguido y todo se llena al cambiar de piso, nivel o ronda.
+// Sin balas (o cuando quieras) con Q sacás la faka.
+const RES = 8;
+const KNIFE = { d: 4, cd: .34, rg: 17, col: '#d8dee9' };   // la faka: daño, cada cuánto, alcance
 // Armas que aparecen en la mazmorra según el piso: de la más floja a la más fuerte, y cada piso
 // habilita una franja (piso 1: subfusil o escopeta … piso 5: las legendarias, recién ahí la daga)
 const WP_TIER = [1, 2, 3, 5, 6, 4, 7];
@@ -608,11 +619,18 @@ const WSPR = [
     '...kgk.kkkk...',
     '...kk.........'] }
 ];
+const KSPR = { r: [
+    '...kk.......',
+    '.kkWkkkkkkk.',
+    'kwwWkCCCCCCk',
+    'kwwWkccccck.',
+    '.kkWkkkkkk..',
+    '...kk.......'], h: [2, 3] };
 const WPAL = { k: '#16141f', d: '#3b3f4d', m: '#6b7285', l: '#aeb6c8', w: '#6e4522', W: '#a0673a', g: '#2a2733' };
 // Dibuja el arma girada hacia ang con la mano en (X, Y). Cada píxel se muestrea 4 veces para que
 // al girar no queden agujeros y el pixel art se mantenga nítido. Mirando a la izquierda se espeja (no queda al revés).
 function drawWeapon(cx, X, Y, wi, ang, kick){
-  const S = WSPR[wi] || WSPR[0], c = (WP[wi] || WP[0]).col, cl = shd(c, .45);
+  const kn = wi === -2, S = kn ? KSPR : WSPR[wi] || WSPR[0], c = kn ? KNIFE.col : (WP[wi] || WP[0]).col, cl = shd(c, .45);
   const cs = Math.cos(ang), sn = Math.sin(ang), fy = cs < 0 ? -1 : 1, k = kick || 0;
   for(let j = 0; j < S.r.length; j++){
     const row = S.r[j];
@@ -1164,7 +1182,7 @@ function enterRoom(k, first){
   dung.curRoomKey = k;
   dung.curRoom = r;
   r.visited = true;
-  enemies = []; bullets = []; eb = []; shw = []; coins = []; hearts = []; dung.pedestals = []; dung.trapdoor = null;
+  enemies = []; bullets = []; eb = []; shw = []; coins = []; hearts = []; ammo = []; dung.pedestals = []; dung.trapdoor = null;
   if(r.merch && !r.mpos) r.mpos = freeNear(r.w * T / 2 + 40, r.h * T / 2 - 16, 6);
   boss = null;
   const lead = !net.on || net.host;
@@ -1770,7 +1788,7 @@ function descend(){
 }
 function newFloor(fl, sdv){
   genDungeon(fl, sdv);
-  p.x = RW * T / 2; p.y = RH * T / 2;
+  p.x = RW * T / 2; p.y = RH * T / 2; refill();
   if(p.dead > 1000){ p.dead = 0; p.hp = Math.min(2, p.maxHp || 5); p.inv = 3; }
   banner('PISO ' + fl + ': ' + dung.floorTheme.n.toUpperCase());
 }
@@ -2045,7 +2063,7 @@ function bossWatch(){
 
 // ---------- ESTADO GLOBAL ----------
 let state = 'menu', mode = 'dung', lvl = 1, t = 0, paused = false;
-let p, bullets = [], enemies = [], hearts = [], coins = [], parts = [], nums = [], kills = 0;
+let p, bullets = [], enemies = [], hearts = [], ammo = [], slashes = [], coins = [], parts = [], nums = [], kills = 0;
 let spawnT = 1, nid = 1, camx = 0, camy = 0, boss = null, bd = false, pet = null, ms = null;
 let bn = { s: '', l: 0 }, eb = [], shw = [], key = false, nb = 30, rt = 300, mapIdx = 0;
 let lsb = [], spec = 0, door = null, vote = null, ret = () => main(), best = 0;
@@ -2070,9 +2088,10 @@ function start(md, lv, mp, sdd){
   p = {
     ar: ARM[V.arm] ? ARM[V.arm].a : 0,
     x: MW * T / 2, y: MH * T / 2,
-    hp: 5, maxHp: 5, cd: 0, inv: 0, ang: 0, walk: 0, moving: false, kick: 0, dead: 0
+    hp: 5, maxHp: 5, cd: 0, inv: 0, ang: 0, walk: 0, moving: false, kick: 0, dead: 0,
+    am: {}, rl: 0, kn: false, sl: 0
   };
-  bullets = []; enemies = []; hearts = []; coins = []; gems = []; parts = []; nums = []; eb = []; shw = [];
+  bullets = []; enemies = []; hearts = []; ammo = []; coins = []; gems = []; parts = []; nums = []; eb = []; shw = []; slashes = [];
   kills = 0; spawnT = 1; boss = null; bd = false; key = false; nb = 30; rt = 300; net.sc = {};
   lsb = []; spec = 0; vote = null; pet = null; lastBossId = -1; bossNear = false;
   state = 'play'; paused = false; close();
@@ -2170,11 +2189,10 @@ function coinFx(x, y, n){
   for(let i = 0; i < n; i++) coins.push({ x, y, vx: rnd(-45, 45), vy: rnd(-45, 45) });
 }
 
-function hurt(){
+function hurt(n){
   if(p.roll > 0) return;   // rodando no te pegan
   missionEvent('hurt');
-  if(p.ar > 0) p.ar--;
-  else p.hp--;
+  for(let i = 0; i < (n || 1); i++){ if(p.ar > 0) p.ar--; else p.hp--; }
   p.inv = mode === 'duel' ? .35 : 1;
   burst(p.x, p.y - 6, '#e43b44', 8);
   sHurt();
@@ -2225,11 +2243,32 @@ function dmg(e, d, own){
     else snd({ t: 'c', to: own, n, k: e.k, x: e.x, y: e.y });
     if(mode !== 'duel' && !e.sm && Math.random() < .1) gemDrop(e.x, e.y, own);   // 10%: un diamante, para quien lo mató
     if(Math.random() < (e.el ? .35 : .14)){ hearts.push({ x: e.x, y: e.y }); if(net.on) snd({ t: 'hr', x: e.x, y: e.y }); }
+    if(Math.random() < (q.boss ? 1 : e.el ? .5 : .2)){ const x = e.x + rnd(-8, 8), y = e.y + rnd(-4, 4); ammo.push({ x, y }); if(net.on) snd({ t: 'ab', x, y }); }
   }
 }
 
+// balas del arma i (las armas nuevas llegan con el cargador y la reserva llenos)
+const amm = i => p.am[i] || (p.am[i] = { m: WP[i].mg, r: WP[i].mg * RES });
+const refill = () => { p.am = {}; p.rl = 0; };
+let noAmmoT = 0;
+function reload(){
+  const w = WP[V.eq], a = amm(V.eq);
+  if(p.rl > 0 || p.kn || a.m >= w.mg || a.r <= 0 || p.dead || state !== 'play') return;
+  p.rl = p.rlT = w.rt * (dung.passives && dung.passives.includes(7) ? .65 : 1); p.rlw = V.eq;   // Batería Arcana: también recarga más rápido
+  tone('square', 260, 160, .06, .14, sg);
+}
 function shoot(){
-  const w = WP[V.eq];
+  if(p.kn) return stab();
+  if(p.rl > 0) return;
+  const w = WP[V.eq], a = amm(V.eq);
+  if(a.m <= 0){
+    if(a.r > 0) return reload();
+    p.cd = .35; tone('square', 120, 90, .04, .12, sg);   // clic sin balas
+    if(t - noAmmoT > 2.5){ noAmmoT = t; banner('SIN BALAS · ' + (touchOn() ? 'TOCÁ FAKA' : 'Q PARA LA FAKA')); }
+    return;
+  }
+  a.m--;
+  if(a.m <= 0 && a.r > 0) setTimeout(() => { if(p.am[V.eq] === a) reload(); }, w.cd * 1000);   // recarga sola al vaciar el cargador
   let cd = w.cd;
   if(dung.passives && dung.passives.includes(7)) cd *= 0.65; // Batería Arcana
   p.cd = cd; p.kick = 2;
@@ -2251,6 +2290,56 @@ function shoot(){
   }
   burst(p.x + Math.cos(p.ang) * 10, p.y - 6 + Math.sin(p.ang) * 10, w.col, 2);
   sShot();
+}
+
+// ---------- LA FAKA (cuerpo a cuerpo)
+function knifeToggle(on){
+  p.kn = on === undefined ? !p.kn : on; p.rl = 0; p.cd = Math.min(p.cd, .1);
+  if(p.kn){ tone('triangle', 900, 1800, .08, .12, sg); banner('FAKA'); }
+  else banner(WP[V.eq].n.toUpperCase());
+}
+function stab(){
+  p.cd = KNIFE.cd; p.sl = .18;
+  const a = p.ang, hx = p.x + Math.cos(a) * 9, hy = p.y - 6 + Math.sin(a) * 9;
+  const d = KNIFE.d + (dung.passives && dung.passives.includes(3) ? 1 : 0);
+  // le pega a todo lo que esté delante, a un paso
+  const inArc = (x, y, r) => { const dx = x - p.x, dy = y - (p.y - 6), l = Math.hypot(dx, dy); if(l > KNIFE.rg + r) return false; let da = Math.atan2(dy, dx) - a; while(da > Math.PI) da -= 6.283; while(da < -Math.PI) da += 6.283; return l < r + 4 || Math.abs(da) < 1.1; };
+  let hitAny = false;
+  for(const e of enemies){
+    const q = EN[e.k];
+    if(!e.dead && inArc(e.x, e.y - q.cy - (e.z || 0), q.r)){ hit(e, d); burst(e.x, e.y - q.cy, '#ff5a5a', 4); hitAny = true; }
+  }
+  if(mode === 'dung'){ const pq = propAt(hx + Math.cos(a) * 6, hy + Math.sin(a) * 6); if(pq){ hitPropNet(pq, d); hitAny = true; } }
+  if(mode === 'duel') for(const id in net.rem){
+    const r = net.rem[id];
+    if(!isMate(id) && !r.dd && !(r.roll > 0) && inArc(r.x, r.y - 6, 5)){ snd({ t: 'pvhit', to: +id, dm: 2 }); burst(r.x, r.y - 6, '#ff5a5a', 4); hitAny = true; }
+  }
+  slashes.push({ x: p.x, y: p.y - 6, a, l: .16 });
+  if(net.on) snd({ t: 'kn', x: Math.round(p.x), y: Math.round(p.y - 6), a: +a.toFixed(2) });
+  hitAny ? sHit() : tone('triangle', 1400, 500, .07, .1, sg);
+}
+function drawSlash(q){
+  const k = q.l / .16, X = q.x - camx, Y = q.y - camy;
+  g.strokeStyle = 'rgba(235,240,250,' + Math.min(1, k * 1.2) + ')'; g.lineWidth = 2;
+  g.beginPath(); g.arc(X, Y, 13, q.a - 1 + (1 - k) * .6, q.a + 1 - (1 - k) * .6); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,' + (k * .5) + ')'; g.lineWidth = 1;
+  g.beginPath(); g.arc(X, Y, 16, q.a - .7, q.a + .7); g.stroke();
+}
+
+// ---------- CAJAS DE BALAS (las tiran los enemigos; llenan 2 cargadores de cada arma que tengas)
+function ammoPick(){
+  for(const i of V.owned){ const a = amm(i); a.r = Math.min(WP[i].mg * RES, a.r + WP[i].mg * 2); }
+  num(p.x, p.y - 20, '+BALAS', '#ffe66d'); tone('square', 520, 780, .06, .12, sg);
+  const a = amm(V.eq); if(a.m <= 0 && !p.kn) reload();
+}
+function drawAmmoPick(q){
+  const X = Math.round(q.x - camx), Y = Math.round(q.y - camy), b = Math.round(Math.sin(t * 4 + q.x) * 1.2);
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(X - 4, Y, 9, 1);
+  g.fillStyle = '#1a1f12'; g.fillRect(X - 5, Y - 8 + b, 11, 7);
+  g.fillStyle = '#4d6b2e'; g.fillRect(X - 4, Y - 7 + b, 9, 5);
+  g.fillStyle = '#6b8f3e'; g.fillRect(X - 4, Y - 7 + b, 9, 1);
+  g.fillStyle = '#ffd23f'; for(const o of [-3, -1, 1, 3]) g.fillRect(X + o, Y - 11 + b, 1, 3);   // balas asomando
+  g.fillStyle = '#c98a1c'; for(const o of [-3, -1, 1, 3]) g.fillRect(X + o, Y - 9 + b, 1, 1);
 }
 
 function targets(){
@@ -2641,13 +2730,21 @@ function update(dt){
     mdown = aimStick.m > .45;
   }
   p.ang = Math.atan2(my + camy - (p.y - 6), mx + camx - p.x);
-  p.cd -= dt; p.inv -= dt; p.kick = Math.max(0, p.kick - dt * 40);
+  p.cd -= dt; p.inv -= dt; p.kick = Math.max(0, p.kick - dt * 40); p.sl = Math.max(0, p.sl - dt);
+  if(p.rl > 0){
+    if(p.rlw !== V.eq || p.dead) p.rl = 0;   // cambió de arma: se corta la recarga
+    else if((p.rl -= dt) <= 0){
+      p.rl = 0; const a = amm(V.eq), n = Math.min(WP[V.eq].mg - a.m, a.r);
+      a.m += n; a.r -= n; tone('square', 340, 520, .05, .14, sg);
+    }
+  }
+  if(keys.r && !fz && !p.kn) reload();
   if(npcTalk) p.inv = Math.max(p.inv, .2);   // mientras dura la charla compartida no te pueden pegar
 
   if(p.dead > 1000){ if(mdown && !p.mm) spec++; p.mm = mdown; }
   if(p.dead > 0){
     p.dead -= dt;
-    if(p.dead <= 0){ p.dead = 0; if(mode === 'duel'){ const sp = pvSpawnPoint(); p.x = sp.x; p.y = sp.y; p.hp = p.maxHp; p.inv = 1.2; p.lastHit = 0; } else { p.hp = 5; p.inv = 3; safeSpot(); } }
+    if(p.dead <= 0){ p.dead = 0; refill(); if(mode === 'duel'){ const sp = pvSpawnPoint(); p.x = sp.x; p.y = sp.y; p.hp = p.maxHp; p.inv = 1.2; p.lastHit = 0; } else { p.hp = 5; p.inv = 3; safeSpot(); } }
   } else if(!paused && !fz && !(p.roll > 0) && !p.seated && mdown && p.cd <= 0) shoot();
 
   // Revivir compañeros caídos: mantené E cerca de su cuerpo
@@ -2791,6 +2888,11 @@ function update(dt){
   }
   shw = shw.filter(w => w.l > 0);
 
+  // Cajas de balas
+  ammo = ammo.filter(q => { if(!p.dead && Math.hypot(q.x - p.x, q.y - p.y) < 11){ ammoPick(); return false; } return true; });
+  for(const q of slashes) q.l -= dt;
+  slashes = slashes.filter(q => q.l > 0);
+
   // Corazones
   hearts = hearts.filter(h => {
     if(Math.hypot(h.x - p.x, h.y - p.y) < 10){
@@ -2833,7 +2935,7 @@ function update(dt){
     net.pt = (net.pt || 0) - dt;
     if(net.pt <= 0){
       net.pt = .066;
-      snd({ t: 'p', x: p.x, y: p.y, a: p.ang, n: V.av.name, av: V.av, ar: V.arm, dd: p.dead > 1000 || (mode === 'duel' && p.dead > 0) ? 1 : 0, rk: dung.curRoomKey, hp: p.hp, w: V.eq, st: p.seated ? 1 : 0 });
+      snd({ t: 'p', x: p.x, y: p.y, a: p.ang, n: V.av.name, av: V.av, ar: V.arm, dd: p.dead > 1000 || (mode === 'duel' && p.dead > 0) ? 1 : 0, rk: dung.curRoomKey, hp: p.hp, w: p.kn ? -2 : V.eq, st: p.seated ? 1 : 0 });
     }
     if(net.host){
       net.et = (net.et || 0) - dt;
@@ -2849,6 +2951,7 @@ function update(dt){
       const r = net.rem[id], k = Math.min(1, dt * 12), mv = Math.hypot(r.tx - r.x, r.ty - r.y) > .5;
       r.moving = mv; if(mv) r.walk += dt * 10;
       if(r.roll > 0) r.roll -= dt;
+      if(r.sl > 0) r.sl -= dt;
       r.x += (r.tx - r.x) * k; r.y += (r.ty - r.y) * k;
       if(t - r.lt > 6) delete net.rem[id];
     }
@@ -2917,6 +3020,8 @@ function onNet(d){
   else if(d.t === 'd_over' && mode === 'dung') dungOver();
   else if(d.t === 'rs' && mode === 'camp') start('camp', lvl);
   else if(d.t === 'hr') hearts.push({ x: d.x, y: d.y });
+  else if(d.t === 'ab') ammo.push({ x: d.x, y: d.y });
+  else if(d.t === 'kn'){ slashes.push({ x: d.x, y: d.y, a: d.a, l: .16 }); const r = net.rem[d.from]; if(r) r.sl = .18; }
   else if(d.t === 'rv' && p.dead > 1000){
     p.dead = 0; p.hp = Math.max(2, Math.ceil((p.maxHp || 5) / 2)); p.inv = 3; p.rev = 0;
     burst(p.x, p.y - 8, '#7df9a0', 20); banner('¡TE REVIVIERON!'); sFan();
@@ -2958,7 +3063,7 @@ function onNet(d){
   else if(d.t === 'veto_done') vetoDone(d);
   else if(d.t === 'pvhit' && mode === 'duel' && state === 'play'){
     // impacto confirmado por el que disparó: si en su pantalla la bala te pegó, te saca vida
-    if(!isMate(d.from) && !p.dead && !(DU.fz > 0) && p.inv <= 0){ p.lastHit = d.from; hurt(); }
+    if(!isMate(d.from) && !p.dead && !(DU.fz > 0) && p.inv <= 0){ p.lastHit = d.from; hurt(d.dm === 2 ? 2 : 1); }
   }
   else if(d.t === 'duel_end') duelOver(d);
   else if(d.t === 'duel_again' && state === 'duelend') duelResult(`Revancha: ${d.n} de ${d.need} listos`);
@@ -3092,7 +3197,7 @@ function drawChar(cx, X, Y, st, av){
   const Q = (dx, dy, w, h, col) => { cx.fillStyle = col; cx.fillRect(Math.round(X + dx), Math.round(Y + dy), w, h); };
   const tt = typeof t === 'number' ? t : 0, mv = !!st.moving && !st.sit, ang = st.sit ? Math.PI / 2 : st.ang || 0, sn = Math.sin(ang), cs = Math.cos(ang);
   const back = sn < -.35, front = sn > .35, side = !back && !front, fx = cs > 0 ? 1 : -1;
-  const ph = st.walk || 0, step = mv ? Math.sin(ph) : 0, kk = st.kick || 0;
+  const ph = st.walk || 0, step = mv ? Math.sin(ph) : 0, kk = st.w === -2 ? -Math.round(Math.sin(Math.max(0, st.sl || 0) / .18 * Math.PI) * 5) : st.kick || 0;
   const bob = mv ? Math.round(Math.abs(Math.sin(ph)) * 1.4) : Math.round((Math.sin(tt * 3) + 1) * .45);
   // sentado (en el banco) el cuerpo baja y no lleva el arma; con arma, los dos brazos van a la empuñadura
   const sit = !!st.sit, hold = st.w !== -1 && !sit;
@@ -3770,6 +3875,7 @@ function draw(){
   for(const q of coins) dr.push({ y: q.y, f: () => drawCoinPick(q) });
   for(const q of gems) dr.push({ y: q.y, f: () => drawGemPick(q) });
   for(const h of hearts) dr.push({ y: h.y, f: () => drawHeartPick(h) });
+  for(const q of ammo) dr.push({ y: q.y, f: () => drawAmmoPick(q) });
 
   for(const id in net.rem){
     const r = net.rem[id];
@@ -3790,14 +3896,15 @@ function draw(){
 
   if(state !== 'menu' && !p.dead && !(p.inv > 0 && Math.floor(t * 20) % 2)){
     dr.push({ y: p.y, f: () => p.roll > 0
-      ? drawRolling(Math.round(p.x - camx), Math.round(p.y - camy), { ...p, arm: V.arm, w: V.eq, sit: p.seated }, V.av, 1 - p.roll / ROLL_T, p.rsg)
-      : drawChar(g, Math.round(p.x - camx), Math.round(p.y - camy), { ...p, arm: V.arm, w: V.eq, sit: p.seated }, V.av) });
+      ? drawRolling(Math.round(p.x - camx), Math.round(p.y - camy), { ...p, arm: V.arm, w: p.kn ? -2 : V.eq, sit: p.seated }, V.av, 1 - p.roll / ROLL_T, p.rsg)
+      : drawChar(g, Math.round(p.x - camx), Math.round(p.y - camy), { ...p, arm: V.arm, w: p.kn ? -2 : V.eq, sit: p.seated }, V.av) });
   }
 
   dr.sort((a, b) => a.y - b.y).forEach(d => d.f());
   if(mode === 'dung' && state !== 'menu' && !S.opt) drawDungeonFx();
 
   for(const b of bullets) R(b.x - 1, b.y - 1, 3, 3, b.col || '#ffe66d');
+  for(const q of slashes) drawSlash(q);
   for(const b of eb) R(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2, b.c || '#ff4d6d');
   for(const w of shw){
     g.strokeStyle = 'rgba(255,255,255,' + Math.max(.2, w.l / .6) + ')';
@@ -3864,10 +3971,17 @@ function draw(){
     TX(EN[boss.k].n.toUpperCase(), W / 2, 13, 3.4, '#ffd23f', 'center');
   }
 
-  const wl = (V.eq + 1) + ' ' + WP[V.eq].n.toUpperCase();
-  g.fillStyle = 'rgba(6,8,14,.55)'; g.fillRect(2, H - 12, wl.length * 3.9 + 5, 10);
-  g.fillStyle = WP[V.eq].col; g.fillRect(2, H - 12, 1, 10);
+  const a_ = amm(V.eq), wl = p.kn ? 'Q FAKA' : (V.eq + 1) + ' ' + WP[V.eq].n.toUpperCase();
+  const al = p.kn ? '' : p.rl > 0 ? 'RECARGANDO' : a_.m + ' / ' + a_.r, ww = (wl.length + (al ? al.length + 2 : 0)) * 3.9 + 5;
+  g.fillStyle = 'rgba(6,8,14,.55)'; g.fillRect(2, H - 12, ww, 10);
+  g.fillStyle = p.kn ? KNIFE.col : WP[V.eq].col; g.fillRect(2, H - 12, 1, 10);
   TX(wl, 5, H - 4.5, 3.6, '#fff');
+  if(al) TX(al, 5 + (wl.length + 2) * 3.9, H - 4.5, 3.6, p.rl > 0 ? '#ffe66d' : a_.m === 0 ? '#ff6b6b' : a_.m <= Math.ceil(WP[V.eq].mg / 4) ? '#ffb347' : '#cfe8ff');
+  if(p.rl > 0 && !p.dead){   // barrita de recarga arriba del personaje
+    const X = Math.round(p.x - camx - 8), Y = Math.round(p.y - camy - 27), k = 1 - p.rl / (p.rlT || 1);
+    g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(X - 1, Y - 1, 18, 4);
+    g.fillStyle = '#ffe66d'; g.fillRect(X, Y, Math.round(16 * k), 2);
+  } else if(!p.kn && !p.dead && a_.m === 0 && a_.r === 0) TX('SIN BALAS', p.x - camx, p.y - camy - 24, 3.2, '#ff6b6b', 'center');
 
   if(bn.l > 0){
     hg.globalAlpha = Math.min(1, bn.l);
@@ -3972,7 +4086,8 @@ const TIPS = [
   'Cada piso de mazmorra tiene una sala del tesoro y un jefe al final.',
   'Las reliquias se acumulan y potencian tus disparos, velocidad y vida.',
   'En cooperativo online podés jugar mazmorras completas con tus amigos.',
-  'El Cañón láser y el Lanzallamas son devastadores contra jefes gigantes.'
+  'El Cañón láser y el Lanzallamas son devastadores contra jefes gigantes.',
+  'Con R recargás y con Q sacás la faka: de cerca pega fuerte y nunca se queda sin balas.'
 ];
 let tipI = 0;
 setInterval(() => {
@@ -4151,8 +4266,8 @@ const CROSS = ['#ffffff', '#ff3b3b', '#38ff6b', '#7df9ff', '#ffe66d', '#ff4dff',
 let setTab = 0;
 // teclas y controles táctiles (antes estaban en el inicio)
 const KEYS = [['Mover', 'WASD o flechas'], ['Apuntar', 'Mouse'], ['Disparar', 'Click'], ['Roll (esquivar)', 'Espacio'], ['Hablar · tienda · banco · comerciar', 'E'], ['Revivir a un amigo', 'Mantener E'],
-  ['Elegir arma', '1 al 0'], ['Tienda (campaña y supervivencia)', 'B'], ['Minimapa', 'M'], ['Pantalla completa', 'F'], ['Pausa', 'Esc']];
-const TOUCH_KEYS = [['Mover', 'Joystick izquierdo'], ['Apuntar y disparar', 'Joystick derecho'], ['Roll (esquivar)', 'Botón ROLL'], ['Cambiar arma', 'Botón ARMA'], ['Hablar · tienda · banco · comerciar', 'Botón abajo al centro'], ['Revivir a un amigo', 'Mantener el botón'], ['Pausa', 'Botón II']];
+  ['Elegir arma', '1 al 0'], ['Recargar', 'R'], ['Sacar la faka', 'Q'], ['Tienda (campaña y supervivencia)', 'B'], ['Minimapa', 'M'], ['Pantalla completa', 'F'], ['Pausa', 'Esc']];
+const TOUCH_KEYS = [['Mover', 'Joystick izquierdo'], ['Apuntar y disparar', 'Joystick derecho'], ['Roll (esquivar)', 'Botón ROLL'], ['Cambiar arma', 'Botón ARMA'], ['Recargar', 'Botón RECARGAR'], ['Sacar la faka', 'Botón FAKA'], ['Hablar · tienda · banco · comerciar', 'Botón abajo al centro'], ['Revivir a un amigo', 'Mantener el botón'], ['Pausa', 'Botón II']];
 function settings(tb){
   if(tb !== undefined) setTab = +tb;
   const pv = (v, a, b) => ((v - a) / (b - a) * 100) + '%';
@@ -4655,7 +4770,7 @@ function pvSpawnPoint(){
 }
 function duelSpawn(){
   const sp = pvSpawnPoint();
-  p.x = sp.x; p.y = sp.y; p.maxHp = p.hp = DUEL_HP; p.ar = 0; p.dead = 0; p.inv = 0; p.roll = 0; p.rlc = 0; p.lastHit = 0;
+  p.x = sp.x; p.y = sp.y; p.maxHp = p.hp = DUEL_HP; p.ar = 0; p.dead = 0; p.inv = 0; p.roll = 0; p.rlc = 0; p.lastHit = 0; refill(); p.kn = false;
   bullets = []; eb = []; parts = []; nums = [];
   DU.fz = 2.2;
   banner(DU.md === 'ffa' ? '¡A 10 BAJAS!' : 'RONDA ' + DU.n);
@@ -4819,13 +4934,13 @@ function botMsg(b, d){
   }
   else if(d.t === 'veto_done'){ b.w = d.w; b.spawn = true; }
   else if(d.t === 'duel_round') b.spawn = true;
-  else if(d.t === 'pvhit') botHurt(b, d.from);
+  else if(d.t === 'pvhit') botHurt(b, d.from, d.dm === 2 ? 2 : 1);
   else if(d.t === 'duel_end'){ b.alive = false; b.bul = []; setTimeout(() => botSend(b, { t: 'duel_again' }), 1000 + Math.random() * 1500); }
 }
 const botFoe = (b, id) => b.md === 'ffa' ? id !== b.id : teamOf(id) !== b.team;
-function botHurt(b, from){
+function botHurt(b, from, n){
   if(!b.alive || b.fz > 0 || b.inv > 0 || b.roll > 0 || !botFoe(b, from)) return;
-  b.hp--; b.inv = .35;
+  b.hp -= n || 1; b.inv = .35;
   if(b.hp <= 0){
     b.alive = false; b.bul = [];
     botSend(b, { t: 'dd', k: from });
@@ -4984,6 +5099,8 @@ function botTick(dt){
 }
 function botShoot(b, w){
   b.cd = w.cd * 1.2;
+  b.mm = (b.mm == null ? w.mg : b.mm) - 1;
+  if(b.mm <= 0){ b.mm = w.mg; b.cd = w.rt * 1.1; }   // recarga
   for(let i = 0; i < w.pel; i++){
     const a = b.ang + (w.pel > 1 ? (i - (w.pel - 1) / 2) * 0.16 : (Math.random() - .5) * w.sp);
     const vx = Math.cos(a) * w.s, vy = Math.sin(a) * w.s, x = b.x + Math.cos(b.ang) * 9, y = b.y - 6 + Math.sin(b.ang) * 9, l = w.pel > 1 ? .38 : 1.1;
@@ -5623,6 +5740,7 @@ function applyTouch(){
   document.getElementById('w').classList.toggle('touch', on);
   fitWide();
 }
+const tcRel = document.getElementById('tcRel'), tcKn = document.getElementById('tcKn');
 const tcMap = document.getElementById('tcMap'), tc = document.getElementById('tc'), tcRev = document.getElementById('tcRev'), tcRoll = document.getElementById('tcRoll'), tcWeap = document.getElementById('tcWeap');
 let tcShown = false;
 function tcSync(){
@@ -5637,6 +5755,9 @@ function tcSync(){
   tcMap.classList.toggle('act', miniTouch);
   tcRoll.classList.toggle('cd', p.rlc > 0 || p.roll > 0);
   tcWeap.style.setProperty('--wc', WP[V.eq].col);
+  const a = amm(V.eq);
+  tcRel.classList.toggle('cd', p.kn || p.rl > 0 || a.m >= WP[V.eq].mg || a.r <= 0);
+  tcKn.classList.toggle('on', !!p.kn);
 }
 function drawSticks(){
   const ring = (cx, cy, kx, ky, on) => {
@@ -5651,6 +5772,7 @@ function drawSticks(){
 }
 function nextWeapon(){
   const o = V.owned.slice().sort((a, b) => a - b);
+  if(p.kn) return knifeToggle(false);   // con la faka en la mano, ARMA vuelve al arma que tenías
   V.eq = o[(o.indexOf(V.eq) + 1) % o.length];
   banner(WP[V.eq].n.toUpperCase());
 }
@@ -5664,6 +5786,8 @@ function touchFS(){
 }
 tcRoll.innerHTML = I.retry + '<small>ROLL</small>';
 tcWeap.innerHTML = I.swap + '<small>ARMA</small>';
+tcRel.innerHTML = SVG('<rect x="7" y="9" width="10" height="13" rx="1.5"/><path d="M9 9V5.5a3 3 0 0 1 6 0V9"/><path d="M10 13h4M10 17h4"/>') + '<small>RECARGAR</small>';
+tcKn.innerHTML = SVG('<path d="M3 21l5-5"/><path d="M6.5 14.5l3 3"/><path d="M9 15L20 4c.6 2.6-.4 6-3 8.6L12 17.5"/>') + '<small>FAKA</small>';
 tcMap.innerHTML = I.globe + '<small>MAPA</small>';
 document.getElementById('tcPause').innerHTML = '<b style="letter-spacing:.1em">II</b>';
 document.querySelectorAll('.tcb').forEach(b => {
@@ -5674,6 +5798,8 @@ document.querySelectorAll('.tcb').forEach(b => {
     if(k === 'roll') keys[' '] = true;
     else if(k === 'rev') keys.e = true;
     else if(k === 'weap') nextWeapon();
+    else if(k === 'rel'){ if(state === 'play' && !p.kn) reload(); }
+    else if(k === 'kn'){ if(state === 'play') knifeToggle(); }
     else if(k === 'talk'){ const c = ctxAct(); if(c) c.f(); }
     else if(k === 'pause'){ if(state === 'play') pauseMenu(); }
     else if(k === 'map') miniTouch = !miniTouch;
@@ -5700,7 +5826,8 @@ addEventListener('keydown', e => {
   if(k === 'f' && !(e.target && e.target.tagName === 'INPUT')) toggleFS();
   if(k === ' ' && pl) e.preventDefault();
   if(k === 'escape' && state === 'play'){ paused ? A.resume() : pauseMenu(); }
-  if(pl && k >= '0' && k <= '9'){ const i = k === '0' ? 9 : +k - 1; if(V.owned.includes(i)) V.eq = i; }
+  if(pl && k >= '0' && k <= '9'){ const i = k === '0' ? 9 : +k - 1; if(V.owned.includes(i)){ V.eq = i; if(p.kn) knifeToggle(false); } }
+  if(pl && k === 'q' && !e.repeat) knifeToggle();
   if(pl && k === 'b' && mode !== 'dung' && mode !== 'duel'){ paused = true; ret = pauseMenu; shop(); }
 });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
