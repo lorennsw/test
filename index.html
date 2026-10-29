@@ -5150,6 +5150,7 @@ function lanBridgeSocket(){
 window.psNet = ev => {
   if(typeof ev === 'string') try{ ev = JSON.parse(ev); }catch(e){ return; }
   if(ev.e === 'found'){ LAN.found[ev.addr] = ev; if($('#lanl')) lanList(); }
+  else if(ev.e === 'lost'){ delete LAN.found[ev.addr]; if($('#lanl')) lanList(); }   // cerró la partida o se alejó
   else if(ev.e === 'hosting') lanHosting(ev);
   else if(ev.e === 'conn'){
     if(LAN.hub){ const a = { readyState: 1, send: t => { try{ NB.send(ev.id, t); }catch(e){} } }; LAN.peers[ev.id] = a; LAN.hub.open(a); }
@@ -5224,7 +5225,7 @@ function lanJoinMenu(){
   LAN.found = {};
   panel(`<h2>Unirse · ${LAN.kind === 'bt' ? 'Bluetooth' : 'Wi-Fi local'}</h2>
   <div class=load><i></i><i></i><i></i><i></i></div>
-  <div class=r><small>${LAN.kind === 'bt' ? 'Buscando celulares cercanos… El anfitrión tiene que haber creado la partida.' : 'Buscando partidas en esta red Wi-Fi…'}</small></div>
+  <div class=r><small>${LAN.kind === 'bt' ? 'Buscando partidas por Bluetooth… Solo aparecen los celulares que crearon una partida. Puede tardar unos segundos.' : 'Buscando partidas en esta red Wi-Fi…'}</small></div>
   <div id=lanl></div>
   ${LAN.kind === 'wifi' ? `<div class="r mk"><input type=text id=lip placeholder="IP del anfitrión (ej. 192.168.0.10)" inputmode=decimal><button data-a=lip>${I.link} Conectar</button></div>` : ''}
   <button data-a=lnback>${I.back} Volver</button>`);
@@ -5234,7 +5235,7 @@ function lanJoinMenu(){
 function lanList(){
   const el = $('#lanl'); if(!el) return;
   const l = Object.values(LAN.found);
-  el.innerHTML = l.length ? l.map(f => `<div class=rm><span class=rn>${esc(f.info ? f.info.n : f.name || f.addr)}<br><span class=sm>${f.info ? lanName(f.info.md) + ' · ' : ''}${esc(f.addr)}</span></span>
+  el.innerHTML = l.length ? l.map(f => `<div class=rm><span class=rn>${esc(f.info ? f.info.n : f.name || f.addr)}<br><span class=sm>${f.info ? lanName(f.info.md) + ' · ' + esc(f.addr) : f.kind === 'bt' ? 'Partida por Bluetooth' : esc(f.addr)}</span></span>
     <button class=s data-a=ljoin data-v="${esc(f.addr)}">Unirse</button></div>`).join('')
     : '<div class=r><small>Todavía no apareció ninguna partida.</small></div>';
 }
