@@ -4,6 +4,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothServerSocket;
@@ -15,6 +16,10 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.wifi.WifiManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.ParcelUuid;
+import android.os.Parcelable;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 
@@ -35,9 +40,13 @@ import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,7 +60,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * que usa el juego online, una por línea.
  *
  * El juego llama a estos métodos como window.PSNative; los avisos vuelven con window.psNet(evento):
- *   hosting {ip} · found {kind, addr, name|info} · conn {id} · msg {id, d} · close {id} · error {msg}
+ *   hosting {ip} · found {kind, addr, name|info} · lost {addr} · conn {id} · msg {id, d} · close {id} · error {msg}
  * En el anfitrión, id es el jugador que se conectó; en el que se une, id es siempre 0 (el anfitrión).
  */
 public class LocalNet {
@@ -72,6 +81,13 @@ public class LocalNet {
     private DatagramSocket announcer, listener;
     private WifiManager.MulticastLock mlock;
     private BroadcastReceiver btReceiver;
+    // búsqueda por Bluetooth: solo se muestran los celulares que tienen la partida abierta (se les pregunta por SDP)
+    private final Handler ui = new Handler(Looper.getMainLooper());
+    private final Map<String, BluetoothDevice> btSeen = new LinkedHashMap<>();   // celulares vistos en la última búsqueda
+    private final Set<String> btShown = new HashSet<>();                          // los que tienen partida (están en la lista)
+    private final ArrayDeque<BluetoothDevice> btQueue = new ArrayDeque<>();
+    private BluetoothDevice btAsking;
+    private int btGen;
     private Link client;
     private Runnable afterPerms;
 
@@ -177,12 +193,7 @@ public class LocalNet {
     public void stopScan() {
         if (listener != null) { listener.close(); listener = null; }
         if (mlock != null) { try { mlock.release(); } catch (Exception ignored) { } mlock = null; }
-        if (btReceiver != null) {
-            try { act.unregisterReceiver(btReceiver); } catch (Exception ignored) { }
-            btReceiver = null;
-            BluetoothAdapter a = bt();
-            if (a != null && hasBtPerms(false)) try { a.cancelDiscovery(); } catch (SecurityException ignored) { }
-        }
+        act.runOnUiThread(this::stopScanBt);
     }
 
     /** Se une a la partida de addr (IP en Wi-Fi, dirección MAC en Bluetooth). */
@@ -381,34 +392,141 @@ public class LocalNet {
         }, "ps-bt-host").start();
     }
 
-    @SuppressLint("MissingPermission")
+    // Busca partidas por Bluetooth en rondas: primero pregunta a los celulares emparejados y a los que
+    // aparecieron en la búsqueda anterior si tienen la partida de Pixel Shooter abierta (su registro SDP
+    // con BT_UUID, que existe solo mientras el anfitrión espera jugadores), y después busca celulares
+    // cercanos otra vez. Auriculares, parlantes, relojes, etc. no se consultan ni aparecen.
     private void scanBt() {
-        if (!btReady()) return;
-        BluetoothAdapter a = bt();
-        // primero los celulares ya emparejados
-        try {
-            for (BluetoothDevice d : a.getBondedDevices()) emitBt(d);
-        } catch (SecurityException ignored) { }
-        btReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context c, Intent i) {
-                if (BluetoothDevice.ACTION_FOUND.equals(i.getAction())) {
+        act.runOnUiThread(() -> {
+            if (!btReady()) return;
+            stopScanBt();
+            final int gen = ++btGen;
+            btReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context c, Intent i) {
+                    if (gen != btGen) return;
+                    String ac = i.getAction();
                     BluetoothDevice d = i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                    if (d != null) emitBt(d);
-                } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(i.getAction()) && btReceiver == this) {
-                    try { bt().startDiscovery(); } catch (SecurityException ignored) { }   // sigue buscando
+                    if (BluetoothDevice.ACTION_FOUND.equals(ac)) {
+                        if (d != null && mayHost(d)) {
+                            btSeen.put(d.getAddress(), d);
+                            if (hasGame(d.getUuids())) showBt(d);   // a veces el UUID ya viene en el anuncio
+                        }
+                    } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(ac)) {
+                        ui.removeCallbacks(btEndDiscovery);
+                        btRound(gen);
+                    } else if (BluetoothDevice.ACTION_UUID.equals(ac)) {
+                        if (d == null || btAsking == null || !d.getAddress().equals(btAsking.getAddress())) return;
+                        Parcelable[] u = i.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID);
+                        if (hasGame(u)) showBt(d);
+                        else if (btShown.remove(d.getAddress())) emit("lost", "addr", d.getAddress());   // cerró la partida
+                        btAsking = null;
+                        ui.removeCallbacks(btAskTimeout);
+                        btNext(gen);
+                    }
                 }
-            }
-        };
-        IntentFilter f = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-        f.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
-        if (Build.VERSION.SDK_INT >= 33) act.registerReceiver(btReceiver, f, Context.RECEIVER_EXPORTED);
-        else act.registerReceiver(btReceiver, f);
-        try { a.startDiscovery(); } catch (SecurityException e) { error("Falta el permiso de Bluetooth"); }
+            };
+            IntentFilter f = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+            f.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+            f.addAction(BluetoothDevice.ACTION_UUID);
+            if (Build.VERSION.SDK_INT >= 33) act.registerReceiver(btReceiver, f, Context.RECEIVER_EXPORTED);
+            else act.registerReceiver(btReceiver, f);
+            btRound(gen);
+        });
+    }
+
+    // una ronda: consultar a los candidatos uno por uno y después volver a buscar celulares
+    @SuppressLint("MissingPermission")
+    private void btRound(int gen) {
+        if (gen != btGen) return;
+        btQueue.clear();
+        Map<String, BluetoothDevice> cand = new LinkedHashMap<>();
+        try { for (BluetoothDevice d : bt().getBondedDevices()) if (mayHost(d)) cand.put(d.getAddress(), d); } catch (SecurityException ignored) { }
+        cand.putAll(btSeen);
+        btSeen.clear();
+        btQueue.addAll(cand.values());
+        btNext(gen);
     }
 
     @SuppressLint("MissingPermission")
-    private void emitBt(BluetoothDevice d) {
+    private void btNext(int gen) {
+        if (gen != btGen) return;
+        BluetoothAdapter a = bt();
+        BluetoothDevice d = btQueue.poll();
+        if (d == null) {   // terminó de preguntar: busca celulares cercanos de nuevo (unos 10 segundos)
+            try {
+                if (!a.startDiscovery()) { ui.postDelayed(() -> btRound(gen), 3000); return; }
+            } catch (SecurityException e) { error("Falta el permiso de Bluetooth"); return; }
+            ui.postDelayed(btEndDiscovery, 10000);
+            return;
+        }
+        btAsking = d;
+        boolean ok = false;
+        try { ok = d.fetchUuidsWithSdp(); } catch (SecurityException ignored) { }
+        if (!ok) { btAsking = null; btNext(gen); return; }
+        ui.postDelayed(btAskTimeout, 7000);   // no contestó (lejos o apagado): sigue con el próximo
+    }
+
+    private final Runnable btAskTimeout = () -> {
+        BluetoothDevice d = btAsking;
+        btAsking = null;
+        if (d != null && btShown.remove(d.getAddress())) emit("lost", "addr", d.getAddress());
+        btNext(btGen);
+    };
+
+    @SuppressLint("MissingPermission")
+    private final Runnable btEndDiscovery = () -> {
+        BluetoothAdapter a = bt();
+        try { if (a != null) a.cancelDiscovery(); } catch (SecurityException ignored) { }   // sigue en ACTION_DISCOVERY_FINISHED
+    };
+
+    @SuppressLint("MissingPermission")
+    private void stopScanBt() {
+        btGen++;
+        ui.removeCallbacks(btAskTimeout);
+        ui.removeCallbacks(btEndDiscovery);
+        btQueue.clear(); btSeen.clear(); btShown.clear(); btAsking = null;
+        if (btReceiver != null) {
+            try { act.unregisterReceiver(btReceiver); } catch (Exception ignored) { }
+            btReceiver = null;
+            BluetoothAdapter a = bt();
+            if (a != null && hasBtPerms(false)) try { a.cancelDiscovery(); } catch (SecurityException ignored) { }
+        }
+    }
+
+    // solo celulares, tablets o dispositivos sin clase (nunca auriculares, parlantes, relojes, teclados…)
+    @SuppressLint("MissingPermission")
+    private static boolean mayHost(BluetoothDevice d) {
+        try {
+            if (d.getType() == BluetoothDevice.DEVICE_TYPE_LE) return false;   // solo Bluetooth de bajo consumo: no puede ser anfitrión
+        } catch (SecurityException ignored) { }
+        BluetoothClass c = null;
+        try { c = d.getBluetoothClass(); } catch (SecurityException ignored) { }
+        if (c == null) return true;
+        int m = c.getMajorDeviceClass();
+        return m == BluetoothClass.Device.Major.PHONE || m == BluetoothClass.Device.Major.COMPUTER
+                || m == BluetoothClass.Device.Major.UNCATEGORIZED || m == BluetoothClass.Device.Major.MISC;
+    }
+
+    // ¿tiene el servicio de la partida? (algunos Android devuelven los UUID con los bytes al revés)
+    private static final UUID BT_UUID_REV = reverse(BT_UUID);
+    private static boolean hasGame(Parcelable[] uuids) {
+        if (uuids == null) return false;
+        for (Parcelable p : uuids) {
+            if (!(p instanceof ParcelUuid)) continue;
+            UUID u = ((ParcelUuid) p).getUuid();
+            if (BT_UUID.equals(u) || BT_UUID_REV.equals(u)) return true;
+        }
+        return false;
+    }
+    private static UUID reverse(UUID u) {
+        long hi = u.getMostSignificantBits(), lo = u.getLeastSignificantBits();
+        return new UUID(Long.reverseBytes(lo), Long.reverseBytes(hi));
+    }
+
+    @SuppressLint("MissingPermission")
+    private void showBt(BluetoothDevice d) {
+        btShown.add(d.getAddress());
         String name = null;
         try { name = d.getName(); } catch (SecurityException ignored) { }
         emit("found", "kind", "bt", "addr", d.getAddress(), "name", name == null ? d.getAddress() : name);
