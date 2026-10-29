@@ -2083,6 +2083,8 @@ function dungIso(on){
   } else if(DB){ Object.assign(V, DB); DB = null; }
 }
 function start(md, lv, mp, sdd){
+  // jugando solo no queda nadie de la última partida online o contra bots (antes aparecían quietos y los enemigos los seguían)
+  if(!net.on){ net.rem = {}; if(BOT.list.length) botStop(); }
   dungIso(md === 'dung' || md === 'duel');
   mode = md; lvl = lv || 1; mapIdx = mp || 0;
   p = {
@@ -5669,7 +5671,7 @@ const A = {
   quit: () => {
     botStop();
     if(net.on){ net.on = false; raw({ t: 'leave' }); try{ net.ws.close(); }catch(e){} }
-    net.party = false; LOB = null;
+    net.party = false; LOB = null; net.rem = {};
     save(); main();
   },
   col: (v, k) => { V.av[k] = v; save(); avatar(); },
